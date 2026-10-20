@@ -1,0 +1,73 @@
+{
+  "pointBalance": {
+    "read": 2000,
+    "written": 2000,
+    "invalidDropped": 0,
+    "ok": true
+  },
+  "samples": {
+    "n": 2000,
+    "maxErrorM": 0.0008234328067505838,
+    "p99ErrorM": 0.0007700973218050898,
+    "ok": true
+  },
+  "scansRepresented": {
+    "expected": 2,
+    "found": 2,
+    "ok": true
+  },
+  "attributes": {
+    "rgbMin": 0,
+    "rgbMax": 65535,
+    "intensityMin": 0,
+    "intensityMax": 1,
+    "ok": true
+  },
+  "pointSource": {
+    "checked": true,
+    "zeroIds": 0,
+    "idsBeyondScanCount": 0,
+    "expectedPerScan": [
+      1000,
+      1000
+    ],
+    "foundPerScan": [
+      1000,
+      1000
+    ],
+    "countsOk": true,
+    "samplesOwnScanMaxErrorM": 0.0008234328067505838,
+    "ok": true
+  },
+  "conversion": {
+    "seconds": 0.6781841639894992,
+    "peakRssMb": 48.42578125,
+    "mode": "direct"
+  },
+  "copcSizeBytes": 16734,
+  "ok": true,
+  "host": {
+    "phases": {
+      "convert": {
+        "seconds": 0.6863928579259664
+      },
+      "panos": {
+        "seconds": 0.011660138028673828
+      },
+      "overview": {
+        "seconds": 0.01767712808214128
+      },
+      "verify": {
+        "seconds": 2.3629535550717264
+      }
+    },
+    "totalSeconds": 3.078683679108508,
+    "peakRssMb": {
+      "self": 99.25390625,
+      "children": 85.6015625,
+      "max": 99.25390625
+    },
+    "hostPeakRssMb": 99.25390625,
+    "note": "Wanduhr und ru_maxrss dieses scanview-import-Aufrufs; Container-RSS siehe conversion.peakRssMb. Phasen aus getrennten Aufrufen fehlen hier."
+  }
+}

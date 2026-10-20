@@ -1,0 +1,58 @@
+{
+  "name": "scanview-web",
+  "version": "0.10.3",
+  "private": true,
+  "type": "module",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=22.12.0",
+      "onFail": "error"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": ">=12.0.0",
+      "onFail": "error"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "e2e:plattform": "playwright test -c e2e/plattform/playwright.plattform.config.ts",
+    "a11y": "npm run build && playwright test -c e2e/a11y/playwright.a11y.config.ts --project=axe --project=abdeckung",
+    "a11y:firefox": "npm run build && SCANVIEW_A11Y_FIREFOX=1 SCANVIEW_A11Y_AUSGABE=e2e-results/a11y-firefox SCANVIEW_A11Y_BERICHT=../../e2e-results/a11y-bericht-firefox.json playwright test -c e2e/a11y/playwright.a11y.config.ts --project=axe-firefox --project=abdeckung-firefox"
+  },
+  "dependencies": {
+    "@giro3d/giro3d": "2.0.4",
+    "@mediapipe/tasks-vision": "1.0.1",
+    "@sparkjsdev/spark": "2.3.0",
+    "laz-perf": "0.0.7",
+    "lil-gui": "^0.17.0",
+    "ol": "^10.8.0",
+    "proj4": "^2.19.0",
+    "three": "~0.180.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^22.20.4",
+    "@types/proj4": "^2.5.0",
+    "@types/three": "~0.180.0",
+    "axe-core": "4.13.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-playwright": "2.12.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0",
+    "vite": "^6.0.0",
+    "vitest": "4.1.11"
+  },
+  "allowScripts": {
+    "esbuild": false,
+    "fsevents": false
+  }
+}

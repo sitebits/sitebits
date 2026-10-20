@@ -1,0 +1,241 @@
+{
+  "filename": "egress.e57",
+  "sizeBytes": 86016,
+  "crsWkt": null,
+  "scans": [
+    {
+      "index": 0,
+      "guid": "{6bd83f77-f405-4ac7-bc70-c6ace1322afd}",
+      "name": "Scan 0",
+      "pointCount": 1000,
+      "fields": [
+        "cartesianX",
+        "cartesianY",
+        "cartesianZ",
+        "intensity",
+        "colorRed",
+        "colorGreen",
+        "colorBlue",
+        "cartesianInvalidState"
+      ],
+      "pose": {
+        "translation": [
+          0.0,
+          0.0,
+          1.5
+        ],
+        "rotationWxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      }
+    },
+    {
+      "index": 1,
+      "guid": "{824905c2-197c-42f9-b13a-96bd0e174c11}",
+      "name": "Scan 1",
+      "pointCount": 1000,
+      "fields": [
+        "cartesianX",
+        "cartesianY",
+        "cartesianZ",
+        "intensity",
+        "colorRed",
+        "colorGreen",
+        "colorBlue",
+        "cartesianInvalidState"
+      ],
+      "pose": {
+        "translation": [
+          10.0,
+          0.0,
+          1.5
+        ],
+        "rotationWxyz": [
+          0.7071067811865476,
+          0.0,
+          0.0,
+          0.7071067811865475
+        ]
+      }
+    }
+  ],
+  "images": [
+    {
+      "index": 0,
+      "guid": "{0353ce52-c9a1-4880-89c8-a8afa122871d}",
+      "kind": "pinhole",
+      "width": 64,
+      "height": 64,
+      "scanGuid": "{6bd83f77-f405-4ac7-bc70-c6ace1322afd}",
+      "pose": {
+        "translation": [
+          0.0,
+          0.0,
+          1.5
+        ],
+        "rotationWxyz": [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "focalLength": 0.01,
+      "pixelWidth": 0.0003125,
+      "pixelHeight": 0.0003125,
+      "principalPoint": [
+        32.0,
+        32.0
+      ],
+      "blobNode": "pinholeRepresentation/jpegImage"
+    },
+    {
+      "index": 1,
+      "guid": "{0a8af461-b1ff-4503-81cd-b8c0e8f9d907}",
+      "kind": "pinhole",
+      "width": 64,
+      "height": 64,
+      "scanGuid": "{6bd83f77-f405-4ac7-bc70-c6ace1322afd}",
+      "pose": {
+        "translation": [
+          0.0,
+          0.0,
+          1.5
+        ],
+        "rotationWxyz": [
+          0.7071067811865476,
+          0.0,
+          -0.7071067811865476,
+          0.0
+        ]
+      },
+      "focalLength": 0.01,
+      "pixelWidth": 0.0003125,
+      "pixelHeight": 0.0003125,
+      "principalPoint": [
+        32.0,
+        32.0
+      ],
+      "blobNode": "pinholeRepresentation/jpegImage"
+    },
+    {
+      "index": 2,
+      "guid": "{ab658304-dc0a-41bd-bc3e-1f90d50a8757}",
+      "kind": "pinhole",
+      "width": 64,
+      "height": 64,
+      "scanGuid": "{6bd83f77-f405-4ac7-bc70-c6ace1322afd}",
+      "pose": {
+        "translation": [
+          0.0,
+          0.0,
+          1.5
+        ],
+        "rotationWxyz": [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ]
+      },
+      "focalLength": 0.01,
+      "pixelWidth": 0.0003125,
+      "pixelHeight": 0.0003125,
+      "principalPoint": [
+        32.0,
+        32.0
+      ],
+      "blobNode": "pinholeRepresentation/jpegImage"
+    },
+    {
+      "index": 3,
+      "guid": "{a0a59759-161f-4d6a-8fc3-96b8e22cbcbe}",
+      "kind": "pinhole",
+      "width": 64,
+      "height": 64,
+      "scanGuid": "{6bd83f77-f405-4ac7-bc70-c6ace1322afd}",
+      "pose": {
+        "translation": [
+          0.0,
+          0.0,
+          1.5
+        ],
+        "rotationWxyz": [
+          0.7071067811865476,
+          -0.7071067811865476,
+          0.0,
+          0.0
+        ]
+      },
+      "focalLength": 0.01,
+      "pixelWidth": 0.0003125,
+      "pixelHeight": 0.0003125,
+      "principalPoint": [
+        32.0,
+        32.0
+      ],
+      "blobNode": "pinholeRepresentation/jpegImage"
+    },
+    {
+      "index": 4,
+      "guid": "{52f87570-9af7-4016-a098-a7f2de32e355}",
+      "kind": "pinhole",
+      "width": 64,
+      "height": 64,
+      "scanGuid": "{6bd83f77-f405-4ac7-bc70-c6ace1322afd}",
+      "pose": {
+        "translation": [
+          0.0,
+          0.0,
+          1.5
+        ],
+        "rotationWxyz": [
+          0.7071067811865476,
+          0.0,
+          0.7071067811865476,
+          0.0
+        ]
+      },
+      "focalLength": 0.01,
+      "pixelWidth": 0.0003125,
+      "pixelHeight": 0.0003125,
+      "principalPoint": [
+        32.0,
+        32.0
+      ],
+      "blobNode": "pinholeRepresentation/jpegImage"
+    },
+    {
+      "index": 5,
+      "guid": "{ad9e890b-d649-46b4-9700-8e8651d509e5}",
+      "kind": "pinhole",
+      "width": 64,
+      "height": 64,
+      "scanGuid": "{6bd83f77-f405-4ac7-bc70-c6ace1322afd}",
+      "pose": {
+        "translation": [
+          0.0,
+          0.0,
+          1.5
+        ],
+        "rotationWxyz": [
+          0.7071067811865476,
+          0.7071067811865476,
+          0.0,
+          0.0
+        ]
+      },
+      "focalLength": 0.01,
+      "pixelWidth": 0.0003125,
+      "pixelHeight": 0.0003125,
+      "principalPoint": [
+        32.0,
+        32.0
+      ],
+      "blobNode": "pinholeRepresentation/jpegImage"
+    }
+  ]
+}

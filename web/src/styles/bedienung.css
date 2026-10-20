@@ -1,0 +1,45 @@
+/* Bedienung: versteckter Text für Screenreader, Fokusrahmen der 3D-Ansicht, Dialoge (Tastenhilfe, Einstellungen).
+   Nur Variablen aus tokens.css. */
+.sv-nur-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; padding: 0; }
+
+/* Innen, weil die Leinwand vollflächig ist. */
+#view canvas:focus-visible { outline: 3px solid var(--sv-accent); outline-offset: -3px; }
+
+dialog.sv-dialog { box-sizing: border-box; width: min(44rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); padding: 1rem 1.25rem;
+  background: #1b1d21; color: var(--sv-fg); border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius);
+  font: 0.9375rem/1.4 system-ui, sans-serif; overflow: auto; }
+dialog.sv-dialog::backdrop { background: #000a; }
+dialog.sv-dialog h2 { margin: 0 0 0.75em; font-size: 1.25em; }
+dialog.sv-dialog h3 { margin: 1.25em 0 0.5em; font-size: 1.05em; }
+dialog.sv-dialog table { width: 100%; border-collapse: collapse; }
+dialog.sv-dialog th, dialog.sv-dialog td { padding: 0.25em 0.5em; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--sv-border); }
+dialog.sv-dialog thead th { color: var(--sv-fg-muted); font-weight: 600; }
+dialog.sv-dialog tbody th { font-weight: 400; }
+/* Dialog „Bedienung“: je Ansicht eine Tabelle Geste → Wirkung, die aktive Ansicht zuerst und hervorgehoben. */
+dialog.sv-dialog caption { padding: 0.5em 0 0.25em; text-align: left; font-weight: 600; }
+dialog.sv-dialog table.sv-aktiv caption { color: var(--sv-accent); }
+dialog.sv-dialog .sv-gesten table + table { margin-top: 0.5em; }
+dialog.sv-dialog button, dialog.sv-dialog select, dialog.sv-dialog input:not([type='checkbox']) { min-height: 1.75rem; min-width: 1.75rem;
+  background: var(--sv-surface-hover); color: var(--sv-fg); border: 1px solid var(--sv-border-strong); border-radius: calc(var(--sv-radius) - 2px);
+  padding: 0.15em 0.6em; font: inherit; }
+dialog.sv-dialog button { cursor: pointer; }
+dialog.sv-dialog button:hover { background: #343841; }
+dialog.sv-dialog input[type='checkbox'] { width: 1.1rem; height: 1.1rem; margin: 0 0.4em 0 0; vertical-align: middle; accent-color: var(--sv-accent); }
+dialog.sv-dialog button:focus-visible, dialog.sv-dialog select:focus-visible, dialog.sv-dialog input:focus-visible { outline: none; box-shadow: var(--sv-focus); }
+dialog.sv-dialog .sv-felder { display: grid; grid-template-columns: minmax(0, 1fr) minmax(7rem, 12rem); gap: 0.4em 1em; align-items: center; }
+dialog.sv-dialog .sv-felder .sv-ganz { grid-column: 1 / -1; }
+dialog.sv-dialog .sv-hinweis { color: var(--sv-warn); margin-left: 0.5em; }
+dialog.sv-dialog .sv-aktionen { display: flex; gap: 0.5em; flex-wrap: wrap; margin-top: 1em; align-items: center; }
+dialog.sv-dialog .sv-status { color: var(--sv-fg-muted); min-height: 1.4em; }
+
+/* Tastenhinweise (hinweisAnzeige.ts): Platte wie der Live-Wert, unten rechts über der 3D-Ansicht; rückt nach links,
+   wenn sie das fokussierte Element verdeckt. Klicks gehen hindurch (darunter kann die Minikarte liegen). */
+.sv-hinweise { position: absolute; right: 8px; bottom: 8px; z-index: 5; display: flex; flex-direction: column; gap: 2px;
+  padding: 6px 10px; background: rgba(0, 0, 0, 0.75); color: #fff; border-radius: var(--sv-radius);
+  font: 0.875rem/1.35 system-ui, sans-serif; pointer-events: none; transition: opacity 0.2s, visibility 0.2s; }
+.sv-hinweise.sv-links { right: auto; left: 8px; }
+.sv-hinweise.sv-leer { opacity: 0; visibility: hidden; }
+.sv-hinweise.sv-ruhig { transition: none; }
+@media (prefers-reduced-motion: reduce) { .sv-hinweise { transition: none; } }
+/* Nur Touch (kein Mauszeiger): Tastenhinweise erst, wenn eine Taste benutzt wurde — das entscheidet hinweisAnzeige.ts
+   je Zeile (die Zeile zu den Fingern steht auch ohne Tastatur). */

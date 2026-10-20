@@ -1,0 +1,44 @@
+# Erklärung zur Barrierefreiheit — Vorlage für Betreiber einer scanview-Instanz.
+# Grundlage: Mustererklärung nach Durchführungsbeschluss (EU) 2018/1523. Verantwortlich für die
+# veröffentlichte Erklärung ist die öffentliche Stelle, die scanview betreibt, nicht der Hersteller.
+#
+# So wird sie aktiv (Betriebsdoku: docs/public/barrierefreiheit.md):
+#   1. Diese Datei nach /etc/scanview/barrierefreiheit.toml kopieren (root:root 0644; nicht unter
+#      /home — der Dienst läuft mit ProtectHome=yes).
+#   2. Jeden @…@-Platzhalter ersetzen und alle Angaben selbst prüfen, besonders die Einträge unter
+#      [[nicht_barrierefrei]] und die Begründung der unverhältnismäßigen Belastung.
+#   3. SCANVIEW_BARRIEREFREIHEIT_ERKLAERUNG=/etc/scanview/barrierefreiheit.toml setzen und den Dienst
+#      neu starten. Solange ein Platzhalter übrig ist, startet der Dienst nicht.
+# Erlaubte Werte: stand = vollstaendig | teilweise | nicht; methode = Selbstbewertung |
+# Prüfung durch Dritte; erstellt = JJJJ-MM-TT; Adressen nur https://. Jeder Text höchstens 2000
+# Zeichen, höchstens 50 Einträge unter [[nicht_barrierefrei]].
+# Die Schlüsselmenge ist geschlossen: unbekannte Schlüssel verhindern den Start. Antwortfristen der
+# Stelle gehören in [durchsetzung] text, der Aktualisierungsrhythmus in methode_text.
+
+schema = 1
+stelle = "@STELLE@"
+geltungsbereich = "@ADRESSE@"
+stand = "teilweise"
+erstellt = "@DATUM@"
+methode = "Selbstbewertung"
+methode_text = "Selbstbewertung des Herstellers nach den Prüfschritten des BIK BITV-Tests (interne Nutzung) und automatische Prüfung mit axe-core; die Prüfnachweise stellt der Hersteller bereit. Eine automatische Prüfung findet nur einen Teil der Barrieren und ist kein Konformitätsnachweis. Prüfprotokoll vom 2026-09-29 (Portal, erster Lauf): 10 Prüfpunkte der manuellen Prüfliste, 8 davon ganz oder stichprobenhaft automatisch bzw. per Quelltext geprüft (Punkte 1, 5, 6 und 8 nur für Teilmengen der Ansichten), 2 ohne abschließendes Ergebnis dieses Laufs (Sprache/Verständlichkeit der Fehlermeldungen: erfordert ein Nutzerurteil, nicht automatisierbar; Screenreader-Prüfung: noch offen, in dieser Umgebung stand kein NVDA/VoiceOver/TalkBack zur Verfügung). Die automatische axe-Prüfung fand 0 Verstöße in allen geprüften Portal-Ansichten und Zuständen; die Panels und Listen der 3D-Ansicht gehören nicht dazu. Aktualisierungsrhythmus der Erklärung und eigene Prüfungen der Stelle hier ergänzen."
+
+[[nicht_barrierefrei]]
+inhalt = "Freie räumliche Erkundung der 3D-Ansicht (Punktwolke, Panorama) für Menschen, die nicht sehen."
+grund = "Räumliche Anordnung, Oberflächen und Farben einer Punktwolke lassen sich nicht vollständig in Text übertragen. Die WCAG-Ausnahme „sensorische Erfahrung“ greift nicht, weil die Ansicht Informationen vermittelt und eine Funktion erfüllt. Für die Ergebnisse der Ansicht gibt es eine gleichwertige Textalternative (siehe Alternative). Für die verbleibende freie nichtvisuelle Erkundung beruft sich die Stelle auf eine unverhältnismäßige Belastung (Art. 5 der Richtlinie (EU) 2016/2102); diese Abwägung trifft und begründet die Stelle selbst."
+alternative = "Befunde, Messwerte, Notizen, Koordinaten und Standpunkte stehen als Text in Befundliste, Messliste und Inspektor sowie in den Exporten (CSV, JSON) und über die API. Wo die Stelle es freigibt, ist ein KI-Assistent über den MCP-Zugang ein zusätzlicher Weg, aber kein Ersatz. Die Fachperson, die einen Befund gesetzt hat, ist ansprechbar."
+
+[[nicht_barrierefrei]]
+inhalt = "3D-Ansicht, Version 0.1.x: Einzeltasten-Kürzel wirken auf der ganzen Seite und lassen sich weder abschalten noch umbelegen (WCAG 2.1.4)."
+grund = "Bekannter Mangel des Produkts; die Behebung (umbelegbare und abschaltbare Kürzel, Wirkung nur bei Fokus auf der 3D-Ansicht) ist mit der zugänglichen Bedienung geplant."
+alternative = "In Textfeldern lösen die Kürzel nichts aus. Wer Sprachsteuerung nutzt und Fehlauslösungen bemerkt, meldet sie bitte über den Feedback-Weg."
+
+[[nicht_barrierefrei]]
+inhalt = "3D-Ansicht, Version 0.1.x: Die Zeichenfläche hat keinen zugänglichen Namen und ist per Tastatur nicht fokussierbar."
+grund = "Bekannter Mangel des Produkts; die Behebung (fokussierbare, benannte Zeichenfläche mit Verweis auf die Befundliste) ist mit der zugänglichen Bedienung geplant."
+alternative = "Die Werkzeugleiste und die Panels der 3D-Ansicht sind per Tastatur erreichbar; Ergebnisse stehen als Text bereit (siehe oben)."
+
+[durchsetzung]
+text = "@DURCHSETZUNG_TEXT@"
+stelle = "@SCHLICHTUNGSSTELLE@"
+url = "@SCHLICHTUNGSSTELLE_URL@"

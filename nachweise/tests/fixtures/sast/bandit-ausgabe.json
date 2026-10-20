@@ -1,0 +1,30 @@
+{
+  "errors": [],
+  "generated_at": "2026-09-29T08:00:00Z",
+  "metrics": {
+    "_totals": {"loc": 5, "nosec": 0, "skipped_tests": 0},
+    "/quelle/server/src/paket/modul.py": {"loc": 5, "nosec": 0, "skipped_tests": 0}
+  },
+  "results": [
+    {
+      "filename": "/quelle/server/src/paket/modul.py",
+      "line_number": 1,
+      "line_range": [1],
+      "issue_severity": "LOW",
+      "issue_confidence": "HIGH",
+      "issue_text": "Consider possible security implications associated with the subprocess module.",
+      "test_id": "B404",
+      "test_name": "blacklist"
+    },
+    {
+      "filename": "/quelle/server/src/paket/modul.py",
+      "line_number": 3,
+      "line_range": [3],
+      "issue_severity": "MEDIUM",
+      "issue_confidence": "HIGH",
+      "issue_text": "Audit url open for permitted schemes.",
+      "test_id": "B310",
+      "test_name": "blacklist"
+    }
+  ]
+}

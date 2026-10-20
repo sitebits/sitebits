@@ -1,0 +1,9 @@
+{
+  "name": "scanview-sbom-cyclonedx-npm",
+  "private": true,
+  "description": "Gepinnter SBOM-Generator für den Web-Produktionsbaum (siehe docs/compliance/werkzeuge.md)",
+  "dependencies": {
+    "@cyclonedx/cyclonedx-npm": "6.0.1",
+    "npm": "12.0.2"
+  }
+}

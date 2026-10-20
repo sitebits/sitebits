@@ -1,0 +1,78 @@
+# Orientierte Fotos
+
+Pakete können die Fotos einer Metashape-Ausrichtung als eigene Ebene „Fotos“ enthalten,
+zum Beispiel Drohnenbilder. Jedes Foto steht an seiner ausgerichteten Kameraposition, als
+Blickpyramide in der 3D-Ansicht. Ein Klick auf die Spitze einer Pyramide öffnet das Foto im
+Fenster „Foto“.
+
+## Bedienung
+
+- **Ebenen:** Die Ebene „Fotos“ listet ihre Gruppen (zum Beispiel Nadir, Fassade) mit der
+  Anzahl der Fotos. Jede Gruppe lässt sich einzeln ein- und ausblenden. Ab 500 Fotos ist die
+  Ebene zunächst ausgeblendet. „Einrahmen“ zeigt alle Kamerapositionen.
+- **Foto-Fenster:** Mausrad oder `+`/`−` zoomen um den Mauszeiger, Ziehen verschiebt, `0` passt
+  das Foto wieder ein. `←`/`→` blättern zur vorigen oder nächsten Kamera derselben Gruppe. Das
+  Fenster lädt die passende Auflösungsstufe, bei Paketen mit voller Auflösung beim Hineinzoomen
+  auch Kacheln.
+- **Durch die Kamera:** Die 3D-Ansicht springt exakt in die Position und Blickrichtung des Fotos,
+  das Foto liegt deckungsgleich über der Szene. Der Regler im Foto-Fenster blendet zwischen Foto
+  und 3D über. `Esc` kehrt zur vorigen Ansicht zurück.
+
+## Datenschutz
+
+Baustellen- und Außenfotos zeigen oft Personen und Fahrzeuge. Solange die Fotos eines Pakets
+nicht anonymisiert und freigegeben sind (`images.json`: `anonymization.status` ungleich
+`released`), liefert die Plattform sie nur an Bearbeiter, Projektleitung und Admin aus.
+Betrachter und Rückmelder sehen die Ebene nicht. Die Sperre wirkt auf dem Server, nicht nur
+im Viewer. Der statische Betrieb ohne Anmeldung (nginx) liefert Fotos grundsätzlich nicht aus.
+Die Anonymisierung (Gesichter, Kennzeichen) folgt in einer späteren Version.
+
+## Import
+
+1. In Metashape Pro 2.x `scripts/metashape/kameras_exportieren.py` ausführen (siehe
+   `import/README.md`). Der Export enthält ab dieser Version auch Rahmenkameras mit der
+   **angepassten** Kalibrierung, je Sensor Referenzpunkte aus Metashapes eigener Projektion,
+   Tie Points und Tie-Point-Projektionen.
+2. `scanview-import fotos-metashape --kameras kameras.json <paket>` schreibt die Ebene in ein
+   vorhandenes Paket. `--max-kante 4096` (Standard) begrenzt die lange Kante,
+   `--max-kante voll` schreibt zusätzlich Kacheln in voller Auflösung. `--gruppe` wählt Gruppen,
+   `--prozesse` entzerrt parallel. Jeder Prozess braucht in der Spitze rund 55 MB je Megapixel
+   des größten Fotos (gemessen: 24 MP ≈ 1,3 GB, 45 MP ≈ 2,4 GB); `--prozesse 4` mit 45-MP-Fotos
+   also knapp 10 GB Arbeitsspeicher.
+3. `scanview-import fotos-pruefen <paket>` prüft Dateien, Größen, Metadatenfreiheit und ob die
+   Inhalts-Revision jedes Fotos zu seinen Dateien passt.
+
+Jedes Foto liegt unter einer Adresse, die seinen Inhalt kennzeichnet (`fotos/<ID>/<Revision>/`).
+Ein erneuter Import, etwa nach der Anonymisierung, legt geänderte Fotos unter neuer Adresse ab:
+Browser zeigen danach nie das alte Bild aus ihrem Zwischenspeicher. Pakete älterer Versionen
+(ohne Revision) bleiben lesbar.
+
+Der Import bricht ab, ohne das Paket zu verändern, wenn
+
+- das Verzeichnungsmodell Metashapes Referenzpunkte nicht auf 0,1 px trifft,
+- ein Sensor Rolling-Shutter-Kompensation nutzt oder keine angepasste Kalibrierung hat,
+- die Tie Points nicht zur Punktwolke des Pakets passen (anderer Ausrichtungsstand; Grenze
+  0,05 m, ab 0,20 m sicher abgewiesen, dazwischen nur mit `--rahmen-toleranz`),
+- die Rückprojektion der Tie Points im Median mehr als 2 px abweicht — geprüft je Foto einer
+  Stichprobe (je Gruppe höchstens 50 Kameras mit bis zu 200 Tie Points); sie prüft Pose,
+  Koordinatensystem und Verzeichnungsmodell, nicht jedes einzelne Foto. Mit
+  `--rueckprojektion-grenze PX` (höchstens 10) lässt sich die Grenze anheben, wenn Metashapes eigener
+  Ausgleichsrest einzelner Fotos knapp darüber liegt; Fehler der Kette zeigen sich mit vielen Pixeln.
+  `images.json` vermerkt Grenze, Standardgrenze und die Fotos über 2 px (`aboveDefault`),
+- ein Foto eine EXIF-Drehung trägt. Ausnahme `--exif-drehung-ignorieren`: Drehungen um 90°
+  (Orientation 5 bis 8) werden übergangen, wenn die Rohpixelmaße eines nicht quadratischen Fotos
+  Metashapes Kamera entsprechen — dann hat Metashape ungedreht in Sensorpixeln gerechnet (so bei
+  Drohnen, die hochkant aufnehmen und das nur im EXIF vermerken). Spiegeln und 180° (2 bis 4)
+  bleiben gesperrt, weil die Maße dort nichts belegen. Die Anzahl steht in `images.json` unter
+  `provenance.exifOrientationIgnored`.
+
+Die Fotos werden einmal auf eine Lochkamera entzerrt (Hauptpunkt in der Bildmitte, Rand ohne
+leere Pixel beschnitten). Jede Stufe wird aus den Pixeln neu kodiert. EXIF, GPS, XMP und
+Farbprofile der Originale gelangen nicht ins Paket.
+
+## Grenzen
+
+- Eine Szene ohne Flächen in allen drei Richtungen (nur flacher Boden) lässt sich nicht auf den
+  Ausrichtungsstand prüfen und wird abgewiesen.
+- „Fotos zu diesem Punkt“, Messen im Foto und der Synchron-Strahl zwischen Foto und 3D folgen in
+  einer späteren Version.

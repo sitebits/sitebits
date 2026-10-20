@@ -1,0 +1,9 @@
+[Unit]
+Description=scanview Zweitablage des Nachweis-Archivs, jährlich am 15. Januar
+
+[Timer]
+OnCalendar=*-01-15 04:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

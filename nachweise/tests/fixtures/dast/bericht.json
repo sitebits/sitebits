@@ -1,0 +1,118 @@
+{
+  "@programName": "ZAP",
+  "@version": "2.17.0",
+  "@generated": "Thu, 1 Oct 2026 00:17:44",
+  "created": "2026-10-01T00:17:44Z",
+  "insights": [],
+  "site": [
+    {
+      "@name": "https://l.example.invalid",
+      "@host": "l.example.invalid",
+      "@port": "443",
+      "@ssl": "true",
+      "alerts": [
+        {
+          "pluginid": "10038",
+          "alertRef": "10038-1",
+          "alert": "Content Security Policy (CSP) Header Not Set",
+          "name": "Content Security Policy (CSP) Header Not Set",
+          "riskcode": "2",
+          "confidence": "3",
+          "riskdesc": "x",
+          "desc": "<p>x</p>",
+          "instances": [
+            {
+              "id": "0",
+              "uri": "https://l.example.invalid/",
+              "nodeName": "https://l.example.invalid/",
+              "method": "GET",
+              "param": "",
+              "attack": "",
+              "evidence": "",
+              "otherinfo": ""
+            }
+          ],
+          "count": "1",
+          "systemic": false,
+          "solution": "<p>x</p>",
+          "otherinfo": "",
+          "reference": "<p>x</p>",
+          "cweid": "693",
+          "wascid": "15",
+          "sourceid": "7"
+        },
+        {
+          "pluginid": "10021",
+          "alertRef": "10021-1",
+          "alert": "X-Content-Type-Options Header Missing",
+          "name": "X-Content-Type-Options Header Missing",
+          "riskcode": "1",
+          "confidence": "3",
+          "riskdesc": "x",
+          "desc": "<p>x</p>",
+          "instances": [
+            {
+              "id": "0",
+              "uri": "https://l.example.invalid/api/v1/projekte?x=1",
+              "nodeName": "https://l.example.invalid/api/v1/projekte?x=1",
+              "method": "GET",
+              "param": "",
+              "attack": "",
+              "evidence": "",
+              "otherinfo": ""
+            },
+            {
+              "id": "1",
+              "uri": "https://l.example.invalid/assets/app.js",
+              "nodeName": "https://l.example.invalid/assets/app.js",
+              "method": "GET",
+              "param": "",
+              "attack": "",
+              "evidence": "",
+              "otherinfo": ""
+            }
+          ],
+          "count": "2",
+          "systemic": false,
+          "solution": "<p>x</p>",
+          "otherinfo": "",
+          "reference": "<p>x</p>",
+          "cweid": "693",
+          "wascid": "15",
+          "sourceid": "7"
+        },
+        {
+          "pluginid": "10049",
+          "alertRef": "10049-1",
+          "alert": "Non-Storable Content",
+          "name": "Non-Storable Content",
+          "riskcode": "0",
+          "confidence": "3",
+          "riskdesc": "x",
+          "desc": "<p>x</p>",
+          "instances": [
+            {
+              "id": "0",
+              "uri": "https://l.example.invalid/api/v1/version",
+              "nodeName": "https://l.example.invalid/api/v1/version",
+              "method": "GET",
+              "param": "",
+              "attack": "",
+              "evidence": "",
+              "otherinfo": ""
+            }
+          ],
+          "count": "1",
+          "systemic": false,
+          "solution": "<p>x</p>",
+          "otherinfo": "",
+          "reference": "<p>x</p>",
+          "cweid": "693",
+          "wascid": "15",
+          "sourceid": "7"
+        }
+      ]
+    }
+  ],
+  "sequences": []
+}

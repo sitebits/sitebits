@@ -1,0 +1,39 @@
+# Fremdkomponenten, die scanview aus gepinnter Quelle selbst baut und im Repo mitliefert.
+# Kein Paketmanager belegt sie; die Kette prüft die SHA-256 jeder Datei gegen den Worktree und trägt
+# die Komponente mit Quelle/Commit, Toolchain-Digest und Bau-Skript in die SBOM ein (fail-closed).
+# Neu bauen: Bau-Skript (`bau`) ausführen; ändern sich Dateien, hier die SHA-256 nachziehen.
+# Entscheidung: ADR 2026-10-07-scanview-basis-transcoder-eigenbau (Vault Ops/security/decisions/).
+
+[[komponente]]
+artefakt = "web"
+name = "basis-universal-transcoder"
+version = "1.50.0"
+quelle = "https://github.com/BinomialLLC/basis_universal"
+commit = "051ad6d8a64bb95a79e8601c317055fd1782ad3e"
+tag = "v1_50_0"
+werkzeug = "emscripten/emsdk@sha256:2e5a1ae55cc0ef2d0c5d5c87deb4a74bea15c6ae03b2333d8aca02516671345b"
+bau = "web/vendor/basis/bauen.sh"
+lizenz = "Apache-2.0 AND BSD-3-Clause"
+lizenzbeleg = "web/licenses/zstd-BSD-3-Clause.txt"
+grund = "Upstream-Build erzeugt embind-Aufrufer per Function(); unter der CSP ohne 'unsafe-eval' fehlten Mesh-Texturen still. Eigenbau mit -sDYNAMIC_EXECUTION=0, bitgleich reproduzierbar"
+adr = "2026-10-07-scanview-basis-transcoder-eigenbau"
+
+# Im Quellbaum mitgelieferte Bibliothek; eigene Quelle + Commit, damit die OSV-Ersatzprüfung sie
+# abfragen kann (trivy kennt keinen selbst gebauten C-Code). Version aus zstd/zstd.h (1.4.9),
+# Commit = Tag v1.4.9 (Tag-Objekt 954413f8…, Ziel e4558ffd…).
+[[komponente.enthalten]]
+name = "zstd"
+version = "1.4.9"
+quelle = "https://github.com/facebook/zstd"
+commit = "e4558ffd1dc49399faf4ee5d85abed4386b4dcf5"
+tag = "v1.4.9"
+lizenz = "BSD-3-Clause"
+teil = "nur der Decoder (zstd/zstddeclib.c laut webgl/transcoder/CMakeLists.txt), keine Kompression"
+
+[[komponente.datei]]
+pfad = "web/vendor/basis/basis_transcoder.js"
+sha256 = "6f2a04342d3c17c740859938ea678ece979b30ccc2ef89e9879b6af0619b25c1"
+
+[[komponente.datei]]
+pfad = "web/vendor/basis/basis_transcoder.wasm"
+sha256 = "68b26a493951b7840d873637f790d56072ae3a6b8a4e5e9349cae286291092e3"

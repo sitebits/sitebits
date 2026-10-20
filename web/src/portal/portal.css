@@ -1,0 +1,248 @@
+/* Portal: strenge CSP (style-src 'self', kein Inline-Style) — deshalb hier als Datei statt
+   im <head>. Nutzt nur Variablen aus tokens.css (Designsystem-Baustein, gemeinsam mit dem Viewer). */
+@import '../styles/tokens.css';
+@import '../styles/faden.css';
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--sv-bg);
+  color: var(--sv-fg);
+  font: var(--sv-font);
+}
+body { font-size: 15px; display: flex; flex-direction: column; min-height: 100vh; }
+a { color: var(--sv-accent); }
+button { font: inherit; }
+h1, h2 { font-weight: 600; }
+/* Fokus: transparente Kontur bleibt im Kontrastmodus (forced-colors) als Systemfarbe sichtbar,
+   box-shadow nicht — beides zusammen (WCAG 2.4.7, 1.4.11). */
+*:focus-visible { outline: 2px solid transparent; outline-offset: 2px; box-shadow: var(--sv-focus); }
+
+/* Fußzeile sitzt am Body (portal.html), nicht mehr in jeder Seite einzeln (rahmen.ts) —
+   #portal wächst nur noch innerhalb des flex-Body, die Fußzeile bleibt darunter sichtbar. */
+#portal { display: flex; flex-direction: column; flex: 1; }
+
+/* Kopfzeile (Start) */
+.sv-kopf {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sv-gap);
+  padding: var(--sv-pad) 16px; border-bottom: 1px solid var(--sv-border);
+  flex-wrap: wrap;
+}
+.sv-kopf-titel { font-size: 18px; }
+/* Aktionsleiste rechts in der Kopfzeile — Zahnrad „Einstellungen → Erweitert" neben
+   der Hilfe, ohne dass dieser Bereich umgebaut werden musste. */
+.sv-kopf-aktionen { display: flex; gap: var(--sv-gap); flex-wrap: wrap; }
+.sv-kopf-aktionen button {
+  min-width: 32px; height: 32px; background: var(--sv-surface); color: var(--sv-fg);
+  border: 1px solid var(--sv-border); border-radius: var(--sv-radius); cursor: pointer;
+}
+.sv-kopf-aktionen button:hover { background: var(--sv-surface-hover); }
+.sv-kopf-nutzer { align-self: center; color: var(--sv-fg-muted); font-size: 13px; }
+
+/* Willkommen-Box: schließbar, kein Modal, liegt über den Karten. */
+.sv-willkommen { margin: 16px; padding: 16px; background: var(--sv-surface); border: 1px solid var(--sv-border); border-radius: var(--sv-radius); }
+.sv-willkommen-kopf { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+.sv-willkommen p { margin: 0 0 8px; max-width: 60em; }
+.sv-willkommen-schliessen {
+  background: none; border: 0; color: var(--sv-fg-muted); cursor: pointer; font-size: 18px;
+  line-height: 1; padding: 4px;
+}
+.sv-willkommen-schliessen:hover { color: var(--sv-fg); }
+.sv-willkommen details { margin-top: 8px; color: var(--sv-fg-muted); }
+.sv-willkommen summary { cursor: pointer; color: var(--sv-fg); }
+.sv-willkommen ul { margin: 8px 0 0; padding-left: 1.2em; }
+
+/* Einstellungen-Box („Erweitert" → Debug-Modus/Diagnose): gleiches Muster wie die
+   Willkommen-Box (schließbar, kein Modal). */
+.sv-einstellungen { margin: 16px; padding: 16px; background: var(--sv-surface); border: 1px solid var(--sv-border); border-radius: var(--sv-radius); }
+.sv-einstellungen-kopf { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+.sv-einstellungen-schliessen {
+  background: none; border: 0; color: var(--sv-fg-muted); cursor: pointer; font-size: 18px;
+  line-height: 1; padding: 4px;
+}
+.sv-einstellungen-schliessen:hover { color: var(--sv-fg); }
+.sv-erweitert { margin-top: 8px; color: var(--sv-fg-muted); }
+.sv-erweitert summary { cursor: pointer; color: var(--sv-fg); }
+.sv-schalter { display: flex; align-items: start; gap: 8px; margin: 12px 0; cursor: pointer; }
+.sv-schalter input { margin-top: 3px; }
+.sv-diagnose-zeile { display: flex; align-items: center; gap: var(--sv-gap); }
+.sv-diagnose-zeile button {
+  padding: 6px 10px; background: var(--sv-surface-hover); color: var(--sv-fg); border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius); cursor: pointer; font-size: 13px;
+}
+.sv-diagnose-zeile button:hover { background: var(--sv-border); }
+
+/* Suche + Karten-Raster */
+.sv-suche-zeile { margin: 0 16px 16px; }
+.sv-suche {
+  width: 100%; box-sizing: border-box; padding: 8px; background: var(--sv-surface); color: var(--sv-fg);
+  border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius);
+}
+.sv-suche-status { margin: 4px 0 0; color: var(--sv-fg-muted); font-size: 13px; }
+
+.sv-karten-raster {
+  flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px; margin: 0 16px 16px; align-content: start;
+}
+@media (max-width: 520px) {
+  .sv-karten-raster { grid-template-columns: 1fr; }
+}
+.sv-karten-leer { color: var(--sv-fg-muted); margin: 0 16px; }
+
+.sv-karte {
+  display: flex; flex-direction: column; background: var(--sv-surface); border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius); overflow: hidden;
+}
+.sv-karte-bild {
+  aspect-ratio: 4 / 3; background: var(--sv-bg); display: flex; align-items: center; justify-content: center;
+  color: var(--sv-fg-muted); overflow: hidden;
+}
+.sv-karte-bild img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sv-karte-titel { margin: 10px 12px 0; font-size: 16px; }
+.sv-karte-beschreibung, .sv-karte-zeile, .sv-karte-datum { margin: 4px 12px 0; color: var(--sv-fg-muted); font-size: 13px; }
+.sv-karte-aktionen { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sv-gap); margin: 12px; margin-top: auto; padding-top: 12px; }
+.sv-karte-aktionen a, .sv-karte-aktionen button {
+  padding: 6px 10px; background: var(--sv-surface-hover); color: var(--sv-fg); border: 1px solid var(--sv-border);
+  border-radius: var(--sv-radius); text-decoration: none; cursor: pointer; font-size: 13px;
+}
+.sv-karte-aktionen a:hover, .sv-karte-aktionen button:hover { background: var(--sv-border); }
+.sv-kopier-status { font-size: 12px; color: var(--sv-accent); }
+
+/* Fußzeile */
+.sv-fuss { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--sv-border); color: var(--sv-fg-muted); }
+.sv-fuss button { margin-left: auto; background: none; border: 1px solid var(--sv-border); border-radius: var(--sv-radius); color: var(--sv-fg); padding: 6px 10px; cursor: pointer; }
+.sv-fuss button:hover { background: var(--sv-surface-hover); }
+
+/* Anmelden / Einladung */
+.sv-anmelden, .sv-einladung { max-width: 420px; margin: 48px auto; padding: 24px; background: var(--sv-surface); border: 1px solid var(--sv-border); border-radius: var(--sv-radius); }
+.sv-anmelden h1, .sv-einladung h1 { margin-top: 0; font-size: 18px; }
+.sv-primaer, .sv-anmelden form button[type='submit'], .sv-einladung form button[type='submit'] {
+  display: block; width: 100%; box-sizing: border-box; padding: 10px; margin-top: 12px;
+  background: var(--sv-accent); color: var(--sv-accent-fg); border: 0; border-radius: var(--sv-radius);
+  cursor: pointer; font-weight: 600;
+}
+.sv-primaer:disabled { opacity: 0.6; cursor: default; }
+.sv-nebenweg {
+  display: block; width: 100%; box-sizing: border-box; background: none; border: 0; color: var(--sv-accent);
+  padding: 10px 0; cursor: pointer; text-align: left; text-decoration: underline;
+}
+.sv-trenner { display: flex; align-items: center; gap: 8px; margin: 16px 0; color: var(--sv-fg-muted); font-size: 12px; }
+.sv-trenner::before, .sv-trenner::after { content: ''; flex: 1; height: 1px; background: var(--sv-border); }
+.sv-erklaerung { color: var(--sv-fg-muted); font-size: 13px; margin: 6px 0 0; }
+.sv-feld { display: block; margin-top: 12px; }
+.sv-feld span { display: block; margin-bottom: 4px; }
+.sv-feld input {
+  width: 100%; box-sizing: border-box; padding: 8px; background: var(--sv-bg); color: var(--sv-fg);
+  border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius);
+}
+.sv-fehler { color: var(--sv-error); margin-top: 12px; }
+.sv-hinweis { color: var(--sv-fg-muted); font-size: 13px; margin-top: 4px; }
+
+/* Bearbeiten auf der Karte, Verlaufsseite (nur Tokens aus tokens.css, strenge CSP). */
+.sv-bearbeiten { display: flex; flex-direction: column; gap: 8px; margin-top: var(--sv-gap); }
+.sv-bearbeiten input, .sv-bearbeiten textarea {
+  font: inherit; background: var(--sv-surface); color: var(--sv-fg);
+  border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius); padding: 6px;
+}
+.sv-bearbeiten-knoepfe { display: flex; gap: var(--sv-gap); }
+/* Datentabellen dürfen laut WCAG 1.4.10 zweidimensional bleiben (Ausnahme von „keine zwei
+   Scrollrichtungen“); die Seite selbst darf trotzdem nicht waagerecht scrollen — eigener
+   Scroll-Container statt dessen (verlauf.ts, verwaltung.ts). Rand auf dem Container, nicht auf der
+   Tabelle: sonst müsste man erst hinscrollen, um den Rand überhaupt zu sehen. */
+.sv-tabelle-region { margin: 16px; overflow-x: auto; }
+.sv-verlauf-tabelle { border-collapse: collapse; width: 100%; }
+.sv-verlauf-tabelle th, .sv-verlauf-tabelle td {
+  text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--sv-border);
+}
+.sv-verlauf-tabelle ul { margin: 0; padding-left: 1.2em; }
+.sv-verlauf > button, .sv-verlauf > a { margin: 0 16px 16px; }
+
+/* Verwaltung (nur Tokens aus tokens.css). */
+.sv-kopf-link { align-self: center; }
+.sv-abschnitt { margin: 16px; }
+/* .sv-abschnitt trägt hier schon den Rand — ohne diese Zeile käme der Rand von .sv-tabelle-region
+   oben noch einmal obendrauf (4× 16 px bei 320 CSS-px, mehr als ein Viertel der Breite für reinen
+   Rand statt Tabelleninhalt). */
+.sv-abschnitt .sv-tabelle-region { margin: 0; }
+.sv-tabelle { border-collapse: collapse; width: 100%; }
+.sv-tabelle th, .sv-tabelle td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--sv-border); vertical-align: top; }
+.sv-filter { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin-bottom: 12px; }
+.sv-filter .sv-feld { margin-top: 0; }
+.sv-filter select {
+  padding: 8px; background: var(--sv-bg); color: var(--sv-fg); border: 1px solid var(--sv-border-strong);
+  border-radius: var(--sv-radius);
+}
+.sv-aktionen { display: flex; flex-wrap: wrap; gap: 6px; }
+.sv-einladen { display: flex; flex-direction: column; gap: 8px; max-width: 40em; }
+.sv-rechte-auswahl { border: 1px solid var(--sv-border); border-radius: var(--sv-radius); }
+.sv-einladungslink {
+  margin: 16px; padding: 12px; background: var(--sv-surface);
+  border: 1px solid var(--sv-accent); border-radius: var(--sv-radius);
+}
+.sv-einladungslink input { width: 100%; font: inherit; }
+.sv-sparkline { font-family: monospace; letter-spacing: 1px; }
+
+/* API-Zugänge (Einstellungen, sv-abschnitt/sv-tabelle darüber). Token-Box wie
+   .sv-einladungslink (einmal sichtbar, Kopieren/Ausblenden); Zwei-Klick-Widerruf ohne
+   window.confirm — der erste Klick „schärft" den Knopf (sv-gefahr-scharf), erst der zweite löst
+   aus. */
+.sv-token-box {
+  margin: 12px 0; padding: 12px; background: var(--sv-surface);
+  border: 1px solid var(--sv-accent); border-radius: var(--sv-radius);
+}
+.sv-token-box input { width: 100%; font: inherit; }
+.sv-gefahr-scharf { border-color: var(--sv-error); color: var(--sv-error); }
+
+/* Seite Barrierefreiheit (barrierefreiheit.ts). */
+.sv-barrierefreiheit .sv-abschnitt { max-width: 60em; }
+.sv-barriere-liste { padding-left: 1.2em; }
+.sv-barriere-liste p { margin: 4px 0; }
+.sv-hinweis-betreiber { padding: 12px; border: 1px solid var(--sv-warn); border-radius: var(--sv-radius); }
+
+/* Projekt-Einstellungen: eine Spalte auf jeder Breite; große Ziele für Tablet und Handy. */
+.sv-projekt-einstellungen .sv-spalte { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; max-width: 64rem; }
+.sv-projekt-einstellungen button, .sv-projekt-einstellungen select { min-height: 44px; }
+.sv-projekt-einstellungen input[type="checkbox"] { min-width: 24px; min-height: 24px; }
+.sv-kategorien { padding-left: 1.5em; }
+.sv-kategorien li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0; }
+.sv-schalter { display: flex; align-items: center; gap: 8px; }
+.sv-schalter-zeile { margin: 12px 0; }
+.sv-status:empty { display: none; }
+
+.sv-maengelliste { padding: 1rem; min-width: 0; }
+.sv-druck-aktionen button { min-height: 44px; padding: .5rem; }
+.sv-druck-aktionen { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
+.sv-maengelliste-tabelle { border-collapse: collapse; width: 100%; }
+.sv-maengelliste-tabelle th, .sv-maengelliste-tabelle td {
+  border: 1px solid var(--sv-border); padding: .5rem; text-align: left;
+  white-space: pre-wrap; overflow-wrap: anywhere; vertical-align: top;
+}
+.sv-maengelliste { page: maengelliste; }
+@page maengelliste { size: A4 landscape; margin: 10mm; }
+@media print {
+  body:has(.sv-maengelliste) { background: white; color: black; }
+  body:has(.sv-maengelliste) #sv-fuss, .sv-druck-aktionen { display: none; }
+  .sv-maengelliste { max-width: none; margin: 0; padding: 0; }
+  .sv-maengelliste .sv-tabelle-region { overflow: visible; }
+  .sv-maengelliste-tabelle { font-size: 8pt; table-layout: fixed; }
+  .sv-maengelliste-tabelle th, .sv-maengelliste-tabelle td { padding: 2mm; border-color: black; }
+  .sv-maengelliste-tabelle thead { display: table-header-group; }
+  .sv-maengelliste-tabelle tr { break-inside: avoid; }
+}
+
+/* Liste „Fällig/überfällig“ (befunde.ts): eine Spalte, auch am Handy. */
+.sv-befunde-inhalt { padding: 0 16px 16px; max-width: 60em; }
+.sv-befunde-filter { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; margin: 16px 0 8px; }
+.sv-befunde-filter .sv-feld { margin-top: 0; display: flex; flex-direction: column; gap: 4px; }
+.sv-befunde-filter select { padding: 8px; background: var(--sv-bg); color: var(--sv-fg); border: 1px solid var(--sv-border-strong);
+  border-radius: var(--sv-radius); }
+.sv-befunde-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.sv-befund-zeile { padding: 8px 12px; border: 1px solid var(--sv-border); border-radius: var(--sv-radius); overflow-wrap: anywhere; }
+.sv-befund-zeile.sv-ueberfaellig { border-left: 4px solid var(--sv-error); }
+.sv-befund-titel { font-size: 16px; margin: 0 0 4px; }
+.sv-befund-angaben { margin: 0; }
+.sv-befund-angaben div { display: flex; gap: 6px; flex-wrap: wrap; }
+.sv-befund-angaben dt { font-weight: 600; }
+.sv-befund-angaben dd { margin: 0; }
+.sv-befund-aktionen { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-top: 6px; }
+.sv-karte-ueberfaellig { font-weight: 600; color: var(--sv-error); }

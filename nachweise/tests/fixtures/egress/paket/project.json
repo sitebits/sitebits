@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 2,
+  "projectId": "egress-test",
+  "revision": 1,
+  "title": "egress-test",
+  "frame": {
+    "crs": {
+      "wkt": null,
+      "verticalDatum": null,
+      "declaredBy": "file"
+    },
+    "unit": "m",
+    "unitDeclaredBy": "file",
+    "originWorld": [
+      5.0,
+      0.0,
+      2.0
+    ]
+  },
+  "layers": [
+    {
+      "id": "punkte",
+      "kind": "pointcloud",
+      "title": "Punktwolke",
+      "source": {
+        "filename": "egress.e57",
+        "sha256": "076a701caf33dfc90f7fea7860b825a0b6366f518a2a3cc70b53bd5006358a64",
+        "sizeBytes": 86016,
+        "producer": null
+      },
+      "url": "cloud.copc.laz",
+      "pointCount": 2000,
+      "boundsWorld": [
+        [
+          -4.9990000000000006,
+          -4.992,
+          -3.487
+        ],
+        [
+          14.992,
+          4.996,
+          6.5
+        ]
+      ],
+      "attributes": [
+        "rgb",
+        "intensity"
+      ],
+      "scale": 0.001,
+      "readerPointCount": 2000,
+      "invalidDropped": 0,
+      "pointSourceIsScan": true,
+      "provenance": {
+        "kind": "scan",
+        "interpolated": false,
+        "scaleVerified": true,
+        "scaleSource": "scanner"
+      },
+      "conversion": {
+        "seconds": 0.6781841639894992,
+        "peakRssMb": 48.42578125,
+        "mode": "direct"
+      },
+      "verify": {
+        "ok": true,
+        "report": "conversion-report.json"
+      }
+    },
+    {
+      "id": "standpunkte",
+      "kind": "panoramas",
+      "title": "Standpunkte",
+      "url": "stations.json",
+      "count": 2,
+      "pointcloudLayer": "punkte"
+    }
+  ],
+  "initialView": {
+    "target": [
+      4.9965,
+      0.002000000000000224,
+      1.5065
+    ],
+    "distance": 24.4773445046639
+  },
+  "conversion": {
+    "seconds": 0.6781841639894992,
+    "peakRssMb": 48.42578125,
+    "mode": "direct"
+  },
+  "topview": {
+    "url": "topview.png",
+    "widthPx": 400,
+    "heightPx": 200,
+    "pixelSizeM": 0.05,
+    "upperLeftWorld": [
+      -4.9990000000000006,
+      4.996
+    ],
+    "pixelAnchor": "edge",
+    "zMaxWorld": null,
+    "colorFrom": "rgb"
+  }
+}

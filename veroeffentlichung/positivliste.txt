@@ -1,0 +1,63 @@
+# Positivliste des öffentlichen Exports (nachweise/src/scanview_nachweise/export.py).
+#
+# Nur was hier steht, wird öffentlich. Muster gelten ab der Repo-Wurzel für den ganzen Pfad:
+# `*` = Zeichen außer `/`, `**` als ganzer Pfadteil = beliebig viele Ordner, `!muster` schließt
+# wieder aus; das letzte passende Muster gewinnt. Jede neue Datei erscheint im Release-Diff und
+# muss dort bestätigt werden.
+
+# Wurzel
+.github/**
+LICENSE
+LICENSES/**
+!LICENSES/LicenseRef-Semgrep-Rules-1.0.txt
+REUSE.toml
+AI-USAGE.md
+README.md
+README.de.md
+SECURITY.md
+CHANGELOG.md
+CONTRIBUTING.md
+CONTRIBUTING.de.md
+AGENTS.md
+renovate.json
+
+# Viewer und Portal (ohne E2E samt Egress-Konfiguration: spricht echte Instanzen an bzw. braucht
+# die privaten Testfälle; ohne Screenshot-Entwicklerskripte)
+web/**
+!web/e2e/**
+!web/playwright.egress.config.ts
+!web/scripts/screenshot*
+
+# Import (Pakete bauen; enthält das Höhengitter GCG2016 unter CC BY 4.0). Ohne die Spike-Werkzeuge des
+# Kachler-Vergleichs (ADR 0003: nicht übernommen, rufen fremde Werkzeuge per Docker auf).
+import/**
+!import/scripts/spike/**
+!import/docker/spike/**
+!import/tests/spike/**
+
+# Plattform-Server und MCP-Server
+server/**
+!server/dist/**
+mcp-server/**
+
+# Installation und Betrieb der Plattform (ohne Betriebs-README und Messskript)
+deploy/platform/**
+!deploy/platform/README.md
+!deploy/platform/test/messen.sh
+
+# Produktdokumente und Lizenzhinweise der Drittkomponenten
+docs/architektur.md
+docs/entscheidungen/**
+docs/public/**
+docs/THIRD_PARTY.md
+
+# Nachweiskette (ohne den vendierten Semgrep-Regelsatz: die Semgrep Rules License v1.0 erlaubt
+# keine Weiterverbreitung; sein Lock mit Herkunft, Lizenz und Prüfsummen bleibt ebenfalls privat,
+# weil es ohne den Regelsatz nicht prüfbar ist)
+nachweise/**
+!nachweise/sast/regeln/**
+!nachweise/sast/regeln.lock
+veroeffentlichung/positivliste.txt
+
+# Versteckte Eigenheiten für Neugierige
+spleen/**

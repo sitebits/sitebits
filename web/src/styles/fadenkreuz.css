@@ -1,0 +1,49 @@
+/* Fadenkreuz im Begehen: heller Kern (2 px) mit dunklem Rand (2 px) bleibt auf hellem und dunklem Grund
+   sichtbar. Größe über --sv-fadenkreuz (setzt fadenkreuz.ts). */
+:root { --sv-fadenkreuz: 24px; }
+.sv-fadenkreuz { position: fixed; left: 50%; top: 50%; width: var(--sv-fadenkreuz); height: var(--sv-fadenkreuz);
+  transform: translate(-50%, -50%); pointer-events: none; z-index: 5; }
+.sv-fadenkreuz::before, .sv-fadenkreuz::after { content: ''; position: absolute; background: #fff; box-shadow: 0 0 0 2px #000; }
+.sv-fadenkreuz::before { left: 0; right: 0; top: calc(50% - 1px); height: 2px; }
+.sv-fadenkreuz::after { top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; }
+.sv-zielmarke { position: fixed; width: 16px; height: 16px; box-sizing: border-box; transform: translate(-50%, -50%);
+  border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 2px #000, inset 0 0 0 2px #000;
+  pointer-events: none; z-index: 5; }
+.sv-livewert { position: fixed; left: 50%; top: calc(50% + var(--sv-fadenkreuz) / 2 + 12px); transform: translateX(-50%);
+  padding: 0.2em 0.6em; background: rgba(0, 0, 0, 0.75); color: #fff; border-radius: 4px; white-space: nowrap;
+  font: 600 0.9375rem/1.3 system-ui, sans-serif; pointer-events: none; z-index: 5; }
+.sv-livewert-symbol { margin-right: 0.35em; }
+.sv-livewert-symbol:empty { display: none; }
+.sv-fadenkreuz[hidden], .sv-zielmarke[hidden], .sv-livewert[hidden] { display: none; }
+/* Drehpunkt im Orbit (drehpunktMarker.ts): Ring mit Punkt, heller Kern mit dunklem Rand wie die Zielmarke. Die Lage
+   setzt der CSS2D-Renderer, die Sichtbarkeit das Skript über opacity (Ausblenden ohne Bewegungsreduktion). */
+.sv-drehpunkt { width: 14px; height: 14px; box-sizing: border-box; border: 2px solid #fff; border-radius: 50%;
+  box-shadow: 0 0 0 2px #000, inset 0 0 0 2px #000; pointer-events: none; }
+.sv-drehpunkt::after { content: ''; position: absolute; left: 50%; top: 50%; width: 2px; height: 2px;
+  transform: translate(-50%, -50%); background: #fff; box-shadow: 0 0 0 1px #000; }
+/* Zielen: halbe Empfindlichkeit, Kantenfang beim nächsten Setzen — das Kreuz wird schmaler und bekommt einen Ring. */
+.sv-fadenkreuz.sv-zielen { width: calc(var(--sv-fadenkreuz) * 0.75); height: calc(var(--sv-fadenkreuz) * 0.75);
+  border-radius: 50%; outline: 2px solid #fff; box-shadow: 0 0 0 4px #000; }
+/* Rückfrage „Welche Fläche?“: neben dem Fadenkreuz bzw. dem Klickort, verdeckt die Stelle selbst nicht. */
+.sv-rueckfrage { position: fixed; transform: translate(20px, 20px); z-index: 6; display: flex; flex-direction: column;
+  gap: var(--sv-gap); padding: 0.5rem 0.6rem; background: var(--sv-surface); color: var(--sv-fg);
+  border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius); font: var(--sv-font); }
+.sv-rueckfrage[hidden] { display: none; }
+.sv-rueckfrage-titel { margin: 0 0 0.2rem; font-weight: 600; }
+.sv-rueckfrage button { min-width: 24px; min-height: 28px; padding: 0.25rem 0.75rem; text-align: left; cursor: pointer;
+  background: var(--sv-bg); color: var(--sv-fg); border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius); font: inherit; }
+.sv-rueckfrage button:hover { background: var(--sv-surface-hover); }
+.sv-rueckfrage button:focus-visible, .sv-rueckfrage button:focus { outline: none; box-shadow: var(--sv-focus); border-color: var(--sv-accent); }
+/* Koordinate am Zeiger (koordinatenzeile.ts, F23): unten links, Ziffern gleich breit, Klick kopiert. */
+.sv-koordinaten { position: fixed; left: 8px; bottom: 8px; z-index: 5; padding: 0.2em 0.6em; background: var(--sv-surface);
+  color: var(--sv-fg); border: 1px solid var(--sv-border); border-radius: var(--sv-radius); font: var(--sv-font);
+  font-variant-numeric: tabular-nums; white-space: nowrap; cursor: copy; }
+.sv-koordinaten:hover { background: var(--sv-surface-hover); }
+.sv-koordinaten:focus-visible { outline: none; box-shadow: var(--sv-focus); }
+.sv-koordinaten[hidden] { display: none; }
+/* Fenster-Effekt (F32): sichtbar, solange die Webcam läuft, mit Aus-Knopf. */
+.sv-fenster-hinweis { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; gap: 0.6em;
+  align-items: center; padding: 0.2em 0.4em 0.2em 0.8em; background: var(--sv-surface); color: var(--sv-fg);
+  border: 1px solid var(--sv-border); border-radius: var(--sv-radius); font: var(--sv-font); }
+.sv-fenster-hinweis[hidden] { display: none; }
+.sv-fenster-hinweis button:focus-visible { outline: none; box-shadow: var(--sv-focus); }

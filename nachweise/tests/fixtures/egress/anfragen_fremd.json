@@ -1,0 +1,273 @@
+{
+  "origin": "http://localhost:18090",
+  "seiten": [
+    "anmelden",
+    "barrierefreiheit",
+    "portal",
+    "viewer",
+    "portal-zurueck",
+    "verlauf"
+  ],
+  "anfragen": [
+    {
+      "url": "http://localhost:18090/anmelden",
+      "quelle": "request",
+      "seite": "anmelden"
+    },
+    {
+      "url": "http://localhost:18090/api/barrierefreiheit",
+      "quelle": "request",
+      "seite": "anmelden"
+    },
+    {
+      "url": "data:image/png;base64,AAAA",
+      "quelle": "request",
+      "seite": "anmelden"
+    },
+    {
+      "url": "blob:http://localhost:18090/6f1c",
+      "quelle": "worker",
+      "seite": "anmelden"
+    },
+    {
+      "url": "http://egress-kontrolle.invalid/f",
+      "quelle": "csp",
+      "seite": "anmelden"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "csp",
+      "seite": "anmelden"
+    },
+    {
+      "url": "http://localhost:18090/barrierefreiheit",
+      "quelle": "request",
+      "seite": "barrierefreiheit"
+    },
+    {
+      "url": "http://localhost:18090/api/barrierefreiheit",
+      "quelle": "request",
+      "seite": "barrierefreiheit"
+    },
+    {
+      "url": "data:image/png;base64,AAAA",
+      "quelle": "request",
+      "seite": "barrierefreiheit"
+    },
+    {
+      "url": "blob:http://localhost:18090/6f1c",
+      "quelle": "worker",
+      "seite": "barrierefreiheit"
+    },
+    {
+      "url": "http://egress-kontrolle.invalid/f",
+      "quelle": "csp",
+      "seite": "barrierefreiheit"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "csp",
+      "seite": "barrierefreiheit"
+    },
+    {
+      "url": "http://localhost:18090/",
+      "quelle": "request",
+      "seite": "portal"
+    },
+    {
+      "url": "http://localhost:18090/api/barrierefreiheit",
+      "quelle": "request",
+      "seite": "portal"
+    },
+    {
+      "url": "data:image/png;base64,AAAA",
+      "quelle": "request",
+      "seite": "portal"
+    },
+    {
+      "url": "blob:http://localhost:18090/6f1c",
+      "quelle": "worker",
+      "seite": "portal"
+    },
+    {
+      "url": "http://egress-kontrolle.invalid/f",
+      "quelle": "csp",
+      "seite": "portal"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "csp",
+      "seite": "portal"
+    },
+    {
+      "url": "http://localhost:18090/ansicht?p=/data/egress-test/",
+      "quelle": "request",
+      "seite": "viewer"
+    },
+    {
+      "url": "http://localhost:18090/api/barrierefreiheit",
+      "quelle": "request",
+      "seite": "viewer"
+    },
+    {
+      "url": "data:image/png;base64,AAAA",
+      "quelle": "request",
+      "seite": "viewer"
+    },
+    {
+      "url": "blob:http://localhost:18090/6f1c",
+      "quelle": "worker",
+      "seite": "viewer"
+    },
+    {
+      "url": "http://egress-kontrolle.invalid/f",
+      "quelle": "csp",
+      "seite": "viewer"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "csp",
+      "seite": "viewer"
+    },
+    {
+      "url": "http://localhost:18090/verlauf?p=egress-test",
+      "quelle": "request",
+      "seite": "verlauf"
+    },
+    {
+      "url": "http://localhost:18090/api/barrierefreiheit",
+      "quelle": "request",
+      "seite": "verlauf"
+    },
+    {
+      "url": "data:image/png;base64,AAAA",
+      "quelle": "request",
+      "seite": "verlauf"
+    },
+    {
+      "url": "blob:http://localhost:18090/6f1c",
+      "quelle": "worker",
+      "seite": "verlauf"
+    },
+    {
+      "url": "http://egress-kontrolle.invalid/f",
+      "quelle": "csp",
+      "seite": "verlauf"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "csp",
+      "seite": "verlauf"
+    },
+    {
+      "url": "https://cdn.example.org/x.js",
+      "quelle": "requestfailed",
+      "seite": "viewer"
+    },
+    {
+      "url": "https://fonts.example.org",
+      "quelle": "csp",
+      "seite": "portal"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "request",
+      "seite": "anmelden"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "requestfailed",
+      "seite": "anmelden"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "request",
+      "seite": "barrierefreiheit"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "requestfailed",
+      "seite": "barrierefreiheit"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "request",
+      "seite": "portal"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "requestfailed",
+      "seite": "portal"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "request",
+      "seite": "viewer"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "requestfailed",
+      "seite": "viewer"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "request",
+      "seite": "verlauf"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "requestfailed",
+      "seite": "verlauf"
+    },
+    {
+      "url": "http://localhost:18090/",
+      "quelle": "request",
+      "seite": "portal-zurueck"
+    },
+    {
+      "url": "http://egress-kontrolle.invalid/f",
+      "quelle": "csp",
+      "seite": "portal-zurueck"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "csp",
+      "seite": "portal-zurueck"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "request",
+      "seite": "portal-zurueck"
+    },
+    {
+      "url": "https://egress-kontrolle.invalid/i.png",
+      "quelle": "requestfailed",
+      "seite": "portal-zurueck"
+    }
+  ],
+  "geladen": {
+    "punkte": 2000,
+    "eigene": [
+      {
+        "pfad": "/api/v1/projekte",
+        "status": 200
+      },
+      {
+        "pfad": "/data/egress-test/project.json",
+        "status": 200
+      },
+      {
+        "pfad": "/data/egress-test/cloud.copc.laz",
+        "status": 206
+      },
+      {
+        "pfad": "/data/egress-test/topview.png",
+        "status": 200
+      },
+      {
+        "pfad": "/data/egress-test/panos/S001/nz/64.jpg",
+        "status": 200
+      }
+    ]
+  }
+}

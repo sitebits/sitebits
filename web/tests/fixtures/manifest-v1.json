@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "projectId": "beispiel-halle",
+  "revision": 3,
+  "source": { "filename": "beispiel.e57", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "sizeBytes": 1000 },
+  "crs": { "wkt": null, "verticalDatum": null, "unit": "m", "declaredBy": "file" },
+  "originWorld": [100.0, 200.0, 10.0],
+  "cloud": {
+    "url": "cloud.copc.laz", "pointCount": 1000, "boundsWorld": [[90.5, 190.25, 5.0], [110.5, 210.75, 15.0]],
+    "attributes": ["rgb", "intensity"], "scale": 0.001, "readerPointCount": 1000, "invalidDropped": 0,
+    "pointSourceIsScan": true, "offset": [101.0, 201.0, 11.0]
+  },
+  "stations": { "url": "stations.json", "count": 2 },
+  "initialView": { "target": [100.5, 200.5, 10.0], "distance": 30.0 },
+  "conversion": { "seconds": 12.5, "peakRssMb": 512.0, "mode": "direct" },
+  "topview": { "url": "topview.png", "widthPx": 400, "heightPx": 410, "pixelSizeM": 0.05, "upperLeftWorld": [90.5, 210.75], "pixelAnchor": "edge", "zMaxWorld": null }
+}

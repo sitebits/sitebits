@@ -1,0 +1,11 @@
+# Löst scanview-backup.service täglich aus. Persistent: nach Ausfall zur Startzeit nachholen.
+[Unit]
+Description=scanview-Plattform: tägliche Datenbanksicherung
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,120 @@
+/* Panel-System: Leisten liegen ÜBER der 3D-Ansicht; leere Leistenflächen lassen
+   Klicks zur Ansicht durch (pointer-events). Nur Variablen aus tokens.css. */
+#panels { position: absolute; inset: 0; pointer-events: none; font: var(--sv-font); color: var(--sv-fg); }
+.sv-dock { position: absolute; display: flex; flex-direction: column; gap: var(--sv-gap); pointer-events: none; }
+.sv-dock[data-dock='left'] { top: 56px; bottom: 8px; left: 8px; justify-content: flex-start; }
+.sv-dock[data-dock='right'] { top: 56px; bottom: 8px; right: 8px; justify-content: flex-end; }
+.sv-dock[data-dock='bottom'] { left: 50%; transform: translateX(-50%); bottom: 8px; flex-direction: row; align-items: flex-end; max-width: 60%; }
+.sv-frame { box-sizing: border-box; pointer-events: auto; display: flex; flex-direction: column; min-height: 0; max-height: 100%;
+  background: var(--sv-surface); border: 1px solid var(--sv-border); border-radius: var(--sv-radius); overflow: hidden; }
+.sv-float-layer .sv-frame { position: absolute; box-shadow: 0 6px 24px #0008; }
+.sv-frame-head { display: flex; align-items: center; gap: 2px; height: 28px; padding: 0 2px 0 var(--sv-pad);
+  border-bottom: 1px solid var(--sv-border); cursor: grab; user-select: none; touch-action: none; }
+.sv-frame[data-collapsed='true'] .sv-frame-head { border-bottom: 0; }
+.sv-frame-head [role='tablist'] { display: flex; flex: 1; min-width: 0; gap: 2px; overflow: hidden; }
+.sv-frame-head button { background: none; border: 0; color: var(--sv-fg-muted); font: inherit; cursor: pointer;
+  border-radius: calc(var(--sv-radius) - 2px); padding: 2px 6px; }
+.sv-frame-head button:hover { background: var(--sv-surface-hover); color: var(--sv-fg); }
+.sv-frame-head button[aria-selected='true'] { color: var(--sv-fg); box-shadow: inset 0 -2px 0 var(--sv-accent); }
+.sv-frame-head button:focus-visible, .sv-splitter:focus-visible { outline: none; box-shadow: var(--sv-focus); }
+.sv-frame-body { overflow: auto; min-height: 0; padding: var(--sv-pad); }
+.sv-frame[data-collapsed='true'] .sv-frame-body, .sv-frame[data-collapsed='true'] .sv-grip { display: none; }
+.sv-panel-content[hidden] { display: none; }
+/* Inhalte früher fest positioniert (index.html/toolbar.css) — im Rahmen fließen sie normal. */
+.sv-panel-content > * { position: static !important; max-height: none !important; width: auto !important; background: none !important; border: 0 !important; padding: 0 !important; }
+/* Nachkomme statt direktem Kind: guiHost (main.ts) liegt zwischen .sv-panel-content und der Wurzel. */
+.sv-panel-content .lil-gui.root { width: 100% !important; --width: 100%; }
+.sv-grip { position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; cursor: nwse-resize; }
+.sv-splitter { position: absolute; pointer-events: auto; background: transparent; }
+.sv-dock[data-dock='left'] > .sv-splitter { top: 0; bottom: 0; right: -6px; width: 6px; cursor: ew-resize; }
+.sv-dock[data-dock='right'] > .sv-splitter { top: 0; bottom: 0; left: -6px; width: 6px; cursor: ew-resize; }
+.sv-dock[data-dock='bottom'] > .sv-splitter { left: 0; right: 0; top: -6px; height: 6px; cursor: ns-resize; }
+.sv-drop-hint { position: absolute; pointer-events: none; border: 2px solid var(--sv-accent); background: #33d1ff22; border-radius: var(--sv-radius); }
+.sv-drop-hint[hidden] { display: none; }
+.sv-move-menu { position: absolute; z-index: 10; display: flex; flex-direction: column; padding: var(--sv-gap);
+  background: var(--sv-surface); border: 1px solid var(--sv-border); border-radius: var(--sv-radius); pointer-events: auto; }
+.sv-move-menu[hidden] { display: none; }
+#panel-menu { position: absolute; top: 8px; right: 8px; font: var(--sv-font); }
+#panel-menu > button { height: 32px; padding: 0 var(--sv-pad); background: var(--sv-surface); color: var(--sv-fg);
+  border: 1px solid var(--sv-border); border-radius: var(--sv-radius); cursor: pointer; font: inherit; }
+#panel-menu [role='menu'] { position: absolute; right: 0; top: 36px; min-width: 220px; display: flex; flex-direction: column; padding: var(--sv-gap);
+  background: var(--sv-surface); border: 1px solid var(--sv-border); border-radius: var(--sv-radius); }
+#panel-menu [role='menu'][hidden] { display: none; }
+#panel-menu [role^='menuitem'] { text-align: left; background: none; border: 0; color: var(--sv-fg); padding: 4px 8px; cursor: pointer; font: inherit; border-radius: calc(var(--sv-radius) - 2px); }
+#panel-menu [role^='menuitem']:hover, #panel-menu [role^='menuitem']:focus-visible { background: var(--sv-surface-hover); outline: none; }
+#panel-menu [aria-checked='true']::before { content: '✓ '; }
+#panel-menu [aria-checked='false']::before { content: '   '; white-space: pre; }
+/* Mobil (L6): Blatt unten über die volle Breite, kein Ziehen (panels.ts setzt data-mobile). */
+#panels[data-mobile='true'] .sv-dock[data-dock='bottom'] { left: 0; right: 0; transform: none; max-width: none; bottom: 0; }
+/* render() setzt frame.style.flex='0 1 auto' inline (Desktop-Vorgabe) — hier mit !important übersteuern,
+   sonst bleibt das Blatt schmal statt über die volle Breite. */
+#panels[data-mobile='true'] .sv-dock[data-dock='bottom'] .sv-frame { flex: 1 !important; max-height: 45vh; border-radius: var(--sv-radius) var(--sv-radius) 0 0; }
+#panels[data-mobile='true'] .sv-frame-head { cursor: default; }
+/* #panel-menu sitzt sonst neben der Werkzeugleiste (L4) — auf schmalen Fenstern kollidiert das mit dem
+   Toolbar-Ende; unter die Leiste setzen, an derselben Marke wie die Leisten selbst (top: 56px). */
+#panels[data-mobile='true'] + #panel-menu { top: 56px; }
+
+/* Ebenen-Panel: je Ebene eine Zeile Schalter · Titel · Art, darunter Hinweise und Regler. */
+.sv-ebenen { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sv-gap); }
+.sv-ebenen > li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; padding: 4px 0; }
+.sv-ebenen > li + li { border-top: 1px solid var(--sv-border); }
+.sv-messen-auf { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; padding: 4px 0; margin-top: var(--sv-gap); border-top: 1px solid var(--sv-border); }
+.sv-messen-auf > select { flex: 1 1 0; min-width: 0; }
+.sv-ebene-titel { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
+.sv-ebene-art { color: var(--sv-fg-muted); font-size: 12px; }
+.sv-ebene-hinweis, .sv-ebene-schalter { flex-basis: 100%; padding-left: 22px; font-size: 12px; }
+.sv-ebene-hinweis { color: var(--sv-fg-muted); }
+.sv-ebene-genauigkeit { flex-basis: 100%; padding-left: 22px; font-size: 12px; }
+.sv-ebene-genauigkeit summary { cursor: pointer; }
+.sv-ebene-genauigkeit small { display: block; color: var(--sv-fg-muted); }
+.sv-ebenen > li > input[type='range'] { flex: 1 1 0; min-width: 80px; margin-left: 22px; }
+
+/* Fotogalerie (Panel „Fotos“) und Foto-Fenster */
+.sv-galerie-schalter { display: block; padding: 4px 0; font-size: 12px; }
+.sv-galerie-gruppe { border-top: 1px solid var(--sv-border); padding: 4px 0; }
+.sv-galerie-gruppe > summary { cursor: pointer; padding: 4px 0; }
+.sv-galerie-raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 4px; }
+.sv-galerie-bild { padding: 0; border: 1px solid var(--sv-border); background: #000; aspect-ratio: 4 / 3; overflow: hidden; cursor: pointer; }
+.sv-galerie-bild:focus-visible { outline: 2px solid var(--sv-accent, #33d1ff); outline-offset: 1px; }
+.sv-galerie-bild > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sv-foto { display: flex; flex-direction: column; height: 100%; min-height: 220px; }
+.sv-foto-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; padding-bottom: 4px; }
+.sv-foto-titel { flex: 1 1 0; min-width: 0; overflow-wrap: anywhere; }
+.sv-foto-fenster { position: relative; flex: 1 1 auto; min-height: 180px; overflow: hidden; background: #111; cursor: grab; touch-action: none; }
+.sv-foto-fenster:focus-visible { outline: 2px solid var(--sv-accent, #33d1ff); outline-offset: -2px; }
+.sv-foto-fenster > img, .sv-foto-kacheln > img { position: absolute; left: 0; top: 0; transform-origin: 0 0; user-select: none; }
+.sv-foto-kacheln { position: absolute; inset: 0; }
+.sv-foto-leer { color: var(--sv-fg-muted); padding: 12px; margin: 0; }
+
+/* Fotos teilen die tatsächliche Leinwand; Giro3Ds ResizeObserver führt den Renderer nach. */
+.sv-foto-seite { position: fixed; right: 0; bottom: 0; z-index: 30; box-sizing: border-box; background: var(--sv-surface); padding: 6px; display: flex; flex-direction: column; }
+.sv-foto-geteilt-inhalt, .sv-foto-geteilt-inhalt > .sv-panel-content { flex: 1; min-height: 0; height: 100%; overflow: hidden; }
+.sv-foto-trenner { position: fixed; z-index: 31; touch-action: none; background: var(--sv-border); }
+.sv-foto-trenner[data-lage="quer"] { top: 56px; width: 24px; cursor: col-resize; }
+.sv-foto-trenner[data-lage="hoch"] { left: 0; height: 24px; cursor: row-resize; }
+.sv-foto-trenner:focus-visible { outline: 2px solid var(--sv-accent); outline-offset: -3px; }
+.sv-vorschau { display: block; overflow: auto; height: 200px; min-height: 100px; max-height: 240px; }
+.sv-vorschau-inhalt { position: relative; }
+.sv-vorschau .sv-galerie-bild { box-sizing: border-box; height: 100px; overflow: hidden; }
+.sv-vorschau img { width: 100%; height: 60px; object-fit: contain; }
+.sv-vorschau span { display: block; font-size: 10px; }
+.sv-vorschau button[aria-pressed="true"] { outline: 2px solid var(--sv-accent); outline-offset: -2px; }
+.sv-foto-leiste { flex: 0 0 120px; }
+.sv-foto-marken { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; fill: none; stroke: var(--sv-warn); stroke-width: 2px; }
+.sv-foto-status { margin: 3px; }
+.sv-foto-seite .sv-foto, .sv-foto-seite .sv-foto-fenster { min-height: 0; }
+.sv-fotos-werkzeug { position: fixed; top: 44px; left: 50%; transform: translateX(-50%); z-index: 60; max-width: min(500px, 90vw); background: var(--sv-surface); padding: 8px; border: 1px solid var(--sv-border); }
+.sv-fotos-werkzeug button, .sv-fotos-werkzeug select { min-height: 28px; }
+.sv-foto-polygon { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 55; fill: #33d1ff22; stroke: var(--sv-accent); stroke-width: 2px; }
+.sv-foto-kreuz { position: fixed; pointer-events: none; z-index: 54; color: var(--sv-warn); font-size: 28px; transform: translate(-50%, -50%); }
+.sv-foto-seite[hidden], .sv-fotos-werkzeug[hidden], .sv-foto-trenner[hidden] { display: none; }
+/* Mobil quer (Handy gekippt, 17.10.): das Blatt rechts über die volle Höhe statt unten; Leiste, Panel-Menü und
+   Hinweise rücken links daneben. render() setzt die Dockhöhe inline — daher !important. */
+#panels[data-mobile='true'][data-quer='true'] .sv-dock[data-dock='bottom'] { left: auto; right: 0; top: 0; bottom: 0;
+  width: min(42vw, 340px) !important; height: auto !important; }
+#panels[data-mobile='true'][data-quer='true'] .sv-dock[data-dock='bottom'] .sv-frame { max-height: 100vh;
+  border-radius: var(--sv-radius) 0 0 var(--sv-radius); }
+#panels[data-mobile='true'][data-quer='true'] + #panel-menu { top: 8px; right: calc(min(42vw, 340px) + 8px); }
+body:has(#panels[data-quer='true']) #toolbar { margin-left: 8px; margin-right: auto; max-width: calc(100vw - min(42vw, 340px) - 120px); }
+body:has(#panels[data-quer='true']) .sv-hinweise,
+body:has(#panels[data-quer='true']) #scan-hint { right: calc(min(42vw, 340px) + 8px); left: auto; transform: none; bottom: 8px; }

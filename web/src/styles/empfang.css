@@ -1,0 +1,123 @@
+/* Sprunglinks (sprunglinks.ts): erste Tab-Ziele der Seite, sichtbar nur mit Fokus. */
+.sv-sprunglink { position: absolute; left: 8px; top: -200px; z-index: 30; padding: 6px 12px; background: var(--sv-bg); color: var(--sv-fg);
+  border: 2px solid var(--sv-accent); border-radius: var(--sv-radius); font: var(--sv-font); text-decoration: underline; }
+.sv-sprunglink:focus { top: 8px; outline: none; box-shadow: var(--sv-focus); }
+.sv-sprunglink[hidden] { display: none; }
+
+/* Empfängeransicht (empfang.ts): Befundliste links, 3D-Ansicht in der Mitte, Befundkarte rechts. Was nur zum
+   Bearbeiten gehört, ist ausgeblendet; von den Panels bleibt nur die Minikarte. */
+body.sv-empfang { --sv-links: clamp(200px, 26vw, 320px); --sv-rechts: clamp(240px, 30vw, 360px); }
+body.sv-empfang .sv-nur-werkzeug { display: none !important; }
+body.sv-empfang #view { position: fixed; top: 0; bottom: 0; left: var(--sv-links); right: var(--sv-rechts); height: auto; }
+body.sv-empfang #panels { left: var(--sv-links); right: var(--sv-rechts); }
+body.sv-empfang .sv-frame:not(:has([role='tab'][data-panel='karte'])) { display: none; }
+body.sv-empfang .sv-frame [role='tab']:not([data-panel='karte']) { display: none; }
+body.sv-empfang #panel-menu, body.sv-empfang #measure-panel, body.sv-empfang #poi-panel { display: none; }
+body.sv-empfang #msg, body.sv-empfang .sv-zurueck { left: calc(var(--sv-links) + 8px); }
+body.sv-empfang .sv-zurueck ~ #msg { left: calc(var(--sv-links) + 116px); }
+body.sv-empfang #toolbar, body.sv-empfang .sv-teilen, body.sv-empfang .sv-entwurf, body.sv-empfang #scan-hint {
+  left: calc(var(--sv-links) + (100% - var(--sv-links) - var(--sv-rechts)) / 2); }
+body.sv-empfang .sv-teilen, body.sv-empfang .sv-entwurf { max-width: calc(100% - var(--sv-links) - var(--sv-rechts) - 16px); }
+body.sv-empfang .sv-hinweise { right: calc(var(--sv-rechts) + 8px); }
+body.sv-empfang .sv-hinweise.sv-links { left: calc(var(--sv-links) + 8px); right: auto; }
+/* POI-Formular (Hier markieren, fortgesetzter Entwurf) neben der Karte statt über ihr. */
+body.sv-empfang #poi-form.sv-inspektor { right: calc(var(--sv-rechts) + 8px); }
+
+.sv-befundliste, .sv-befundkarte { box-sizing: border-box; overflow: auto; overflow-wrap: anywhere; padding: 8px 10px; background: var(--sv-bg);
+  color: var(--sv-fg); font: var(--sv-font); }
+.sv-befundliste[hidden], .sv-befundkarte[hidden], .sv-befundkarte [hidden] { display: none; }
+body.sv-empfang .sv-befundliste { position: fixed; top: 0; bottom: 0; left: 0; width: var(--sv-links); border-right: 1px solid var(--sv-border); }
+body.sv-empfang .sv-befundkarte { position: fixed; top: 0; bottom: 0; right: 0; width: var(--sv-rechts); border-left: 1px solid var(--sv-border);
+  display: flex; flex-direction: column; gap: 8px; }
+.sv-befundliste:focus-visible, .sv-befundkarte h2:focus-visible { outline: none; box-shadow: var(--sv-focus); }
+.sv-befundliste h2, .sv-befundkarte h2 { margin: 0 0 6px; font-size: 1rem; }
+.sv-befundkarte h3 { margin: 0; font-size: .95rem; }
+.sv-karte-kopf { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
+.sv-karte-kopf h2 { margin: 0; flex: 1 1 10rem; min-width: 0; }
+.sv-karte-inhalt { display: flex; flex-direction: column; gap: 8px; }
+.sv-befundkarte .sv-nur-mobil { display: none; }
+.sv-rueckmelden { display: flex; flex-direction: column; gap: 6px; }
+.sv-rueckmeldung { display: flex; flex-direction: column; gap: 4px; }
+.sv-rueckmeldung label { font-weight: 600; }
+.sv-rueckmeldung textarea { box-sizing: border-box; width: 100%; min-height: 4.5em; padding: 4px 6px; font: inherit; color: var(--sv-fg);
+  background: var(--sv-bg); border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius); resize: vertical; }
+.sv-rueckmeldung textarea[aria-invalid='true'] { border-color: var(--sv-error); }
+.sv-rueckmeldung textarea:focus-visible { outline: none; box-shadow: var(--sv-focus); }
+.sv-rueckmeldung button { align-self: flex-start; }
+.sv-feldfehler { color: var(--sv-error); font-weight: 600; }
+.sv-rueckmeldung-status:empty { display: none; }
+.sv-befundkarte button[aria-pressed='true'] { background: var(--sv-accent); color: var(--sv-accent-fg); border-color: var(--sv-accent); }
+.sv-befundkarte p { margin: 0; white-space: pre-line; }
+.sv-befundliste ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sv-befundliste li { border-bottom: 1px solid var(--sv-border); padding-bottom: 6px; }
+.sv-befundliste dl { margin: 4px 0 0; display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 2px 8px; }
+.sv-befundliste dl div { display: contents; }
+.sv-befundliste dt { color: var(--sv-fg-muted); }
+.sv-befundliste dd { margin: 0; white-space: pre-line; }
+.sv-befund-position { color: var(--sv-fg-muted); }
+.sv-frage { border-left: 3px solid var(--sv-warn); padding: 4px 8px; background: var(--sv-surface); }
+.sv-knopfreihe { display: flex; flex-wrap: wrap; gap: 6px; }
+.sv-befundliste button, .sv-befundkarte button { box-sizing: border-box; min-width: 28px; min-height: 28px; padding: 4px 10px; font: inherit;
+  color: var(--sv-fg); background: var(--sv-surface); border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius); cursor: pointer;
+  text-align: left; overflow-wrap: anywhere; }
+.sv-befundliste button { width: 100%; font-weight: 600; }
+.sv-befundliste button[aria-current='true'] { background: var(--sv-accent); color: var(--sv-accent-fg); border-color: var(--sv-accent); }
+.sv-befundliste button:hover, .sv-befundkarte button:hover { background: var(--sv-surface-hover); }
+.sv-befundliste button[aria-current='true']:hover { background: var(--sv-accent); }
+.sv-befundliste button:focus-visible, .sv-befundkarte button:focus-visible { outline: none; box-shadow: var(--sv-focus); }
+.sv-befundkarte button:disabled, .sv-befundkarte button[aria-disabled='true'] { opacity: .5; cursor: not-allowed; }
+
+/* Mobil (schmal oder Touch, Klasse sv-mobil aus empfang.ts): Karte als Leiste unten, eingeklappt nur Titel und
+   Klappknöpfe; ausgeklappt höchstens 60 % der Höhe. Die Befundliste klappt oben auf. Beide schieben die Ansicht:
+   #view liegt zwischen ihnen (Höhen als --sv-oben/--sv-unten aus empfang.ts), nichts überdeckt die Leinwand.
+   Knöpfe mindestens 44 × 44 px; kein waagerechtes Scrollen, Hoch- und Querformat. */
+body.sv-empfang.sv-mobil { --sv-links: 0px; --sv-rechts: 0px; }
+body.sv-mobil .sv-befundkarte .sv-nur-mobil { display: flex; }
+body.sv-empfang.sv-mobil #view { position: fixed; left: 0; right: var(--sv-seite, 0px); top: var(--sv-oben, 0px); bottom: var(--sv-unten, 0px); height: auto; }
+body.sv-empfang.sv-mobil #panels, body.sv-empfang.sv-mobil:not(.sv-liste-offen) .sv-befundliste { display: none; }
+body.sv-empfang.sv-mobil .sv-befundliste { position: fixed; top: 0; bottom: auto; left: 0; right: 0; width: auto; max-height: 45vh;
+  border-right: 0; border-bottom: 1px solid var(--sv-border); }
+body.sv-empfang.sv-mobil .sv-befundkarte { position: fixed; top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 60vh;
+  border-left: 0; border-top: 1px solid var(--sv-border); }
+body.sv-empfang.sv-mobil .sv-befundkarte:not(.sv-offen) .sv-karte-inhalt { display: none; }
+body.sv-empfang.sv-mobil .sv-befundkarte button, body.sv-empfang.sv-mobil .sv-befundliste button { min-width: 44px; min-height: 44px; }
+body.sv-empfang.sv-mobil #toolbar { position: fixed; top: calc(var(--sv-oben, 0px) + 8px); left: auto; right: calc(var(--sv-seite, 0px) + 8px); transform: none; }
+body.sv-empfang.sv-mobil #toolbar button { min-width: 44px; height: 44px; }
+body.sv-empfang.sv-mobil .sv-zurueck { position: fixed; top: calc(var(--sv-oben, 0px) + 8px); height: 44px; }
+body.sv-empfang.sv-mobil #msg { position: fixed; top: auto; bottom: calc(var(--sv-unten, 0px) + 8px); left: 8px; right: calc(var(--sv-seite, 0px) + 8px); }
+body.sv-empfang.sv-mobil #scan-hint { position: fixed; bottom: calc(var(--sv-unten, 0px) + 56px); left: calc((100% - var(--sv-seite, 0px)) / 2);
+  max-width: calc(100% - var(--sv-seite, 0px) - 16px); }
+body.sv-empfang.sv-mobil .sv-hinweise { position: fixed; top: calc(var(--sv-oben, 0px) + 64px); bottom: auto; right: calc(var(--sv-seite, 0px) + 8px); left: auto; }
+body.sv-empfang.sv-mobil .sv-hinweise.sv-links { left: 8px; right: auto; }
+body.sv-empfang.sv-mobil .sv-teilen, body.sv-empfang.sv-mobil .sv-entwurf { position: fixed; top: calc(var(--sv-oben, 0px) + 64px);
+  left: calc((100% - var(--sv-seite, 0px)) / 2); max-width: calc(100% - var(--sv-seite, 0px) - 16px); max-height: calc(100% - var(--sv-oben, 0px) - var(--sv-unten, 0px) - 72px); overflow: auto; }
+body.sv-empfang.sv-mobil #poi-form.sv-inspektor { position: fixed; z-index: 9; top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 60vh;
+  border-radius: 0; }
+body.sv-empfang.sv-mobil #poi-form button { min-width: 44px; min-height: 44px; }
+
+/* Trenner zwischen Ansicht und Karte (empfang.ts, aufteilung.ts): nur mobil mit ausgeklappter Karte (sv-geteilt).
+   Die Karte bekommt ihre Größe als --sv-befund (px); --sv-unten bzw. --sv-seite (Karte + Trenner) schieben die Ansicht,
+   deren Überlagerungen (Werkzeugleiste, Hinweise, Meldung) oben mitwandern. Hochkant liegt die Karte unten, quer
+   (sv-quer) rechts neben der Ansicht. Greiffläche 24 px, sichtbar ein Griff in --sv-border-strong (≥ 3 : 1, WCAG
+   1.4.11); touch-action: none, sonst machte iOS aus dem Ziehen ein Scrollen. Kein Übergang: die Größe folgt dem
+   Finger, und ein animierter Sprung hieße bei jedem Bild ein Neuberechnen der 3D-Ansicht. */
+.sv-trenner { display: none; }
+body.sv-empfang.sv-mobil.sv-geteilt .sv-trenner { position: fixed; z-index: 6; display: flex; align-items: center; justify-content: center;
+  box-sizing: border-box; left: 0; right: 0; bottom: var(--sv-befund); height: 24px; background: var(--sv-bg); cursor: row-resize;
+  touch-action: none; user-select: none; -webkit-user-select: none; }
+.sv-trenner::before { content: ''; width: 48px; height: 4px; border-radius: 2px; background: var(--sv-border-strong); }
+.sv-trenner:hover::before, .sv-trenner:focus-visible::before { background: var(--sv-accent); }
+.sv-trenner:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--sv-accent); }
+body.sv-empfang.sv-mobil.sv-geteilt .sv-befundkarte { height: var(--sv-befund); max-height: none; }
+body.sv-empfang.sv-mobil.sv-geteilt.sv-quer .sv-trenner { top: var(--sv-oben, 0px); bottom: 0; left: auto; right: var(--sv-befund);
+  width: 24px; height: auto; cursor: col-resize; }
+body.sv-empfang.sv-mobil.sv-geteilt.sv-quer .sv-trenner::before { width: 4px; height: 48px; }
+body.sv-empfang.sv-mobil.sv-geteilt.sv-quer .sv-befundkarte { top: var(--sv-oben, 0px); bottom: 0; left: auto; right: 0; width: var(--sv-befund);
+  height: auto; border-top: 0; border-left: 1px solid var(--sv-border); }
+
+/* Messbeschriftungen in der Empfängeransicht (measureDraw.ts::makeLabel setzt Schrift und Fläche inline, daher
+   !important; nur unter sv-empfang, die Werkzeugansicht bleibt wie sie ist): kleiner und ruhiger — Empfänger lesen
+   Befunde, keine Messprotokolle. Weiß auf fast deckendem Schwarz hält den Kontrast auf jedem Bildgrund. Abschaltbar
+   („Messwerte zeigen“, sv-ohne-messwerte); verdeckte oder angeschnittene blendet messBeschriftung.ts aus. */
+body.sv-empfang .scanview-measure-label { padding: 1px 4px !important; background: #000c !important; font: 11px/1.3 system-ui !important; }
+body.sv-empfang.sv-ohne-messwerte .scanview-measure-label, body.sv-empfang .scanview-measure-label.sv-verdeckt { visibility: hidden !important; }

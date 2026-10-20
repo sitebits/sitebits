@@ -1,0 +1,45 @@
+# Werkzeugordner für schemathesis (Nachweiskette, docs/compliance/werkzeuge.md „Teil 4“). Kein eigenes
+# Paket: nur die exakt gepinnte Werkzeugversion samt Abhängigkeiten aus uv.lock, installiert im
+# gepinnten uv-Image (werkzeuge.json) als protokollierter Netzschritt.
+[project]
+name = "scanview-werkzeug-schemathesis"
+version = "0"
+requires-python = "==3.11.*"
+dependencies = ["schemathesis==4.27.5"]
+
+[tool.uv]
+package = false
+# Lieferkette wie server/: nur Pakete, die am Probe-Tag (2026-09-28) mindestens 7 Tage öffentlich
+# waren — fester ISO-Stichtag, damit ein späterer Relock nicht still weiterwandert.
+exclude-newer = "2026-09-21T00:00:00Z"
+# Nie sdists fremder Pakete bauen: jedes Paket aus uv.lock steht hier (drift-getestet).
+no-build-package = [
+    "anyio",
+    "certifi",
+    "charset-normalizer",
+    "click",
+    "colorama",
+    "graphql-core",
+    "harfile",
+    "hypothesis",
+    "hypothesis-graphql",
+    "idna",
+    "iniconfig",
+    "jsonschema-rs",
+    "markdown-it-py",
+    "markupsafe",
+    "mdurl",
+    "packaging",
+    "pluggy",
+    "pygments",
+    "pyrate-limiter",
+    "pytest",
+    "pyyaml",
+    "requests",
+    "rich",
+    "schemathesis",
+    "sortedcontainers",
+    "typing-extensions",
+    "urllib3",
+    "werkzeug",
+]

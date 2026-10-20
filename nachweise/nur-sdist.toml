@@ -1,0 +1,16 @@
+# Pakete, die es nur als Quellpaket (sdist) gibt. Der gehärtete SBOM-Container (tmpfs noexec,
+# kein Compiler) kann sie nicht bauen; sie werden nicht installiert, sondern aus uv.lock belegt
+# (Name, Version, sdist-URL, SHA-256) und in der SBOM als unvollständig ausgewiesen.
+# Die Kette prüft jeden Eintrag gegen uv.lock: andere Version, anderer Hash oder vorhandene
+# Wheels → Abbruch (dann Eintrag anpassen bzw. entfernen).
+# Entscheidung: ADR 2026-10-06-scanview-sbom-nur-sdist (Vault Ops/security/decisions/).
+
+[[paket]]
+artefakt = "import"
+name = "meshoptimizer"
+version = "0.2.30a0"
+sha256 = "36b18b61a95ba992de804b1e91e86be2ba185925e4e2c1481495f8c68a17f5db"
+lizenz = "MIT"
+lizenzbeleg = "web/licenses/meshoptimizer-MIT.txt"
+grund = "PyPI liefert für meshoptimizer keine Wheels (keine Version, Stand 06.10.2026); Mesh-Import Weg A braucht die Python-Bindung"
+adr = "2026-10-06-scanview-sbom-nur-sdist"

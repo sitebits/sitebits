@@ -1,0 +1,19 @@
+{
+  "invalid": [
+    {
+      "code": "EINTEGRITYSIGNATURE",
+      "message": "boese-paket@1.2.3 has an invalid registry signature with keyid: SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U and signature: MEQCIGb2exampledeadbeef",
+      "integrity": "sha512-c2FtcGxlLWludGVncml0eS1uaWNodC1lY2h0LWZ1ZXItZGVuLXRlc3Q=",
+      "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+      "location": "node_modules/boese-paket",
+      "name": "boese-paket",
+      "registry": "https://registry.npmjs.org/",
+      "resolved": "https://registry.npmjs.org/boese-paket/-/boese-paket-1.2.3.tgz",
+      "signature": "MEQCIGb2exampledeadbeef",
+      "predicateType": null,
+      "type": "dependencies",
+      "version": "1.2.3"
+    }
+  ],
+  "missing": []
+}

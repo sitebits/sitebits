@@ -1,0 +1,18 @@
+# Begründete Ausnahmen der SBOM-Abdeckungsprüfung (`scanview-nachweise sbom erzeugen`).
+#
+# Jede Datei im Lieferumfang eines Release-Artefakts muss einer SBOM-Komponente zugeordnet sein
+# (K-TR2-TIEFE). Ist eine Datei nicht zuzuordnen, bricht die Erzeugung ab — außer sie
+# steht hier mit Pfadmuster (fnmatch, Repo-Pfad wie im Tar) und Begründung (≥ 20 Zeichen). Eine
+# erfasste Datei bleibt im SBOM trotzdem als `type: file` mit SHA-512 und in einer
+# `incomplete`-Komposition ausgewiesen; die Ausnahme verhindert nur den Abbruch.
+#
+# Zuordnungen, die sich aus dem Bau belegen lassen, gehören in den Code (`sbom._zuordnen`), nicht
+# hierher — z. B. die von Vite erzeugten Chunks (Hauptkomponente) oder `laz-perf.wasm` (Paket
+# laz-perf).
+#
+# Format:
+#   [[ausnahme]]
+#   muster = "web/dist/beispiel/*"
+#   begruendung = "…"
+#
+# Stand 2026-09-28: keine Ausnahmen (Probe auf allen vier Artefakten ohne offene Datei).

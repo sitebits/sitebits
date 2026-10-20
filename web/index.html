@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>siteBits</title>
+<link rel="manifest" href="/manifest.webmanifest" vite-ignore><meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="siteBits"><meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="icon" href="/icons/scanview.svg" type="image/svg+xml" vite-ignore><link rel="apple-touch-icon" href="/icons/scanview-180.png" vite-ignore>
+<style>html,body,#view{margin:0;height:100%;background:#111;color:#eee;font:14px system-ui}
+#msg{position:absolute;top:8px;left:8px;padding:6px 10px;background:#0009;border-radius:4px}
+#msg:empty{display:none}
+#scan-hint{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);padding:6px 10px;background:#7a4b00e6;color:#fff;border-radius:4px;max-width:40%;text-align:center}
+#scan-hint[hidden]{display:none}
+.sv-pano-aus{position:fixed;top:calc(env(safe-area-inset-top,0px) + 64px);left:8px;z-index:900;padding:10px 14px;min-height:44px;border:1px solid #7a808a;border-radius:6px;background:#1b1d21f2;color:#fff;font:inherit;cursor:pointer}
+.sv-pano-aus[hidden]{display:none}
+#minimap{border:1px solid #444;line-height:0}
+#poi-panel input[type=search]{width:100%;box-sizing:border-box;margin-bottom:6px}
+#poi-panel ul{list-style:none;margin:0;padding:0}
+#poi-panel li{display:flex;gap:4px;align-items:center;margin:2px 0}
+#poi-panel li button.go{flex:1;text-align:left;background:none;border:0;color:#eee;cursor:pointer;padding:2px}
+#poi-panel .cat{color:#9ab;font-size:12px}
+.scanview-poi-label{padding:1px 5px;background:#335c;color:#fff;font:12px system-ui;border-radius:3px;white-space:nowrap;pointer-events:none}</style></head>
+<body><div id="view"></div><div id="panels"></div><div id="panel-menu"></div><div id="msg"></div><div id="ansage" class="sv-nur-sr" role="status" aria-live="polite" aria-atomic="true"></div><div id="scan-hint" hidden></div><div id="minimap"></div><div id="toolbar"></div><div id="measure-panel" hidden></div><div id="poi-panel" hidden></div><form id="poi-form" hidden></form><script type="module" src="/src/main.ts"></script></body>
+</html>

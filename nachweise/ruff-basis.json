@@ -1,0 +1,17 @@
+{
+  "src/scanview_nachweise/register.py": {
+    "C901": 1
+  },
+  "src/scanview_nachweise/release.py": {
+    "C901": 2
+  },
+  "src/scanview_nachweise/sast.py": {
+    "C901": 1
+  },
+  "src/scanview_nachweise/sbom.py": {
+    "C901": 1
+  },
+  "src/scanview_nachweise/werkzeuge.py": {
+    "C901": 1
+  }
+}

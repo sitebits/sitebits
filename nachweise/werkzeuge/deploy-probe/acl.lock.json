@@ -1,0 +1,8 @@
+{
+  "paket": "acl",
+  "version": "2.3.2-2+b1",
+  "architektur": "amd64",
+  "url": "https://deb.debian.org/debian/pool/main/a/acl/acl_2.3.2-2+b1_amd64.deb",
+  "sha256": "fa89b05576c590211c8e8965761fc76b830e3eeb3dd100ac59c8440f11ea18fd",
+  "dateien": ["usr/bin/getfacl", "usr/bin/setfacl"]
+}

@@ -1,0 +1,221 @@
+{
+  "basis": "3a398ba",
+  "plan": {
+    "nutzer": [
+      {
+        "name": "scanview",
+        "system": true,
+        "gruppe": "scanview",
+        "home": "/nonexistent",
+        "shell": "/usr/sbin/nologin"
+      }
+    ],
+    "gruppen": [
+      "scanview-deploy"
+    ],
+    "verzeichnisse": [
+      [
+        "/var/log/scanview",
+        "root",
+        "root",
+        "0750"
+      ],
+      [
+        "/var/backups/scanview",
+        "root",
+        "root",
+        "0711"
+      ],
+      [
+        "/var/backups/scanview/update-sicherungen",
+        "root",
+        "root",
+        "0700"
+      ],
+      [
+        "/srv/scanview/data",
+        "root",
+        "scanview",
+        "0750"
+      ],
+      [
+        "/srv/scanview/state",
+        "scanview",
+        "scanview",
+        "0700"
+      ],
+      [
+        "/srv/scanview/eingang",
+        "root",
+        "scanview-deploy",
+        "1770"
+      ],
+      [
+        "/opt/scanview",
+        "root",
+        "root",
+        "0755"
+      ],
+      [
+        "/opt/scanview/web",
+        "root",
+        "root",
+        "0755"
+      ],
+      [
+        "/opt/scanview/server",
+        "root",
+        "root",
+        "0755"
+      ],
+      [
+        "/etc/scanview",
+        "root",
+        "root",
+        "0755"
+      ],
+      [
+        "/etc/scanview/meldeweg",
+        "root",
+        "root",
+        "0755"
+      ],
+      [
+        "/var/lib/scanview-install",
+        "root",
+        "root",
+        "0700"
+      ]
+    ],
+    "dateien": [
+      [
+        "scanview-server.service",
+        "/etc/systemd/system/scanview-server.service",
+        "root",
+        "root",
+        "0644"
+      ],
+      [
+        "scanview-backup.service",
+        "/etc/systemd/system/scanview-backup.service",
+        "root",
+        "root",
+        "0644"
+      ],
+      [
+        "scanview-backup.timer",
+        "/etc/systemd/system/scanview-backup.timer",
+        "root",
+        "root",
+        "0644"
+      ],
+      [
+        "scanview-git-export.service",
+        "/etc/systemd/system/scanview-git-export.service",
+        "root",
+        "root",
+        "0644"
+      ],
+      [
+        "scanview-git-export.timer",
+        "/etc/systemd/system/scanview-git-export.timer",
+        "root",
+        "root",
+        "0644"
+      ],
+      [
+        "scanview-server.env.beispiel",
+        "/etc/scanview/scanview-server.env",
+        "root",
+        "scanview",
+        "0640"
+      ],
+      [
+        "scanview-paket-freischalten",
+        "/usr/local/sbin/scanview-paket-freischalten",
+        "root",
+        "root",
+        "0755"
+      ],
+      [
+        "sudoers.d/scanview-deploy",
+        "/etc/sudoers.d/scanview-deploy",
+        "root",
+        "root",
+        "0440"
+      ],
+      [
+        "scanview.caddy",
+        "/etc/caddy/scanview.caddy",
+        "root",
+        "root",
+        "0644"
+      ],
+      [
+        "fail2ban/scanview.conf",
+        "/etc/fail2ban/filter.d/scanview.conf",
+        "root",
+        "root",
+        "0644"
+      ],
+      [
+        "fail2ban/scanview.local",
+        "/etc/fail2ban/jail.d/scanview.local",
+        "root",
+        "root",
+        "0644"
+      ]
+    ],
+    "betreiber_installiert": [
+      "scanview.caddy",
+      "fail2ban/scanview.conf",
+      "fail2ban/scanview.local"
+    ],
+    "zustandsdateien": [
+      [
+        "/etc/scanview/.ersteinrichtung-laeuft",
+        "root",
+        "root",
+        "0600"
+      ],
+      [
+        "/var/lib/scanview-install/installiert",
+        "root",
+        "root",
+        "0600"
+      ],
+      [
+        "/var/log/scanview/updates.log",
+        "root",
+        "root",
+        "0640"
+      ]
+    ],
+    "acl": [
+      [
+        "/srv/scanview/data",
+        "u:caddy:rX",
+        "d:u:caddy:rX"
+      ],
+      [
+        "/opt/scanview/web",
+        "u:caddy:rX",
+        "d:u:caddy:rX"
+      ]
+    ],
+    "port": 8803
+  },
+  "sha256": {
+    "/etc/systemd/system/scanview-server.service": "a3965dd3297cd6013ab06ad84b2014907f02b83f8941602d89468a8746ac6921",
+    "/etc/systemd/system/scanview-backup.service": "a50d988a0efa9770ccc8b847f028c94396a521c2bb09fa56d98644ae671a710f",
+    "/etc/systemd/system/scanview-backup.timer": "962eabea7e9497a9a20d9226039287240033442d9220a71f9e11aa5ce51c640c",
+    "/etc/systemd/system/scanview-git-export.service": "340861c1c5396b382ee110d5f4fe2a4ba59c183457644f46e54b366832ae793d",
+    "/etc/systemd/system/scanview-git-export.timer": "b6a83ad2a32f137ac1d7a0a205436e70fe89900cb341899130be4a9d5a1d6283",
+    "/etc/scanview/scanview-server.env": "60d983bb466f5028ffacd07e1f9651b45a78ab1d110f4674672156f2efe41e26",
+    "/usr/local/sbin/scanview-paket-freischalten": "11daab3fe5dc19b3e36f6fd5b71fd0a2e0077e77ef4dcf7af76d80ad9cef9eb4",
+    "/etc/sudoers.d/scanview-deploy": "26d37d27befbd135beef1b15ec1e2003ef2dc7286ef593f6f9367c21218d9d84",
+    "/etc/caddy/scanview.caddy": "3e88cdce828dfff14f57fbfec26539db636d82a05d76e1b9151e58a66f33079a",
+    "/etc/fail2ban/filter.d/scanview.conf": "c76fa73cfe97bf93392242bb9024c9a2653db8d8bb563bde4da1d5fa263c1c97",
+    "/etc/fail2ban/jail.d/scanview.local": "4e15ea8035eb625022b959917e1fa7d81a9ab5430ac6f1c1952b266795c7a884"
+  }
+}

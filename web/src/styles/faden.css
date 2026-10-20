@@ -1,0 +1,45 @@
+/* Befund-Faden (fadenAnsicht.ts): Viewer-Befundkarte und Portal-Seite /befunde, nur Tokens aus tokens.css.
+   Intern ist mit dem Wort „intern“ und einem Rand abgesetzt, nicht nur mit Farbe. */
+.sv-faden [hidden] { display: none !important; }
+.sv-faden h2, .sv-faden h3 { margin: 12px 0 4px; font-size: 1rem; }
+.sv-faden-stand { margin: 0 0 6px; font-weight: 600; }
+.sv-faden-liste { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.sv-faden-eintrag { padding: 4px 6px; border-left: 3px solid var(--sv-border); }
+.sv-faden-eintrag:focus-visible { outline: 2px solid transparent; box-shadow: var(--sv-focus); }
+.sv-faden-intern { border-left: 3px dashed var(--sv-warn); background: var(--sv-surface); }
+.sv-intern-marke { text-transform: uppercase; letter-spacing: 0.04em; }
+.sv-faden-kopf { margin: 0; font-size: 0.9em; color: var(--sv-fg-muted); }
+.sv-faden-text { margin: 2px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sv-faden-zurueck { font-style: italic; color: var(--sv-fg-muted); }
+.sv-faden-link { overflow-wrap: anywhere; }
+.sv-faden-leer { margin: 4px 0; color: var(--sv-fg-muted); }
+.sv-faden-formulare { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.sv-faden-gruppe { margin: 0; padding: 6px 8px; border: 1px solid var(--sv-border); border-radius: var(--sv-radius);
+  display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sv-faden-gruppe legend { font-weight: 600; padding: 0 4px; }
+.sv-faden-gruppe .sv-feld { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+.sv-faden-gruppe input:not([type='checkbox']), .sv-faden-gruppe textarea, .sv-faden-gruppe select {
+  box-sizing: border-box; width: 100%; padding: 4px 6px; font: inherit; color: var(--sv-fg); background: var(--sv-bg);
+  border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius); }
+.sv-faden-gruppe textarea { resize: vertical; min-height: 3em; }
+.sv-faden-gruppe button { align-self: flex-start; }
+.sv-faden .sv-schalter { display: flex; align-items: center; gap: 6px; margin: 0; }
+.sv-faden .sv-status:empty { display: none; }
+
+/* Filter der Befundliste im Viewer. */
+.sv-befund-filter { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 0 0 8px; }
+.sv-befund-filter > div { display: flex; flex-direction: column; font-size: 0.9em; min-width: 0; }
+.sv-befund-filter select { font: inherit; color: var(--sv-fg); background: var(--sv-bg); border: 1px solid var(--sv-border-strong);
+  border-radius: var(--sv-radius); padding: 2px 4px; max-width: 100%; }
+
+/* Kennzeichen am Marker: eigene Zeile im Schild. */
+.scanview-poi-label .sv-marker-stand { display: block; font-size: 0.85em; font-weight: 400; }
+
+/* KI-Vorschläge bleiben auch ohne Farbe eindeutig. */
+.sv-vorschlag { border: 2px dashed currentColor; }
+.sv-loeschvorschlag { text-decoration: line-through; }
+.sv-vorschlag span { display: block; }
+.sv-faden-vorschlag { border: 2px dashed var(--sv-border-strong); padding: 8px; }
+.sv-faden-entschieden { color: var(--sv-fg-muted); }
+.sv-pruefzeile { margin-block: 12px; padding: 8px; border: 1px solid var(--sv-border); overflow-wrap: anywhere; }
+.sv-pruefzeile button { margin: 4px; }

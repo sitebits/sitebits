@@ -1,0 +1,1344 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "npm",
+          "version": "12.0.2"
+        },
+        {
+          "type": "library",
+          "name": "cyclonedx-library",
+          "group": "@cyclonedx",
+          "version": "10.3.0",
+          "author": "Jan Kowalleck",
+          "description": "Core functionality of CycloneDX for JavaScript (Node.js or WebBrowser).",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0"
+              }
+            }
+          ],
+          "externalReferences": [
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-javascript-library/issues",
+              "type": "issue-tracker",
+              "comment": "as detected from PackageJson property \"bugs.url\""
+            },
+            {
+              "url": "git+https://github.com/CycloneDX/cyclonedx-javascript-library.git",
+              "type": "vcs",
+              "comment": "as detected from PackageJson property \"repository.url\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-javascript-library#readme",
+              "type": "website",
+              "comment": "as detected from PackageJson property \"homepage\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:constraint:engine:node",
+              "value": ">=20.18.0"
+            }
+          ]
+        },
+        {
+          "type": "application",
+          "name": "cyclonedx-npm",
+          "group": "@cyclonedx",
+          "version": "6.0.1",
+          "author": "Jan Kowalleck",
+          "description": "Create CycloneDX Software Bill of Materials (SBOM) from NPM projects.",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0"
+              }
+            }
+          ],
+          "externalReferences": [
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-node-npm/issues",
+              "type": "issue-tracker",
+              "comment": "as detected from PackageJson property \"bugs.url\""
+            },
+            {
+              "url": "git+https://github.com/CycloneDX/cyclonedx-node-npm.git",
+              "type": "vcs",
+              "comment": "as detected from PackageJson property \"repository.url\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-node-npm#readme",
+              "type": "website",
+              "comment": "as detected from PackageJson property \"homepage\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:constraint:engine:node",
+              "value": ">=20.18.0"
+            },
+            {
+              "name": "cdx:npm:package:constraint:engine:npm",
+              "value": ">=9"
+            }
+          ]
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "name": "scanview-web",
+      "bom-ref": "scanview-web",
+      "purl": "pkg:npm/scanview-web",
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": ""
+        },
+        {
+          "name": "cdx:npm:package:private",
+          "value": "true"
+        }
+      ]
+    },
+    "properties": [
+      {
+        "name": "cdx:reproducible",
+        "value": "true"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "giro3d",
+      "group": "@giro3d",
+      "version": "2.0.4",
+      "bom-ref": "scanview-web|@giro3d/giro3d@2.0.4",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40giro3d/giro3d@2.0.4",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@giro3d/giro3d/-/giro3d-2.0.4.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "31f5a6a12b90f05a620bbf3f3045b1b460ed5b623460c517a402afbfeafd31bf1085766e0c40237902c1bfc4e847d0457c8a9bba7c007d51f706205012a5af73"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@giro3d/giro3d"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "float16",
+      "group": "@petamoriken",
+      "version": "3.9.3",
+      "bom-ref": "scanview-web|@petamoriken/float16@3.9.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40petamoriken/float16@3.9.3",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@petamoriken/float16/-/float16-3.9.3.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "f1ac2da475c2c7f6cda45b789addb176482d815bcaaadcbc55b8c723f596590b84c3e28bcc5a2dddfe3e2e4418f5898eb6aec0e4674e9eaa080bc3ddca08e4da"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@petamoriken/float16"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "rbush",
+      "group": "@types",
+      "version": "4.0.0",
+      "bom-ref": "scanview-web|@types/rbush@4.0.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40types/rbush@4.0.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@types/rbush/-/rbush-4.0.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "f8dfb61f7f4ff17f87cb5239982e9ac254d7e789371618949afb7b1d6cc6259bc5facc94000c4ffecb70a694bc244f38607a8581132fe9f0b2df5db4d82305c5"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@types/rbush"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "storage",
+      "group": "@zarrita",
+      "version": "0.2.0",
+      "bom-ref": "scanview-web|@zarrita/storage@0.2.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40zarrita/storage@0.2.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/@zarrita/storage/-/storage-0.2.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "f39e595eab6776ceeca674fcbcdbc3f8c5dadd01313f59b61aa4a17bccadeee6571e740b8091e09295701631350742830d13b4922d3d86693a39ba136887cfb1"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@zarrita/storage"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "fflate",
+      "version": "0.8.3",
+      "bom-ref": "scanview-web|fflate@0.8.3",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/fflate@0.8.3",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/fflate/-/fflate-0.8.3.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "b5b64db89acbc06529df3b2106d772e16f8e47166e221f1ae629722044030b9ad8d5fdd4db424caf2d0b977581cd4e7c1192ac12e2455e16f9830bfc0ac3ef80"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/fflate"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "geotiff",
+      "version": "3.0.5",
+      "bom-ref": "scanview-web|geotiff@3.0.5",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/geotiff@3.0.5",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/geotiff/-/geotiff-3.0.5.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "39670bf52f7ec8367a88095732ddf64f58b0500a4933c5220f8ef16e6e993f5877dddd747ea90fb35e041bfb6d4f912779fa594b1dc6d79883142e45c54354c0"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/geotiff"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "laz-perf",
+      "version": "0.0.7",
+      "bom-ref": "scanview-web|laz-perf@0.0.7",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/laz-perf@0.0.7",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/laz-perf/-/laz-perf-0.0.7.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "db146a9bf7ffd94a834b9aaa9233b20dbeae5488e4570e921a64253284d096255691984f7c86d4253b9b525de64e5a1a5aa29c8e54bfbab98fd42628c5e96c12"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/laz-perf"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "lerc",
+      "version": "3.0.0",
+      "bom-ref": "scanview-web|lerc@3.0.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/lerc@3.0.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/lerc/-/lerc-3.0.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "466e09fd66878516bdde708dda6c160d9168455175f06d5fe3b0be92f416c871846711694d48bbde9ee53154809ddcb11adea5276fc215b39c7fdadae69f1ac3"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/lerc"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "lil-gui",
+      "version": "0.17.0",
+      "bom-ref": "scanview-web|lil-gui@0.17.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/lil-gui@0.17.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/lil-gui/-/lil-gui-0.17.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "3150479a063eb846e624d02901a3dbb6f361d5108078c9caca6f364818eda79ace0d360a5ad33e3171c289f2ded87d938b51ee04606d2bfe52c86e12850de951"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/lil-gui"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "mgrs",
+      "version": "1.0.0",
+      "bom-ref": "scanview-web|mgrs@1.0.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/mgrs@1.0.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/mgrs/-/mgrs-1.0.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "6b035b4cea82c4ad430468da94adf1a9622cb4166037a7f1b0c4a25cbb3dfeca6a5a4176a4085bdabad80854acaf5fed4fb3e17031a3667746f125989f46f260"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/mgrs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "numcodecs",
+      "version": "0.3.2",
+      "bom-ref": "scanview-web|numcodecs@0.3.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/numcodecs@0.3.2",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/numcodecs/-/numcodecs-0.3.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "e9848f9e66608343fcee39cd862decf8554b39c227df2fb509322052e940dc87404b32bd7c933ceec505929c80f9b7bd1a26c645a493db00a0903fba53e7d62b"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/numcodecs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "ol",
+      "version": "10.10.0",
+      "bom-ref": "scanview-web|ol@10.10.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-2-Clause",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/ol@10.10.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/ol/-/ol-10.10.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "b4b3ca9face5fbab9674fb9f625a86fe5433b955135667f06a142a56be7ec1937265e73202d221313c8eb4aa6eee8a0d0cb636b048ca64d5f0f472feb0e8c2d4"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/ol"
+        }
+      ],
+      "components": [
+        {
+          "type": "library",
+          "name": "earcut",
+          "version": "3.2.3",
+          "bom-ref": "scanview-web|ol@10.10.0|earcut@3.2.3",
+          "licenses": [
+            {
+              "license": {
+                "id": "ISC",
+                "acknowledgement": "declared"
+              }
+            }
+          ],
+          "purl": "pkg:npm/earcut@3.2.3",
+          "externalReferences": [
+            {
+              "url": "https://registry.npmjs.org/earcut/-/earcut-3.2.3.tgz",
+              "type": "distribution",
+              "hashes": [
+                {
+                  "alg": "SHA-512",
+                  "content": "be74b8015c29d4a1c0175de2d6fa75ff60f97af5b2de4e6efe25bf07cd5056c519b55f1cbf6b54d1bd9534596abe1e24630ac53037633c27c099fc895bdcb5e1"
+                }
+              ],
+              "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:path",
+              "value": "node_modules/ol/node_modules/earcut"
+            }
+          ]
+        },
+        {
+          "type": "library",
+          "name": "geotiff",
+          "version": "3.1.0-beta.0",
+          "bom-ref": "scanview-web|ol@10.10.0|geotiff@3.1.0-beta.0",
+          "licenses": [
+            {
+              "license": {
+                "id": "MIT",
+                "acknowledgement": "declared"
+              }
+            }
+          ],
+          "purl": "pkg:npm/geotiff@3.1.0-beta.0",
+          "externalReferences": [
+            {
+              "url": "https://registry.npmjs.org/geotiff/-/geotiff-3.1.0-beta.0.tgz",
+              "type": "distribution",
+              "hashes": [
+                {
+                  "alg": "SHA-512",
+                  "content": "c1b57039a418b8dfb2c25cb93683179f7ee71ec9709108391051ea31e513b630c00ab49a83410456516c73ed832b73f39a6a7a5f3256d914d939a98fb0133a9e"
+                }
+              ],
+              "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:path",
+              "value": "node_modules/ol/node_modules/geotiff"
+            }
+          ]
+        },
+        {
+          "type": "library",
+          "name": "pbf",
+          "version": "5.1.2",
+          "bom-ref": "scanview-web|ol@10.10.0|pbf@5.1.2",
+          "licenses": [
+            {
+              "license": {
+                "id": "BSD-3-Clause",
+                "acknowledgement": "declared"
+              }
+            }
+          ],
+          "purl": "pkg:npm/pbf@5.1.2",
+          "externalReferences": [
+            {
+              "url": "https://registry.npmjs.org/pbf/-/pbf-5.1.2.tgz",
+              "type": "distribution",
+              "hashes": [
+                {
+                  "alg": "SHA-512",
+                  "content": "9a7bc676f3ab22f24e04650474692b5578cdf04fd590824291fd9e4b50c7db2bfcd8e45494bb6d983b74ad6637f32619995c1c899c0152f1ccdb4ab10597f8d3"
+                }
+              ],
+              "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:path",
+              "value": "node_modules/ol/node_modules/pbf"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "pako",
+      "version": "2.2.0",
+      "bom-ref": "scanview-web|pako@2.2.0",
+      "licenses": [
+        {
+          "expression": "(MIT AND Zlib)",
+          "acknowledgement": "declared"
+        }
+      ],
+      "purl": "pkg:npm/pako@2.2.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/pako/-/pako-2.2.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "cc9aba44fff9abe4ced8ea45577147ce53e71639a46fb35cf7d6b948d8c913ebaefcf9290a1b3e3486524b36c1a03fba9238884978df61dc23d59450f35773ff"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/pako"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "parse-headers",
+      "version": "2.0.6",
+      "bom-ref": "scanview-web|parse-headers@2.0.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/parse-headers@2.0.6",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/parse-headers/-/parse-headers-2.0.6.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "4f3d75b77b8aced116e451156678f5a31f0629b9569fe3ef1d8f53989579325976b8713045d47fe4b8b53a55e81028cb6240297615b2e38a1c38dc172e228ee4"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/parse-headers"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "proj4",
+      "version": "2.22.0",
+      "bom-ref": "scanview-web|proj4@2.22.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/proj4@2.22.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/proj4/-/proj4-2.22.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "315bc7d3d42b626dc0db7e6b717dfd58388229a9eb0626e5bb6f25d0a6089ff0760e87e6621bcffcb2d2e37904eba8cd0dfc7f3f597f9da877266b00abc5206d"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/proj4"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "protocol-buffers-schema",
+      "version": "3.6.1",
+      "bom-ref": "scanview-web|protocol-buffers-schema@3.6.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/protocol-buffers-schema@3.6.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/protocol-buffers-schema/-/protocol-buffers-schema-3.6.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "546d8aeb7220922bfda7bead93596295ccc42b5713fa40a32ad91d870d5d41957793721725b777a3a1e8f1bf732596874a74f684a7b823e39b997f70ea6e5299"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/protocol-buffers-schema"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "quick-lru",
+      "version": "6.1.2",
+      "bom-ref": "scanview-web|quick-lru@6.1.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/quick-lru@6.1.2",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/quick-lru/-/quick-lru-6.1.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "0001540393b577cde9207121270582abf450711ba40a49ff3529b642c4c43257b97f684fd02848dbedd76f4e753d90a42ebc88fc8af53152af893d85225a1a4d"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/quick-lru"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "quickselect",
+      "version": "3.0.0",
+      "bom-ref": "scanview-web|quickselect@3.0.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "ISC",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/quickselect@3.0.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/quickselect/-/quickselect-3.0.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "5dd8d402b6cae019b97cb2ef966e4aa5314e88e4e181f5962386b10190d683813fd2629d67223db4d11f76cdbba828b5cdefefc13475ea4be6986851adaddcda"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/quickselect"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "rbush",
+      "version": "4.0.1",
+      "bom-ref": "scanview-web|rbush@4.0.1",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/rbush@4.0.1",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/rbush/-/rbush-4.0.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "20fd14a5f79642e8d80bc260d7adab30d734d517f481630c01bd94c6eb3f434a8e170e2509caba66740467052826a5b250627db61ec98f0238c885a8faebe801"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/rbush"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "reference-spec-reader",
+      "version": "0.2.0",
+      "bom-ref": "scanview-web|reference-spec-reader@0.2.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/reference-spec-reader@0.2.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/reference-spec-reader/-/reference-spec-reader-0.2.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "ab499f0a2e726524875e90b2c6381079a391ab7b6f0ecc43cb369a740ff9f806c053047246eb9387469142e13fbc03adfeacf3c62749e620debb570b1da34195"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/reference-spec-reader"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "resolve-protobuf-schema",
+      "version": "2.1.0",
+      "bom-ref": "scanview-web|resolve-protobuf-schema@2.1.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/resolve-protobuf-schema@2.1.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/resolve-protobuf-schema/-/resolve-protobuf-schema-2.1.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "908e5f7d38995a625a4bf86e33cc197c431eaf579177ba094210eec5e08b7b7b7b37b997df3f7808dd313f1050c456104d2373f53d22fafea29caa9274af31ad"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/resolve-protobuf-schema"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "three",
+      "version": "0.180.0",
+      "bom-ref": "scanview-web|three@0.180.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/three@0.180.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/three/-/three-0.180.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "a3eab2700319ae1f93b04d351aa594c5420a47500bd12f29abbcc3918390c3c1aa7d7f1bf15a022985281db8625f98feee1afc5ecb870d553afa09102502a0f7"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/three"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "unzipit",
+      "version": "2.0.0",
+      "bom-ref": "scanview-web|unzipit@2.0.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/unzipit@2.0.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/unzipit/-/unzipit-2.0.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "0d579521651908040f3739b9b01d21a6c1b51b28134dd067ccdb58604a489e4b6dc797af932a918198baad3733a324aaa7c84ee631d52b3ac7d1fdb75fc1592e"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/unzipit"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "web-worker",
+      "version": "1.5.0",
+      "bom-ref": "scanview-web|web-worker@1.5.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/web-worker@1.5.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/web-worker/-/web-worker-1.5.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "462311789ad302203e9818c638d3278d50cfdaede9f51d6f91c1b3ea00c8ace313de81ae6305f659131823d8a9929852b84e5728487275b84d109878358f6697"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/web-worker"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "wkt-parser",
+      "version": "1.5.6",
+      "bom-ref": "scanview-web|wkt-parser@1.5.6",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/wkt-parser@1.5.6",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/wkt-parser/-/wkt-parser-1.5.6.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "72a1d4de5cc6b7f82dd8ea883913f4b95cb9c9e397e3758006680592626c99ca87dc7850a3d3e2246e9fb72b7018a9a94146de81e5fbfa941cd81b8d0917dcaf"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/wkt-parser"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "xml-utils",
+      "version": "1.10.2",
+      "bom-ref": "scanview-web|xml-utils@1.10.2",
+      "licenses": [
+        {
+          "license": {
+            "id": "CC0-1.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/xml-utils@1.10.2",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/xml-utils/-/xml-utils-1.10.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "46a33eda8d5162ce93f3edc3cc34a84d10147ebbda7a36d51dca77fad86702d0caa3c2ec911f87a262da8c4cb95234f3db8ae991aec0c55051477836c1352424"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/xml-utils"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "zarrita",
+      "version": "0.7.5",
+      "bom-ref": "scanview-web|zarrita@0.7.5",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/zarrita@0.7.5",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/zarrita/-/zarrita-0.7.5.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "66b88e4849def967f68ae334ca30d9bd42a91cd96e83774eeea27a980c57a0e82c615d7c0cf3a4024c01f5ed2b7f6d5b1dc29c39f7c5bb0a19c27e60ea9bd478"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/zarrita"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "zstddec",
+      "version": "0.2.0",
+      "bom-ref": "scanview-web|zstddec@0.2.0",
+      "licenses": [
+        {
+          "expression": "MIT AND BSD-3-Clause",
+          "acknowledgement": "declared"
+        }
+      ],
+      "purl": "pkg:npm/zstddec@0.2.0",
+      "externalReferences": [
+        {
+          "url": "https://registry.npmjs.org/zstddec/-/zstddec-0.2.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "a323e70dad57e5cd77f98ee603f14330d26b9f84bc50d05ed0a0aab439a8af8d117bb00bacf37a9e9170c98551461f8faa8cd941d7a0db742d6dc6a66671b9ac"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/zstddec"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "scanview-web",
+      "dependsOn": [
+        "scanview-web|@giro3d/giro3d@2.0.4",
+        "scanview-web|laz-perf@0.0.7",
+        "scanview-web|lil-gui@0.17.0",
+        "scanview-web|ol@10.10.0",
+        "scanview-web|proj4@2.22.0",
+        "scanview-web|three@0.180.0"
+      ]
+    },
+    {
+      "ref": "scanview-web|@giro3d/giro3d@2.0.4",
+      "dependsOn": [
+        "scanview-web|geotiff@3.0.5",
+        "scanview-web|lil-gui@0.17.0",
+        "scanview-web|ol@10.10.0",
+        "scanview-web|proj4@2.22.0",
+        "scanview-web|three@0.180.0",
+        "scanview-web|wkt-parser@1.5.6"
+      ]
+    },
+    {
+      "ref": "scanview-web|@petamoriken/float16@3.9.3"
+    },
+    {
+      "ref": "scanview-web|@types/rbush@4.0.0"
+    },
+    {
+      "ref": "scanview-web|@zarrita/storage@0.2.0",
+      "dependsOn": [
+        "scanview-web|reference-spec-reader@0.2.0",
+        "scanview-web|unzipit@2.0.0"
+      ]
+    },
+    {
+      "ref": "scanview-web|fflate@0.8.3"
+    },
+    {
+      "ref": "scanview-web|geotiff@3.0.5",
+      "dependsOn": [
+        "scanview-web|@petamoriken/float16@3.9.3",
+        "scanview-web|lerc@3.0.0",
+        "scanview-web|pako@2.2.0",
+        "scanview-web|parse-headers@2.0.6",
+        "scanview-web|quick-lru@6.1.2",
+        "scanview-web|web-worker@1.5.0",
+        "scanview-web|xml-utils@1.10.2",
+        "scanview-web|zstddec@0.2.0"
+      ]
+    },
+    {
+      "ref": "scanview-web|laz-perf@0.0.7"
+    },
+    {
+      "ref": "scanview-web|lerc@3.0.0"
+    },
+    {
+      "ref": "scanview-web|lil-gui@0.17.0"
+    },
+    {
+      "ref": "scanview-web|mgrs@1.0.0"
+    },
+    {
+      "ref": "scanview-web|numcodecs@0.3.2",
+      "dependsOn": [
+        "scanview-web|fflate@0.8.3"
+      ]
+    },
+    {
+      "ref": "scanview-web|ol@10.10.0",
+      "dependsOn": [
+        "scanview-web|@types/rbush@4.0.0",
+        "scanview-web|ol@10.10.0|earcut@3.2.3",
+        "scanview-web|ol@10.10.0|geotiff@3.1.0-beta.0",
+        "scanview-web|ol@10.10.0|pbf@5.1.2",
+        "scanview-web|rbush@4.0.1",
+        "scanview-web|zarrita@0.7.5"
+      ]
+    },
+    {
+      "ref": "scanview-web|ol@10.10.0|earcut@3.2.3"
+    },
+    {
+      "ref": "scanview-web|ol@10.10.0|geotiff@3.1.0-beta.0",
+      "dependsOn": [
+        "scanview-web|@petamoriken/float16@3.9.3",
+        "scanview-web|lerc@3.0.0",
+        "scanview-web|pako@2.2.0",
+        "scanview-web|parse-headers@2.0.6",
+        "scanview-web|quick-lru@6.1.2",
+        "scanview-web|web-worker@1.5.0",
+        "scanview-web|xml-utils@1.10.2",
+        "scanview-web|zstddec@0.2.0"
+      ]
+    },
+    {
+      "ref": "scanview-web|ol@10.10.0|pbf@5.1.2",
+      "dependsOn": [
+        "scanview-web|resolve-protobuf-schema@2.1.0"
+      ]
+    },
+    {
+      "ref": "scanview-web|pako@2.2.0"
+    },
+    {
+      "ref": "scanview-web|parse-headers@2.0.6"
+    },
+    {
+      "ref": "scanview-web|proj4@2.22.0",
+      "dependsOn": [
+        "scanview-web|geotiff@3.0.5",
+        "scanview-web|mgrs@1.0.0",
+        "scanview-web|wkt-parser@1.5.6"
+      ]
+    },
+    {
+      "ref": "scanview-web|protocol-buffers-schema@3.6.1"
+    },
+    {
+      "ref": "scanview-web|quick-lru@6.1.2"
+    },
+    {
+      "ref": "scanview-web|quickselect@3.0.0"
+    },
+    {
+      "ref": "scanview-web|rbush@4.0.1",
+      "dependsOn": [
+        "scanview-web|quickselect@3.0.0"
+      ]
+    },
+    {
+      "ref": "scanview-web|reference-spec-reader@0.2.0"
+    },
+    {
+      "ref": "scanview-web|resolve-protobuf-schema@2.1.0",
+      "dependsOn": [
+        "scanview-web|protocol-buffers-schema@3.6.1"
+      ]
+    },
+    {
+      "ref": "scanview-web|three@0.180.0"
+    },
+    {
+      "ref": "scanview-web|unzipit@2.0.0"
+    },
+    {
+      "ref": "scanview-web|web-worker@1.5.0"
+    },
+    {
+      "ref": "scanview-web|wkt-parser@1.5.6"
+    },
+    {
+      "ref": "scanview-web|xml-utils@1.10.2"
+    },
+    {
+      "ref": "scanview-web|zarrita@0.7.5",
+      "dependsOn": [
+        "scanview-web|@zarrita/storage@0.2.0",
+        "scanview-web|numcodecs@0.3.2"
+      ]
+    },
+    {
+      "ref": "scanview-web|zstddec@0.2.0"
+    }
+  ]
+}

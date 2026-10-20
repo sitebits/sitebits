@@ -1,0 +1,39 @@
+# API-Fuzzing (Release-Stufe `fuzzing`, Modul scanview_nachweise.fuzzing): Schemathesis gegen die
+# OpenAPI einer Wegwerf-Instanz aus dem eingefrorenen Commit, je als Betrachter (API-Token) und
+# als Admin (Sitzungs-Cookie), mit festem Seed. Geladen fail-closed (fuzzing.lade_konfig).
+seed = 20260928
+# Beispiele je Operation und Phase; beide Identitäten zusammen <= 15 min. Gemessen 29.09.2026 auf
+# der Workstation, voller Lauf über Caddy aus einem frischen Worktree (17 Betrachter- und 34
+# Admin-Operationen): 50 → 746 s bzw. 866 s (zwei Läufe), 40 → 744 s. Den Löwenanteil trägt der
+# Betrachter, dessen Token auf 100 Anfragen/min gedrosselt ist (Dienst: 120/min).
+max_examples = 40
+
+# Checks von Schemathesis 4.27.5: jeder steht entweder in `aktiv` (Fehlschlag blockiert) oder
+# mit Begründung unter [pruefungen.aus]. not_a_server_error, response_schema_conformance und
+# ignored_auth sind Pflicht.
+[pruefungen]
+aktiv = [
+    "not_a_server_error",
+    "response_schema_conformance",
+    "content_type_conformance",
+    "response_headers_conformance",
+    "negative_data_rejection",
+    "missing_required_header",
+    "unsupported_method",
+    "use_after_free",
+    "ensure_resource_availability",
+    "ignored_auth",
+]
+
+[pruefungen.aus]
+status_code_conformance = "Die OpenAPI des Dienstes beschreibt je Operation nur 200/201/204 und 422; 401, 403, 404, 409 und 429 sind gewollte Antworten (Anmeldung, Rechte, verborgene Ressourcen, Drossel), aber nicht dokumentiert — Dokumentationslücke, erfasst als Befund B-FUZZ-3"
+positive_data_acceptance = "Der Dienst prüft Eingaben strenger als das Schema (E-Mail-Form, Namenslänge, Projekt-ID-Muster) und antwortet dann mit 422; schemakonforme, aber fachlich ungültige Daten abzulehnen ist gewollt — Dokumentationslücke, erfasst als Befund B-FUZZ-3"
+allow_header_conformance = "405-Antworten tragen keinen Allow-Kopf (Starlette-Fehlerpfad des Dienstes); kein Sicherheitsbezug, erfasst als Befund B-FUZZ-3"
+
+# Operationen, die die eigene Anmeldung des Laufs beenden würden (Ergebnis danach ungültig):
+# ermittelt aus der OpenAPI des Admins (Probe 29.09.: `abmelden-ueberall` auf die eigene uid
+# beendete die Admin-Sitzung mitten im Lauf).
+[[ausgeschlossen]]
+identitaet = "admin"
+pfad_regex = '^/api/v1/admin/nutzer/\{uid\}/(sperren|abmelden-ueberall)$'
+grund = "Sperren bzw. Abmelden-überall auf die eigene uid beendet die Admin-Sitzung, auf die uid des Betrachters widerruft es dessen API-Token — beides macht den restlichen Lauf ungültig"

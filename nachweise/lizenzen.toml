@@ -1,0 +1,45 @@
+# Lizenz-Positivliste der Release-Kette (scanview-nachweise, Stufe „lizenzen“).
+#
+# Maschinenlesbare Fassung der Lizenzentscheidungen, Kategorien wie unten markiert: P10
+# permissiv (auch außerhalb der wörtlichen Liste), P12 LGPL, P14 BlueOak-1.0.0/Python-2.0,
+# F10 MPL-2.0 unverändert weitergegeben (GPL/AGPL nie eingebunden, nur als externer Prozess).
+# Komponenten-Nennung siehe docs/THIRD_PARTY.md.
+# Geprüft werden die SBOMs der ausgelieferten Artefakte: jede erklärte Lizenz jeder Komponente
+# muss hier stehen bzw. als SPDX-Ausdruck erfüllbar sein. Eine neue Lizenz braucht eine
+# begründete Entscheidung und einen Eintrag hier — nie einen stillen Nachtrag.
+
+erlaubt = [
+    # permissiv (P10)
+    "MIT",  # auch eslint-plugin-playwright (Dev-Abhängigkeit, E2E-Linter)
+    "MIT-0",
+    "MIT-CMU",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "0BSD",
+    "ISC",
+    "Apache-2.0",
+    "Zlib",
+    "CC0-1.0",
+    "BSL-1.0",
+    "HPND",
+    "PSF-2.0",
+    # P14
+    "BlueOak-1.0.0",
+    "Python-2.0",
+    # schwaches Copyleft auf Dateiebene, unverändert weitergegeben (F10) bzw. LGPL (P12)
+    "MPL-2.0",
+    "LGPL-2.1-only",
+    "LGPL-2.1-or-later",
+    "LGPL-3.0-only",
+    "LGPL-3.0-or-later",
+]
+
+# Freitext bzw. Trove-Klassifikatoren (PyPI-Metadaten ohne SPDX-Feld) → SPDX-Ausdruck. „BSD
+# License“ legt die Klauselzahl nicht fest; beide Fassungen sind erlaubt.
+[klassifikatoren]
+"License :: OSI Approved :: Apache Software License" = "Apache-2.0"
+"License :: OSI Approved :: BSD License" = "BSD-2-Clause OR BSD-3-Clause"
+"License :: OSI Approved :: MIT License" = "MIT"
+"License :: OSI Approved :: ISC License (ISCL)" = "ISC"
+"License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)" = "MPL-2.0"
+"License :: OSI Approved :: Python Software Foundation License" = "PSF-2.0"

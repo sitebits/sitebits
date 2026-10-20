@@ -1,0 +1,30 @@
+# Lokaler Caddy vor scanview-server (http://localhost:18090) — nur Test, kein Betrieb.
+# Starten:  docker compose -f deploy/platform/docker-compose.caddy.yml up -d
+# Voraussetzungen: web/dist gebaut, Dienst auf 127.0.0.1:8803, Testdaten unter
+# ~/localWorkspace/scanview-data/_plattform-test (Hardlink-Kopien, keine Symlinks).
+services:
+  caddy:
+    # caddy:2.11-alpine (v2.11.4), Index-Digest per `docker pull` + RepoDigests am 27.09.2026
+    # (docker buildx fehlt auf der Workstation; der RepoDigest ist derselbe Index-Digest).
+    image: caddy:2.11-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    container_name: scanview-plattform-caddy
+    # host: Caddy erreicht den Dienst unter 127.0.0.1:8803 wie auf dem Server.
+    network_mode: host
+    read_only: true
+    tmpfs:
+      - /data
+      - /config
+    environment:
+      SCANVIEW_WEB: /srv/web
+      SCANVIEW_DATA: /srv/data
+      SCANVIEW_UPSTREAM: 127.0.0.1:8803
+      SCANVIEW_MELDEWEG: /srv/meldeweg
+    volumes:
+      - ./Caddyfile.lokal:/etc/caddy/Caddyfile:ro
+      - ./scanview.caddy:/etc/caddy/scanview.caddy:ro
+      - ../../web/dist:/srv/web:ro
+      - ${SCANVIEW_TESTDATEN:-${HOME}/localWorkspace/scanview-data/_plattform-test}:/srv/data:ro
+      # Meldeweg: standardmäßig leer (/var/empty) → 404; SCANVIEW_MELDEWEG_LOKAL auf einen Ordner mit
+      # security.txt setzen, um die Auslieferung zu sehen.
+      - ${SCANVIEW_MELDEWEG_LOKAL:-/var/empty}:/srv/meldeweg:ro
+    restart: "no"

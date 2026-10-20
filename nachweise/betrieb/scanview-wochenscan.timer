@@ -1,0 +1,10 @@
+[Unit]
+Description=scanview Wochenscan, dienstags 05:30
+
+[Timer]
+OnCalendar=Tue *-*-* 05:30:00
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

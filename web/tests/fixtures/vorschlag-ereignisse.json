@@ -1,0 +1,4 @@
+{
+  "inhalt": ["vorgeschlagen", "vorschlag_geaendert", "vorschlag_geloescht", "loeschen_vorgeschlagen", "angenommen", "verworfen", "loeschen_verworfen"],
+  "faden": ["eintrag.vorgeschlagen", "eintrag.vorschlag_verworfen"]
+}

@@ -1,0 +1,78 @@
+/* Befund: Formular als Inspektor rechts unter der Werkzeugleiste, über dem rechten Panel-Dock (z-index), unter
+   dem Positions-Menü (10); Markerformen, ausgewählter Marker, Höhenlegende. Die #poi-form-Regeln stehen nur hier (früher im Inline-Stil
+   der index.html, dessen ID-Selektor eine Klassenregel überstimmt hätte). */
+#poi-form.sv-inspektor { position: absolute; top: 56px; right: 8px; z-index: 7; box-sizing: border-box;
+  width: min(320px, calc(100vw - 16px)); max-height: 60vh; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 6px;
+  background: #000e; border: 1px solid var(--sv-border); border-radius: var(--sv-radius); }
+/* Nach der display-Regel und mindestens so spezifisch: sonst schlüge sie das hidden-Attribut. */
+#poi-form.sv-inspektor[hidden] { display: none; }
+#poi-form.sv-inspektor h2 { margin: 0; font-size: 1rem; }
+#poi-form .sv-hinweis { opacity: .75; font-size: 12px; line-height: 1.3; }
+/* Marker: die Art steckt in der Form (nicht nur in der Farbe), der Titel bleibt als Text daneben.
+   Befund = Raute, Rückmeldung = Sprechblase; die Form sitzt links im Schild (Platz per padding-left). Der
+   Marker ist per CSS2DRenderer absolut positioniert und damit Bezugsrahmen der Pseudo-Elemente. */
+.scanview-poi-label.sv-marker-befund, .scanview-poi-label.sv-marker-rueckmeldung { padding-left: 20px; }
+.scanview-poi-label.sv-marker-befund::before { content: ""; position: absolute; left: 6px; top: calc(50% - 5px);
+  width: 8px; height: 8px; box-sizing: border-box; background: #335; border: 2px solid #fff; box-shadow: 0 0 0 1px #000;
+  transform: rotate(45deg); }
+.scanview-poi-label.sv-marker-rueckmeldung::before { content: ""; position: absolute; left: 4px; top: calc(50% - 6px);
+  width: 12px; height: 9px; box-sizing: border-box; background: #fff; border: 1px solid #000; border-radius: 4px; }
+/* Ecke der Sprechblase: Dreieck unter der Blase, nach links unten zeigend. */
+.scanview-poi-label.sv-marker-rueckmeldung::after { content: ""; position: absolute; left: 6px; top: calc(50% + 2px);
+  width: 0; height: 0; border-style: solid; border-width: 4px 4px 0 0; border-color: #fff transparent transparent transparent;
+  filter: drop-shadow(0 1px 0 #000); }
+/* Ausgewählter Marker: Doppelrand hell/dunkel und Unterstreichung — nicht nur Farbe. */
+.scanview-poi-label.sv-gewaehlt { border: 3px double #fff; box-shadow: 0 0 0 2px #000; text-decoration: underline; font-weight: 600; }
+/* Höhenlegende im Panel „Ansicht“ unter dem Farbregler (nur beim Farbmodus „Höhe“). Der Balken zeigt dieselben
+   fünf viridis-Farben wie die Punktwolke (viewMath.ts, VIRIDIS); die Grenzen stehen als Zahlen daneben. */
+.sv-legende { margin: 2px var(--padding, 4px) 6px; font: inherit; color: inherit; }
+.sv-legende[hidden] { display: none; }
+.sv-legende figcaption { margin-bottom: 2px; }
+.sv-legende-skala { display: flex; align-items: center; gap: 6px; }
+.sv-legende-balken { flex: 1 1 auto; min-width: 40px; height: 10px; border: 1px solid #ebebeb; border-radius: 2px;
+  background: linear-gradient(to right, #440154, #3b528b, #21918c, #5ec962, #fde725); }
+.sv-legende-min, .sv-legende-max { font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Sichtbarer Text am Werkzeugknopf „Markieren“. */
+#toolbar .sv-knopf-text { white-space: nowrap; }
+/* Befundlink zum Kopieren: unter der Werkzeugleiste, links vom Inspektor; über Dock und Rückfrage. */
+.sv-teilen { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 8; box-sizing: border-box;
+  width: min(560px, calc(100vw - 16px)); padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  background: #000e; color: var(--sv-fg); border: 1px solid var(--sv-border); border-radius: var(--sv-radius); font: var(--sv-font); }
+/* Nach der display-Regel: sonst schlüge sie das hidden-Attribut. */
+.sv-teilen[hidden] { display: none; }
+.sv-teilen label { font-weight: 600; }
+.sv-teilen input { flex: 1 1 260px; min-width: 0; min-height: 28px; padding: 2px 6px; font: inherit; color: var(--sv-fg); background: var(--sv-bg);
+  border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius); }
+.sv-teilen button { min-width: 24px; min-height: 28px; padding: 2px 12px; font: inherit; color: var(--sv-fg); background: var(--sv-surface);
+  border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius); cursor: pointer; }
+.sv-teilen button:hover { background: var(--sv-surface-hover); }
+.sv-teilen input:focus-visible, .sv-teilen button:focus-visible { outline: none; box-shadow: var(--sv-focus); }
+/* „Teilen“ ohne Auswahl: erkennbar nicht verfügbar, bleibt aber fokussierbar. */
+#toolbar button[data-teilen][aria-disabled="true"] { opacity: .6; }
+/* Angebot eines lokalen Entwurfs beim Laden: oben mittig unter dem Befundlink-Feld, nimmt keinen Fokus. */
+.sv-entwurf { position: absolute; top: 104px; left: 50%; transform: translateX(-50%); z-index: 8; box-sizing: border-box;
+  width: min(360px, calc(100vw - 16px)); max-height: calc(100vh - 120px); overflow: auto; padding: 8px 12px;
+  display: flex; flex-direction: column; gap: 6px;
+  background: #000e; color: var(--sv-fg); border: 1px solid var(--sv-border); border-radius: var(--sv-radius); font: var(--sv-font); }
+/* Nach der display-Regel: sonst schlüge sie das hidden-Attribut. */
+.sv-entwurf[hidden] { display: none; }
+.sv-entwurf h2 { margin: 0; font-size: 1rem; }
+.sv-entwurf p { margin: 0; overflow-wrap: anywhere; }
+.sv-entwurf canvas { display: block; max-width: 100%; height: auto; border: 1px solid var(--sv-border); }
+.sv-entwurf div { display: flex; flex-wrap: wrap; gap: 6px; }
+.sv-entwurf button { min-width: 24px; min-height: 28px; padding: 2px 12px; font: inherit; color: var(--sv-fg); background: var(--sv-surface);
+  border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius); cursor: pointer; }
+.sv-entwurf button:hover { background: var(--sv-surface-hover); }
+.sv-entwurf button:focus-visible { outline: none; box-shadow: var(--sv-focus); }
+/* Farbfeld je Punktklasse im Ordner „Klassen und Echos“ (ui.ts, F30); Farbe setzt das Skript. */
+.sv-klassenfarbe { display: inline-block; width: 0.8em; height: 0.8em; margin-right: 0.4em; vertical-align: -0.05em;
+  border: 1px solid #ebebeb; border-radius: 2px; }
+
+/* KI-Vorschläge bleiben auch ohne Farbe eindeutig. */
+.sv-vorschlag { border: 2px dashed currentColor; }
+.sv-loeschvorschlag { text-decoration: line-through; }
+.sv-vorschlag span { display: block; }
+.sv-faden-vorschlag { border: 2px dashed var(--sv-border-strong); padding: 8px; }
+.sv-faden-entschieden { color: var(--sv-fg-muted); }
+.sv-pruefzeile { margin-block: 12px; padding: 8px; border: 1px solid var(--sv-border); overflow-wrap: anywhere; }
+.sv-pruefzeile button { margin: 4px; }

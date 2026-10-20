@@ -1,0 +1,39 @@
+# Tägliche Sicherung der scanview-Datenbank (Konten, Rechte, Sitzungen) mit Rotation auf 7 Stück.
+# Ausgelöst von scanview-backup.timer; installiert von einrichten.sh.
+# `.backup` nutzt die Online-Backup-API von SQLite — konsistent auch bei laufendem Dienst (WAL).
+# Liegt auf derselben Platte wie das Original: schützt vor Fehlbedienung/kaputter Migration,
+# nicht vor Plattenverlust — dafür sorgt die Sicherung des ganzen Containers bzw. Hosts.
+[Unit]
+Description=scanview-Plattform: Datenbank sichern
+After=scanview-server.service
+
+[Service]
+Type=oneshot
+User=scanview
+Group=scanview
+UMask=0077
+# systemd: %% = %, $$ = $ (sonst ersetzt systemd beides selbst).
+ExecStart=/bin/sh -c 'set -eu; d=/srv/scanview/state/backups; mkdir -p "$$d"; sqlite3 /srv/scanview/state/scanview.db ".backup $$d/$$(date +%%F).db"; ls -1t "$$d"/*.db | tail -n +8 | xargs -r rm -f --'
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/srv/scanview/state
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=
+RemoveIPC=yes
+# sqlite3 braucht keine Netz-Sockets; PrivateNetwork=yes sperrt ohnehin alles außer lo.
+RestrictAddressFamilies=AF_UNIX

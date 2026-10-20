@@ -1,0 +1,28 @@
+{
+  "_hinweis": "Kanonische Liste (Claude, 19.10.2026). Zitate gegen Quellen geprüft; 'eigen' = von Andre freigegeben (\"los\").",
+  "eigen": [
+    {"de": "Eine Punktwolke ist auch nur ein Haufen Meinungen mit Koordinaten.", "en": "A point cloud is just a pile of opinions with coordinates."},
+    {"de": "Gebaut statt abonniert.", "en": "Built, not subscribed."},
+    {"de": "Hier könnte Ihr Lock-in stehen. Steht er aber nicht.", "en": "Your lock-in could be here. It isn't."},
+    {"de": "Wer misst, misst Mist – außer er hat Passpunkte.", "en": "Who measures, measures mess – unless there are control points."},
+    {"de": "Die Kirche bleibt im Dorf. Auf drei Millimeter genau.", "en": "The church stays in the village. To within three millimetres."},
+    {"de": "Geschrieben von Maschinen, bestellt von einem Fotografen mit Drohne. Die Fehler sind trotzdem menschlich.", "en": "Written by machines, ordered by a photographer with a drone. The bugs are still human."},
+    {"de": "0,83° Neigung sind auch eine Haltung.", "en": "A 0.83° tilt is a stance, too."},
+    {"de": "Ordnung ist das halbe Leben. Die andere Hälfte ist Rauschen.", "en": "Order is half of life. The other half is noise."},
+    {"de": "Wenn du das liest, bist du neugierig genug für ein Issue.", "en": "If you are reading this, you are curious enough to open an issue."}
+  ],
+  "zitate": [
+    {"text": "A map of the world that does not include Utopia is not worth even glancing at, for it leaves out the one country at which Humanity is always landing.", "von": "Oscar Wilde", "quelle": "The Soul of Man under Socialism, 1891"},
+    {"text": "Die Lust der Zerstörung ist zugleich eine schaffende Lust.", "von": "Michail Bakunin", "quelle": "Die Reaktion in Deutschland, Deutsche Jahrbücher 1842 (Wortlaut nach Metzler Philosophen-Lexikon)"},
+    {"text": "War einmal ein Revoluzzer, / Im Zivilstand Lampenputzer; / Ging im Revoluzzerschritt / Mit den Revoluzzern mit.", "von": "Erich Mühsam", "quelle": "Der Revoluzzer, 1907; Wüste, Krater, Wolken, Berlin 1914, S. 103"},
+    {"text": "That government is best which governs not at all.", "von": "Henry David Thoreau", "quelle": "Civil Disobedience, 1849"},
+    {"text": "If I can't dance, it's not my revolution!", "von": "Emma Goldman", "quelle": "apocryphal – she never quite said it; the scene is in Living My Life, 1931, p. 56", "apokryph": true},
+    {"text": "A map is not the territory it represents, but, if correct, it has a similar structure to the territory, which accounts for its usefulness.", "von": "Alfred Korzybski", "quelle": "Science and Sanity, 1933"},
+    {"text": "Essentially, all models are wrong, but some are useful.", "von": "George E. P. Box", "quelle": "Empirical Model-Building and Response Surfaces, 1987, p. 424"},
+    {"text": "When you can measure what you are speaking about, and express it in numbers, you know something about it.", "von": "William Thomson, Lord Kelvin", "quelle": "Electrical Units of Measurement, lecture, 3 May 1883"},
+    {"text": "Measure what is measurable, and make measurable what is not so.", "von": "Galileo Galilei", "quelle": "apocryphal, sorry Galileo – coined in the 19th century (Kleinert, NTM 2009)", "apokryph": true},
+    {"text": "Program testing can be used to show the presence of bugs, but never to show their absence!", "von": "Edsger W. Dijkstra", "quelle": "Notes on Structured Programming, EWD249, 1970"},
+    {"text": "There are only two hard things in Computer Science: cache invalidation and naming things.", "von": "Phil Karlton", "quelle": "oral tradition, quoted since the 1990s"},
+    {"text": "A complex system that works is invariably found to have evolved from a simple system that worked.", "von": "John Gall", "quelle": "General Systemantics, 1975"}
+  ]
+}

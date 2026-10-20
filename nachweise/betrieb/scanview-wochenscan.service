@@ -1,0 +1,11 @@
+[Unit]
+Description=scanview Wochenscan (alle unterstützten Versionen)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Ergebnisse, Bundles und Metrik nur für das Betriebskonto lesbar.
+UMask=0077
+ExecStart=%h/scanview-betrieb/bin/wochenscan.sh
+TimeoutStartSec=2h

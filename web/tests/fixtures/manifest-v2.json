@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 2, "projectId": "beispiel-skulptur", "revision": 1, "title": "Beispielskulptur",
+  "frame": { "crs": { "wkt": null, "verticalDatum": null, "declaredBy": "cli" }, "unit": "m", "unitDeclaredBy": "cli", "originWorld": [3.0, 3.0, 1.0] },
+  "layers": [
+    { "id": "punkte", "kind": "pointcloud", "title": "Dichte Punktwolke", "url": "cloud.copc.laz", "pointCount": 5000,
+      "boundsWorld": [[-1.5, -1.5, 0.0], [7.5, 7.5, 4.0]], "attributes": ["rgb"], "scale": 0.001, "pointSourceIsScan": false,
+      "provenance": { "kind": "photogrammetry", "interpolated": false, "scaleVerified": false, "scaleSource": "gps-ohne-rtk" } },
+    { "id": "mesh", "kind": "mesh", "title": "Texturiertes Mesh", "format": "3dtiles", "url": "layers/mesh/model.glb",
+      "provenance": { "kind": "photogrammetry", "interpolated": true, "scaleVerified": false, "scaleSource": "gps-ohne-rtk" } },
+    { "id": "splat", "kind": "future-format", "title": "Splat" }
+  ],
+  "initialView": { "target": [3.0, 3.0, 1.0], "distance": 12.0 }
+}

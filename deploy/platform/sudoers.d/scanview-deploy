@@ -1,0 +1,5 @@
+# /etc/sudoers.d/scanview-deploy — installiert von einrichten.sh (root:root 0440, vorher
+# `visudo -cf`). Mitglieder der Gruppe scanview-deploy dürfen per sudo NUR das Freischalt-Skript
+# starten; es prüft seine Argumente selbst (projectId bzw. `pruefen <projectId>`). Hochladen
+# geht ohne sudo nach /srv/scanview/eingang/ (Befund B-WB-M4).
+%scanview-deploy ALL=(root) NOPASSWD: /usr/local/sbin/scanview-paket-freischalten

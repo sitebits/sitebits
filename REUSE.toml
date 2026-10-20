@@ -1,0 +1,70 @@
+version = 1
+SPDX-PackageName = "siteBits"
+SPDX-PackageSupplier = "Stiebitz Souverain Systems UG (haftungsbeschränkt)"
+# Bis zur ersten Veröffentlichung (GitHub, Organisation sitebits) ohne Ort: die private Forge darf nicht in den Export.
+SPDX-PackageDownloadLocation = "NOASSERTION"
+
+# Eigener Code und eigene Dokumente. Lizenzangaben im Dateitext (z. B. SPDX-Kennungen in der
+# SBOM-Logik) sind Daten, keine Kopfzeilen; deshalb gilt diese Tabelle vorrangig.
+[[annotations]]
+path = "**"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Stiebitz Souverain Systems UG (haftungsbeschränkt)"
+SPDX-License-Identifier = "EUPL-1.2"
+
+# GitHub-Vorlagen einschließlich verstecktem Verzeichnis ausdrücklich erfassen.
+[[annotations]]
+path = ".github/**"
+precedence = "override"
+SPDX-FileCopyrightText = "2026 Stiebitz Souverain Systems UG (haftungsbeschränkt)"
+SPDX-License-Identifier = "EUPL-1.2"
+
+# Fremdcode: spätere Tabellen gehen vor.
+[[annotations]]
+path = ["web/vendor/basis/basis_transcoder.js", "web/vendor/basis/basis_transcoder.wasm"]
+precedence = "override"
+SPDX-FileCopyrightText = ["Binomial LLC", "Meta Platforms, Inc. and affiliates"]
+SPDX-License-Identifier = "Apache-2.0 AND BSD-3-Clause"
+
+[[annotations]]
+path = "web/vendor/mediapipe/face_landmarker.task"
+precedence = "override"
+SPDX-FileCopyrightText = "Google LLC"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "web/licenses/meshoptimizer-MIT.txt"
+precedence = "override"
+SPDX-FileCopyrightText = "2016-2024 Arseny Kapoulkine"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = "web/licenses/zstd-BSD-3-Clause.txt"
+precedence = "override"
+SPDX-FileCopyrightText = "Meta Platforms, Inc. and affiliates"
+SPDX-License-Identifier = "BSD-3-Clause"
+
+[[annotations]]
+path = "nachweise/sast/regeln/**"
+precedence = "override"
+SPDX-FileCopyrightText = "Semgrep, Inc."
+SPDX-License-Identifier = "LicenseRef-Semgrep-Rules-1.0"
+
+[[annotations]]
+path = "import/src/scanview_import/gitter/de_bkg_gcg2016.tif"
+precedence = "override"
+SPDX-FileCopyrightText = "Bundesamt für Kartographie und Geodäsie (BKG)"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+[[annotations]]
+path = "web/licenses/spark-MIT.txt"
+precedence = "override"
+SPDX-FileCopyrightText = "2025 WORLD LABS TECHNOLOGIES, INC."
+SPDX-License-Identifier = "MIT"
+
+# Punktbilder aus eigenen Drohnenpanoramen, einschließlich der CLI-Paketkopien.
+[[annotations]]
+path = ["spleen/bilder/**", "import/src/scanview_import/spleen_daten/bilder/**"]
+precedence = "override"
+SPDX-FileCopyrightText = "2026 André Stiebitz"
+SPDX-License-Identifier = "CC-BY-4.0"

@@ -1,0 +1,31 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:00000000-0000-5000-8000-000000000001",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-09-28T00:00:00Z",
+    "component": {
+      "type": "application",
+      "bom-ref": "negativkontrolle",
+      "name": "negativkontrolle-verwundbar",
+      "version": "0.0.0",
+      "description": "Nur Test-Fixture der Negativkontrollen (nie im Produkt): bekannt verwundbare Komponente"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/lodash@4.17.20",
+      "name": "lodash",
+      "version": "4.17.20",
+      "purl": "pkg:npm/lodash@4.17.20",
+      "licenses": [{"license": {"id": "MIT", "acknowledgement": "declared"}}]
+    }
+  ],
+  "dependencies": [
+    {"ref": "negativkontrolle", "dependsOn": ["pkg:npm/lodash@4.17.20"]},
+    {"ref": "pkg:npm/lodash@4.17.20", "dependsOn": []}
+  ]
+}

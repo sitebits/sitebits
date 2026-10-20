@@ -1,0 +1,8 @@
+# Release-Signierschlüssel der scanview-Nachweiskette (öffentlicher Teil: signierschluessel.pub).
+# Prüfen: ssh-keygen -Y verify -f allowed_signers -I release@scanview -n scanview-release \
+#         -s manifest.json.sig < manifest.json   (oder: scanview-nachweise manifest pruefen)
+# Namensräume: scanview-release (Manifest), scanview-abschluss (Abschlussnachweis nach Archiv
+# und Tag, abschluss.json.sig) — getrennt, damit keine Signatur für die andere gelten kann.
+# Schlüsselwechsel: neue Zeile anhängen, alte Zeilen nie löschen (archivierte Manifeste müssen
+# prüfbar bleiben); bei Kompromittierung der alten Zeile valid-before=<Zeitpunkt> geben.
+release@scanview namespaces="scanview-release,scanview-abschluss" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIz8aYLN+lrewTnF03GwUsINsDOwFNSbBOEp4IEgD3ER

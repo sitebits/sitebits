@@ -1,0 +1,382 @@
+#!/bin/bash
+# Schaltet ein hochgeladenes scanview-Paket frei — das einzige, was der Deploy-Nutzer per sudo
+# darf (Befund B-WB-M4: kein `sudo bash`, kein `sudo rsync` mehr).
+#
+#   scanview-paket-freischalten <projectId>           # freischalten
+#   scanview-paket-freischalten pruefen <projectId>   # nur abfragen, ändert nichts
+#
+# Installiert von einrichten.sh nach /usr/local/sbin (root:root 0755); sudoers erlaubt der
+# Gruppe scanview-deploy nur dieses Skript (Vorlage sudoers.d/scanview-deploy).
+#
+# Der Deploy-Nutzer lädt als er selbst (ohne sudo) nach /srv/scanview/eingang/<projectId>/ hoch.
+# Dieses Skript nimmt den Ordner dem Deploy-Nutzer zuerst weg (rename in einen root-eigenen
+# Quarantäneordner in der Datenwurzel, danach Eigentümer root, keine Gruppen-/Fremdrechte).
+# Ein vorher geöffneter Schreib-Deskriptor des Hochladenden überlebt jeden Eigentümer- und
+# Rechtewechsel — deshalb wird der Inhalt in NEUE, nur root zugängliche Dateien kopiert, geprüft
+# wird ausschließlich die Kopie, die Upload-Dateien werden danach gelöscht: was der Hochladende
+# über einen alten Deskriptor noch schreibt, landet in gelöschten Inodes, nie im Paket. Dann
+# Eigentümer root:scanview, u=rwX,g=rX,o=, ACL für caddy, rename an den Zielnamen, Katalog neu
+# laden. Die Kopie braucht einmal die Paketgröße an freiem Platz (plus 10 GiB Reserve).
+#
+# Keine Umgebung, keine Optionen, feste Pfade; die projectId ist die einzige Eingabe und hat
+# dieselbe Form wie im Server (katalog.PROJECT_ID_RE). pruefen antwortet mit genau einem Wort:
+# OK | WURZEL | EINGANG_WURZEL | DATEISYSTEM | RESTE | VORHANDEN | EINGANG_SYMLINK |
+# EINGANG_KEIN_ORDNER. Exit 2 = falscher Aufruf, 1 = Abbruch, 0 = erledigt/beantwortet.
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export LC_ALL=C
+umask 0077
+cd /
+
+NAME=scanview-paket-freischalten
+EINGANG=/srv/scanview/eingang
+WURZEL=/srv/scanview/data
+PYTHON=/usr/bin/python3
+ID_MUSTER='^[a-z0-9][a-z0-9-]{0,63}$'
+
+fehler() {
+	echo "$NAME: Fehler: $*" >&2
+	exit 1
+}
+
+aufruf() {
+	echo "$NAME: Aufruf: $NAME <projectId>  |  $NAME pruefen <projectId>" >&2
+	exit 2
+}
+
+if [[ $# -eq 1 && $1 != pruefen && $1 != -* ]]; then
+	MODUS=freischalten
+	ID=$1
+elif [[ $# -eq 2 && $1 == pruefen ]]; then
+	MODUS=pruefen
+	ID=$2
+else
+	aufruf
+fi
+[[ $EUID -eq 0 ]] || fehler "muss als root laufen (sudo -n $NAME …)."
+[[ $ID =~ $ID_MUSTER ]] || fehler "projectId hat nicht die Form ${ID_MUSTER}."
+
+E=$EINGANG/$ID            # Upload des Deploy-Nutzers
+Q=$WURZEL/.freischalten-$ID  # Quarantäne: root-eigen, für Caddy und Katalog unsichtbar
+K=$WURZEL/.freischalten-$ID.kopie  # neue root-Inodes (der Punkt kommt in keiner projectId vor)
+Z=$WURZEL/$ID             # Ziel
+
+# Zustand vor jeder Änderung; gibt genau ein Wort aus (siehe Kopf).
+zustand() {
+	if [[ -L $WURZEL || ! -d $WURZEL ]]; then echo WURZEL; return; fi
+	if [[ -L $EINGANG || ! -d $EINGANG ]]; then echo EINGANG_WURZEL; return; fi
+	# rename(2) geht nur innerhalb eines Dateisystems; sonst würde mv kopieren (nicht atomar,
+	# und der Deploy-Nutzer könnte während des Kopierens ändern).
+	if [[ $(stat -c %d -- "$EINGANG") != "$(stat -c %d -- "$WURZEL")" ]]; then
+		echo DATEISYSTEM
+		return
+	fi
+	if [[ -e $Q || -L $Q || -e $K || -L $K ]]; then echo RESTE; return; fi
+	if [[ -e $Z || -L $Z ]]; then echo VORHANDEN; return; fi
+	if [[ -L $E ]]; then echo EINGANG_SYMLINK; return; fi
+	if [[ -e $E && ! -d $E ]]; then echo EINGANG_KEIN_ORDNER; return; fi
+	echo OK
+}
+
+STAND=$(zustand)
+if [[ $MODUS == pruefen ]]; then
+	echo "$STAND"
+	exit 0
+fi
+
+case $STAND in
+OK) ;;
+WURZEL) fehler "$WURZEL ist ein Symlink oder kein Ordner." ;;
+EINGANG_WURZEL) fehler "$EINGANG ist ein Symlink oder kein Ordner (einrichten.sh legt ihn an)." ;;
+DATEISYSTEM) fehler "$EINGANG und $WURZEL liegen auf verschiedenen Dateisystemen — Verschieben wäre nicht atomar." ;;
+RESTE) fehler "$Q bzw. $K existiert (abgebrochener Lauf) — als root prüfen und entfernen: rm -r -- '$Q' '$K'" ;;
+VORHANDEN) fehler "$Z existiert schon — nie überschreiben. Erst von Hand wegräumen." ;;
+EINGANG_SYMLINK) fehler "$E ist ein Symlink." ;;
+EINGANG_KEIN_ORDNER) fehler "$E ist kein Ordner." ;;
+*) fehler "unerwarteter Zustand '$STAND'." ;;
+esac
+[[ -d $E ]] || fehler "$E fehlt — erst hochladen (paket-bereitstellen.sh)."
+
+# Ohne diesen Schutz könnte der Deploy-Nutzer fremde Dateien (z. B. /etc/shadow) per Hardlink in
+# den Eingang legen. Die Prüfung unten (genau ein Name je Datei, vor jedem chown) fängt das auch;
+# das hier ist die zweite Linie.
+[[ $(cat /proc/sys/fs/protected_hardlinks 2>/dev/null) == 1 ]] ||
+	fehler "fs.protected_hardlinks ist nicht 1 — Freischalten verweigert."
+
+# Wer hochgeladen hat: Eigentümer des Eingangs. Nie root — sonst würde unten ein root-eigener
+# Eintrag (z. B. eine von root hineingelegte Datei) mit übernommen. Und nie Mitglied der Gruppe
+# scanview: die erreicht die Datenwurzel (0750 root:scanview) und damit die Quarantäne.
+UPLOADER=$(stat -c %u -- "$E")
+[[ $UPLOADER =~ ^[0-9]+$ && $UPLOADER != 0 ]] ||
+	fehler "$E gehört root — hochladen nur als Deploy-Nutzer (Gruppe scanview-deploy), nie als root."
+GRUPPEN=$(id -G -- "$UPLOADER" 2>/dev/null) || fehler "Eigentümer von $E (uid $UPLOADER) hat kein Nutzerkonto."
+GID_SCANVIEW=$(getent group scanview | cut -d: -f3)
+[[ -n $GID_SCANVIEW ]] || fehler "Gruppe scanview fehlt (einrichten.sh)."
+for g in $GRUPPEN; do
+	[[ $g != "$GID_SCANVIEW" ]] ||
+		fehler "Eigentümer von $E (uid $UPLOADER) ist Mitglied der Gruppe scanview — nicht erlaubt (er erreicht sonst die Datenwurzel)."
+done
+
+# Ab hier: Fehler lassen die Quarantäne liegen (nur root kommt heran) und nennen den Weg dorthin.
+in_quarantaene() {
+	echo "$NAME: Fehler: $*" >&2
+	echo "$NAME: Das Paket liegt in $Q bzw. $K (nur für root erreichbar) und ist nicht freigeschaltet." >&2
+	echo "$NAME: Prüfen und als root entfernen: rm -r -- '$Q' '$K'" >&2
+	exit 1
+}
+
+# 1. Wegnehmen: rename(2) auf demselben Dateisystem (oben geprüft). -T: nie in einen Ordner
+#    hinein verschieben. Ersetzt der Deploy-Nutzer $E kurz vorher durch einen Symlink, wird der
+#    Symlink selbst verschoben — die Prüfung danach fängt das.
+mv -T -- "$E" "$Q"
+[[ -d $Q && ! -L $Q ]] || in_quarantaene "$Q ist nach dem Verschieben kein Ordner (Eingang während des Laufs ersetzt?)."
+
+# 2.–5. In Python über Datei-Deskriptoren (os.fwalk ohne Symlink-Folgen, O_NOFOLLOW, dir_fd):
+#    a) Sperren: jeder Ordner root:root 0700, jede Datei root:root 0600 (erst prüfen, dass sie
+#       regulär ist, nur einen Namen hat und dem Hochladenden gehört). Danach kann der
+#       Deploy-Nutzer nichts mehr anlegen oder neu öffnen. Erweiterte Attribute (ACLs, auch
+#       Default-ACLs, jedes andere xattr) → Abbruch.
+#    b) Prüfen auf dem festen Stand: nur reguläre Dateien und Ordner, alles root-eigen (was er
+#       während a) noch angelegt hat, gehört ihm → Abbruch), keine Hardlinks, keine xattrs.
+#    c) Kopieren in neue Inodes unter $K (O_CREAT|O_EXCL|O_NOFOLLOW, root 0600/0700), vorher
+#       Platz prüfen. Offen gehaltene Schreib-Deskriptoren zeigen weiter auf die alten Inodes in
+#       $Q — die Kopie erreichen sie nicht.
+#    d) Nur die Kopie prüfen: project.json (schemaVersion 2, projectId = Ordnername), Rechte wie
+#       für jedes Paket (root:scanview, Ordner 0750, Dateien 0640), keine xattrs.
+if ! meldung=$("$PYTHON" -I -S - "$Q" "$K" "$ID" "$UPLOADER" 2>&1 <<'PY'
+import grp, json, os, stat, sys
+
+quelle, kopie, pid, uploader = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
+OFFEN = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_NOCTTY | os.O_CLOEXEC
+NEU = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_NOCTTY | os.O_CLOEXEC
+MAX_PROJECT_JSON = 16 * 1024 * 1024
+RESERVE = 10 * 1024 * 1024 * 1024  # nach dem Kopieren frei (wie paket-bereitstellen.sh)
+BLOCK = 1 << 20
+
+
+class Abbruch(Exception):
+    pass
+
+
+def eintraege(wurzel):
+    """(Ordner-fd, Name oder None für den Ordner selbst, relativer Pfad) für den ganzen Baum."""
+    st = os.lstat(wurzel)
+    if not stat.S_ISDIR(st.st_mode):
+        raise Abbruch(f"{wurzel} ist kein Ordner")
+    def fehler(e):
+        raise e  # nie still überspringen (Standard von fwalk)
+
+    gesehen = False
+    for ordner, unterordner, dateien, fd in os.fwalk(wurzel, follow_symlinks=False,
+                                                     onerror=fehler):
+        gesehen = True
+        rel = os.path.relpath(ordner, wurzel)
+        yield fd, None, rel
+        for name in unterordner + dateien:
+            if not stat.S_ISDIR(os.lstat(name, dir_fd=fd).st_mode):
+                yield fd, name, os.path.join(rel, name)
+    if not gesehen:
+        raise Abbruch(f"{wurzel} nicht lesbar")
+
+
+def datei(fd, name, rel):
+    """Öffnet einen Nicht-Ordner-Eintrag ohne Symlink-Folgen; nur reguläre Dateien mit genau
+    einem Namen."""
+    st = os.lstat(name, dir_fd=fd)
+    if not stat.S_ISREG(st.st_mode):
+        raise Abbruch(f"unerwarteter Dateityp (Symlink, FIFO, Gerät …): {rel}")
+    try:
+        dfd = os.open(name, OFFEN, dir_fd=fd)
+    except OSError as e:
+        raise Abbruch(f"{rel} nicht zu öffnen ({e.strerror}) — Symlink?") from None
+    st = os.fstat(dfd)
+    if not stat.S_ISREG(st.st_mode):
+        os.close(dfd)
+        raise Abbruch(f"unerwarteter Dateityp: {rel}")
+    if st.st_nlink != 1:
+        os.close(dfd)
+        raise Abbruch(f"Hardlink im Paket: {rel}")
+    return dfd
+
+
+def ohne_xattr(fd, rel):
+    namen = os.listxattr(fd)
+    if namen:
+        raise Abbruch(f"ACL bzw. erweiterte Attribute an {rel}: {', '.join(sorted(namen))}")
+
+
+GEERBTE_ACL = ("system.posix_acl_access", "system.posix_acl_default")
+
+
+def ohne_geerbte_acl(fd):
+    """Neue Inodes der Kopie erben die Default-ACL der Datenwurzel (einrichten.sh: caddy). Die
+    Kopie soll ACL-frei sein — die Caddy-ACL setzt Schritt 4 gezielt. Nur die beiden POSIX-ACLs
+    werden entfernt; jedes andere xattr bleibt und lässt `pruefen` abbrechen."""
+    for n in os.listxattr(fd):
+        if n in GEERBTE_ACL:
+            os.removexattr(fd, n)
+
+
+def setzen(wurzel, vorher_uid, uid, gid, modus_ordner, modus_datei):
+    """Eigentümer und Rechte je Eintrag über seinen Deskriptor; jeder Eintrag muss vorher
+    `vorher_uid` gehören. Danach dürfen keine xattrs (ACLs) übrig sein."""
+    for fd, name, rel in eintraege(wurzel):
+        dfd = fd if name is None else datei(fd, name, rel)
+        try:
+            if os.fstat(dfd).st_uid != vorher_uid:
+                raise Abbruch(f"{rel} gehört nicht dem Hochladenden (uid {vorher_uid})")
+            os.fchown(dfd, uid, gid)
+            os.fchmod(dfd, modus_ordner if name is None else modus_datei)
+            ohne_xattr(dfd, rel)
+        finally:
+            if name is not None:
+                os.close(dfd)
+
+
+def pruefen(wurzel, uid, gid, modus_ordner, modus_datei):
+    for fd, name, rel in eintraege(wurzel):
+        dfd = fd if name is None else datei(fd, name, rel)
+        try:
+            st = os.fstat(dfd)
+            soll = modus_ordner if name is None else modus_datei
+            if (st.st_uid, st.st_gid, stat.S_IMODE(st.st_mode)) != (uid, gid, soll):
+                raise Abbruch(f"{rel} nach dem Sperren nicht root-eigen bzw. mit fremden Rechten "
+                              "(während des Laufs angelegt?)")
+            ohne_xattr(dfd, rel)
+        finally:
+            if name is not None:
+                os.close(dfd)
+
+
+def platz(wurzel, ziel_ordner):
+    """Größe des gesperrten Stands; genug Platz für die Kopie plus Reserve?"""
+    groesse = 0
+    for fd, name, _rel in eintraege(wurzel):
+        if name is not None:
+            groesse += os.lstat(name, dir_fd=fd).st_size
+    sv = os.statvfs(ziel_ordner)
+    frei = sv.f_bavail * sv.f_frsize
+    if frei - groesse < RESERVE:
+        raise Abbruch(f"zu wenig Platz für die Kopie: Paket {groesse // 2**20} MiB, frei "
+                      f"{frei // 2**20} MiB, Reserve {RESERVE // 2**30} GiB")
+    return groesse
+
+
+def kopieren(wurzel, ziel, budget):
+    """Neue Inodes: Ordner 0700, Dateien 0600, root — Inhalt über die geprüften Deskriptoren.
+    Je Datei genau die Größe beim Öffnen (ein offen gehaltener Schreib-Deskriptor könnte sonst
+    während des Kopierens anhängen); ändert sie sich währenddessen oder übersteigt die Summe den
+    geprüften Platz → Abbruch. Offen bleiben nur der Deskriptor der Kopie-Wurzel und je Eintrag
+    der seines Elternordners (kein Deskriptor je Ordner: viele Ordner, kleines nofile-Limit)."""
+    os.mkdir(ziel, 0o700)  # scheitert, wenn es ihn schon gibt (oben als RESTE geprüft)
+    kfd = os.open(ziel, OFFEN | os.O_DIRECTORY)
+    ohne_geerbte_acl(kfd)
+    kopiert = 0
+    try:
+        for fd, name, rel in eintraege(wurzel):
+            if name is None and rel == ".":
+                continue
+            eltern = os.path.dirname(rel)
+            # $K ist root-eigen 0700: niemand außer root legt dort etwas an.
+            efd = os.open(eltern, OFFEN | os.O_DIRECTORY, dir_fd=kfd) if eltern else kfd
+            try:
+                if name is None:
+                    os.mkdir(os.path.basename(rel), 0o700, dir_fd=efd)
+                    nfd = os.open(os.path.basename(rel), OFFEN | os.O_DIRECTORY, dir_fd=efd)
+                    try:
+                        ohne_geerbte_acl(nfd)
+                    finally:
+                        os.close(nfd)
+                    continue
+                src = datei(fd, name, rel)
+                try:
+                    groesse = os.fstat(src).st_size
+                    kopiert += groesse
+                    if kopiert > budget:
+                        raise Abbruch(f"{rel}: Paket während des Kopierens gewachsen")
+                    dst = os.open(name, NEU, 0o600, dir_fd=efd)
+                    try:
+                        ohne_geerbte_acl(dst)
+                        rest = groesse
+                        while rest:
+                            block = os.read(src, min(BLOCK, rest))
+                            if not block:
+                                raise Abbruch(f"{rel} während des Kopierens gekürzt")
+                            rest -= len(block)
+                            ansicht = memoryview(block)
+                            while ansicht:
+                                ansicht = ansicht[os.write(dst, ansicht):]
+                        os.fsync(dst)
+                    finally:
+                        os.close(dst)
+                    if os.fstat(src).st_size != groesse:
+                        raise Abbruch(f"{rel} während des Kopierens verändert")
+                finally:
+                    os.close(src)
+            finally:
+                if efd != kfd:
+                    os.close(efd)
+    finally:
+        os.close(kfd)
+
+
+def project_json(wurzel):
+    wfd = os.open(wurzel, OFFEN | os.O_DIRECTORY)
+    try:
+        try:
+            st = os.lstat("project.json", dir_fd=wfd)
+        except FileNotFoundError:
+            raise Abbruch("project.json fehlt") from None
+        if not stat.S_ISREG(st.st_mode):
+            raise Abbruch("project.json ist keine reguläre Datei")
+        with os.fdopen(os.open("project.json", OFFEN, dir_fd=wfd), "rb") as f:
+            roh = f.read(MAX_PROJECT_JSON + 1)
+    finally:
+        os.close(wfd)
+    if len(roh) > MAX_PROJECT_JSON:
+        raise Abbruch("project.json größer als 16 MiB")
+    try:
+        d = json.loads(roh)
+    except ValueError as e:
+        raise Abbruch(f"project.json nicht lesbar: {e}") from None
+    if not isinstance(d, dict):
+        raise Abbruch("project.json ist kein JSON-Objekt")
+    if d.get("schemaVersion") != 2 or d.get("projectId") != pid:
+        raise Abbruch(f"project.json: schemaVersion={d.get('schemaVersion')!r}, "
+                      f"projectId={d.get('projectId')!r} (erwartet 2 und {pid!r})")
+
+
+try:
+    if uploader == 0:
+        raise Abbruch("Hochladender ist root")
+    setzen(quelle, uploader, 0, 0, 0o700, 0o600)
+    pruefen(quelle, 0, 0, 0o700, 0o600)
+    budget = platz(quelle, os.path.dirname(kopie))
+    kopieren(quelle, kopie, budget)
+    pruefen(kopie, 0, 0, 0o700, 0o600)
+    project_json(kopie)
+    gid = grp.getgrnam("scanview").gr_gid
+    setzen(kopie, 0, 0, gid, 0o750, 0o640)
+    pruefen(kopie, 0, gid, 0o750, 0o640)
+except Abbruch as e:
+    print(e)
+    sys.exit(1)
+except OSError as e:
+    print(f"{e.filename or quelle}: {e.strerror}")
+    sys.exit(1)
+PY
+); then
+	in_quarantaene "$meldung"
+fi
+# Die Upload-Inodes weg: ein offen gehaltener Deskriptor schreibt ab jetzt nur noch in gelöschte
+# Dateien. rm -r folgt keinem Symlink (es gibt nach der Prüfung ohnehin keine).
+rm -r -- "$Q" || in_quarantaene "$Q nicht entfernt."
+# Die Default-ACL der Wurzel greift beim rename nicht; -P: keinem Symlink folgen (es gibt keine).
+setfacl -R -P -m u:caddy:rX "$K"
+
+# 5. Sichtbar machen. rename(2) ersetzt einen leeren Zielordner stillschweigend — daher die
+#    erneute Prüfung (in $WURZEL schreibt nur root).
+[[ ! -e $Z && ! -L $Z ]] || in_quarantaene "$Z ist inzwischen entstanden — nie überschreiben."
+mv -T -- "$K" "$Z"
+systemctl reload scanview-server
+echo "$Z bereit, Katalog neu geladen."

@@ -1,0 +1,57 @@
+# scanview-server — systemd-Unit für den Plattformdienst (Anmeldung, Rechte, Projektkarten).
+# Installiert von einrichten.sh nach /etc/systemd/system/scanview-server.service.
+#
+# Besonderheiten:
+#  - keine Instanz (@): genau ein Dienst je Host, Port fest 8803 (nur 127.0.0.1, Caddy davor).
+#  - ExecReload sendet SIGHUP → Katalog neu einlesen (`systemctl reload scanview-server`
+#    nach dem Bereitstellen eines Pakets); Sitzungen und Datenbank bleiben unberührt.
+#  - ReadOnlyPaths=/srv/scanview/data: der Dienst liest Pakete nur (Größe, project.json).
+#  - IPAddressDeny/Allow: kein Netz nach außen, nur Loopback (Caddy).
+#  - MemoryDenyWriteExecute=yes: mit argon2-cffi/cffi auf dem Zielhost prüfen — cffi kann
+#    JIT-Trampoline brauchen. Beim ersten Start das Journal kontrollieren; bei Fehler die Zeile
+#    entfernen und in docs/public/betrieb.md begründen. Ohne systemd als root nicht lokal testbar.
+[Unit]
+Description=scanview-Plattform (Anmeldung, Rechte, Projektkarten)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=scanview
+Group=scanview
+WorkingDirectory=/opt/scanview/server
+EnvironmentFile=/etc/scanview/scanview-server.env
+ExecStart=/opt/scanview/server/.venv/bin/scanview-server serve --port 8803
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/srv/scanview/state
+ReadOnlyPaths=/srv/scanview/data
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=
+RemoveIPC=yes
+UMask=0077
+# Der Dienst braucht kein Netz nach außen — nur Loopback (Caddy).
+IPAddressDeny=any
+IPAddressAllow=localhost
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

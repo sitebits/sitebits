@@ -1,0 +1,16 @@
+# fail2ban-Jail für scanview-server — nach /etc/fail2ban/jail.d/scanview.local.
+# Sperrt eine Client-IP nach maxretry fehlgeschlagenen Passwort-Anmeldungen innerhalb von findtime
+# für bantime auf den Web-Ports. Ergänzt die Sperre je Konto (5 Fehlversuche → 15 min) und die
+# globale Bremse im Dienst (SCANVIEW_ANMELDE_FEHLER_PRO_MINUTE); Runbook: deploy/platform/README.md.
+# Die IP liefert Caddy per X-Forwarded-For, uvicorn vertraut dem nur von 127.0.0.1.
+# Eigene Admin-Adressen je Host per ignoreip in einer eigenen Datei ausnehmen, nicht hier.
+
+[scanview]
+enabled      = true
+backend      = systemd
+journalmatch = _SYSTEMD_UNIT=scanview-server.service
+filter       = scanview
+port         = http,https
+maxretry     = 10
+findtime     = 10m
+bantime      = 1h

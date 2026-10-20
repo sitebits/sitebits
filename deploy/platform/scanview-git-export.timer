@@ -1,0 +1,17 @@
+# Löst scanview-git-export.service alle 5 Minuten aus. Aktiviert von einrichten.sh nur bei
+# SCANVIEW_GIT_EXPORT=1 in /etc/scanview/scanview-server.env.
+[Unit]
+Description=scanview-Plattform: Git-Export alle 5 Minuten
+
+[Timer]
+# OnUnitActiveSec zählt ab dem letzten Start des Dienstes — ohne ersten Anstoß liefe der Timer
+# nie los. OnActiveSec startet den ersten Lauf 1 min nach dem Aktivieren des Timers (auch nach
+# jedem Boot, weil der Timer dann neu aktiv wird).
+OnActiveSec=1min
+OnUnitActiveSec=5min
+# Wirkt laut systemd.timer(5) nur für OnCalendar=; steht hier gemäß Plan und schadet nicht.
+# Verpasste Läufe holt ohnehin der nächste nach (Export arbeitet ab git_export_stand).
+Persistent=true
+
+[Install]
+WantedBy=timers.target

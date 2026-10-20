@@ -1,0 +1,13 @@
+{
+  "invalid": [],
+  "missing": [
+    {
+      "integrity": "sha512-YWx0ZXMtcGFrZXQtb2huZS1yZWdpc3RyeS1zaWduYXR1ci1mdWVyLWRlbi10ZXN0",
+      "location": "node_modules/altes-paket",
+      "name": "altes-paket",
+      "registry": "https://registry.npmjs.org/",
+      "resolved": "https://registry.npmjs.org/altes-paket/-/altes-paket-0.9.0.tgz",
+      "version": "0.9.0"
+    }
+  ]
+}

@@ -1,0 +1,136 @@
+# scanview-Plattform: wird INNERHALB des Wildcard-Blocks der Domain (z. B. *.example.org) eingebunden
+# (@scanview host …; handle @scanview { import /etc/caddy/scanview.caddy }).
+# Kein eigener Site-Block: ein Einzelzertifikat käme in die CT-Logs (Lehre 21.08.).
+header X-Robots-Tag "noindex, nofollow"
+
+# Meldeweg (RFC 9116): security.txt, Richtlinie und öffentlicher OpenPGP-Schlüssel — öffentlich,
+# ohne forward_auth, vor allen anderen Zweigen. Die Dateien liegen in einem eigenen Verzeichnis
+# (einrichten.sh legt es leer an und schreibt nie hinein); solange dort nichts liegt, antwortet
+# file_server mit 404 — das ist das sichere Verhalten ohne eingerichtetes Postfach.
+@meldeweg path /.well-known/security.txt /.well-known/sicherheitsrichtlinie.txt /.well-known/psirt-openpgp.asc
+handle @meldeweg {
+	# Die Dateien liegen flach im Verzeichnis (ohne .well-known/): Präfix vor file_server abtrennen.
+	uri strip_prefix /.well-known
+	root * {$SCANVIEW_MELDEWEG:/etc/scanview/meldeweg}
+	header Content-Type "text/plain; charset=utf-8"
+	file_server
+}
+
+# /api/authz ist nur für forward_auth da (das ruft den Dienst direkt, nicht über diese Zweige) —
+# von außen nicht erreichbar. Caddy sortiert handle-Zweige nach Pfad-Spezifität; der exakte Pfad
+# steht zusätzlich vor /api/*, damit die Absicht beim Lesen klar ist.
+handle /api/authz {
+	respond 404
+}
+# API: JSON-Körper bleiben klein (POIs, Messungen bis 1000 Eckpunkte ≈ 60 KB) — größere Körper
+# gar nicht erst an den Dienst durchreichen (413).
+handle /api/* {
+	request_body {
+		max_size 1MB
+	}
+	reverse_proxy {$SCANVIEW_UPSTREAM:127.0.0.1:8803}
+}
+# Anmeldung/Einladung: JSON-Körper sind klein (auch WebAuthn-Antworten nur wenige KB) — größere
+# Körper gar nicht erst an den Dienst durchreichen (413).
+handle /auth/* {
+	request_body {
+		max_size 64KB
+	}
+	reverse_proxy {$SCANVIEW_UPSTREAM:127.0.0.1:8803}
+}
+
+# Pakete: erst fragen, dann ausliefern. Kein encode hier (Range!).
+# `route` statt loser Direktiven (gemessen):
+#  - forward_auth läuft VOR `uri strip_prefix`, damit authz die rohe Original-URI
+#    (/data/<id>/…, noch kodiert) sieht; Caddys Standardreihenfolge stellt `uri` davor.
+#  - strip_prefix /data: file_server hängt sonst den vollen Pfad an die Wurzel
+#    ({$SCANVIEW_DATA}/data/<id>/… → 404 für jede Datei).
+#  - `no-transform` schaltet das äußere `encode zstd gzip` für /data ab (Caddy prüft das in
+#    Cache-Control). Ohne es kamen JSON-Teilantworten als 206 + Content-Range + zstd — Range
+#    auf die unkomprimierten Bytes, Körper komprimiert. .laz (octet-stream) war nicht betroffen.
+#  - Cache-Control erst NACH bestandener Prüfung: sonst trüge auch die 401 von authz
+#    "max-age=3600" und der Browser könnte sie nach der Anmeldung noch eine Stunde zeigen.
+#    `>` (defer): nur Antworten, die file_server selbst schreibt (200/206/304) bekommen den
+#    Header; eine 404 für eine fehlende Datei läuft über den Fehlerpfad und bleibt ohne.
+# Kein `copy_headers`: authz liefert keine Header, ohne Argumente ist es ein Parse-Fehler.
+# Sicherheits-Header (Befunde B-WB-N5, B-BB-I4) sofort (nicht verzögert) gesetzt, damit sie
+# auch auf 401/404 und auf dem Fehlerpfad stehen: Paketdateien sind Daten, nie ein Dokument —
+# `sandbox; default-src 'none'` nimmt einer eingeschmuggelten HTML/SVG-Datei Skripte und Origin
+# (authz lässt ohnehin nur Paket-Dateiendungen durch), nosniff verhindert Umdeuten des Typs,
+# CORP same-origin verbietet das Einbinden durch Geschwister unter derselben Wildcard-Domain.
+# Die äußere CSP steht mit `?` und überschreibt diese nicht.
+handle /data/* {
+	header Content-Security-Policy "sandbox; default-src 'none'"
+	header X-Content-Type-Options nosniff
+	header Cross-Origin-Resource-Policy same-origin
+	route {
+		forward_auth {$SCANVIEW_UPSTREAM:127.0.0.1:8803} {
+			uri /api/authz
+		}
+		@manifest path *.json
+		# Gäste eines Nur-Lese-Links (F28): nie zwischenspeichern — nach einem Widerruf
+		# darf der Browser nichts mehr aus dem Cache zeigen. Der Gast-Matcher schließt @binaer aus.
+		@gastbinaer {
+			not path *.json
+			header_regexp Cookie (^|;\s*)__Host-scanview-gast=
+		}
+		@binaer {
+			not path *.json
+			not header_regexp Cookie (^|;\s*)__Host-scanview-gast=
+		}
+		header @manifest >Cache-Control "private, no-store, no-transform"
+		header @gastbinaer >Cache-Control "private, no-store, no-transform"
+		header @binaer >Cache-Control "private, max-age=3600, no-transform"
+		uri strip_prefix /data
+		root * {$SCANVIEW_DATA}
+		file_server {
+			hide .*
+		}
+	}
+}
+
+# Viewer: eigene CSP (WASM, Blob-Worker, Inline-Style von lil-gui) — ersetzt die strenge
+# Wildcard-CSP nur für dieses Dokument. Wirkt NUR, wenn der äußere Block seine CSP mit
+# `?Content-Security-Policy` setzt (gemessen: ohne `?` gewinnt die äußere, verzögert
+# angewendete Zeile und /ansicht bekommt die strenge CSP). Siehe Caddyfile.lokal / README.md.
+handle /ansicht {
+	root * {$SCANVIEW_WEB}
+	rewrite * /index.html
+	# index.html verweist auf gehashte Bundles: immer nachfragen, sonst bleibt nach einem Update
+	# ein alter Viewer im Browser-Cache hängen (die Bundles selbst sind immutable, s. u.).
+	header Cache-Control "no-cache"
+	header Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+	# Fenster-Effekt (F32): Webcam nur hier und nur für die eigene Herkunft; der Browser fragt trotzdem
+	# jedes Mal nach, das Bild bleibt im Browser. Wirkt nur mit `?Permissions-Policy` im äußeren Block.
+	header Permissions-Policy "geolocation=(), microphone=(), camera=(self)"
+	file_server
+}
+
+# Statische Dateien (Bundles, wasm, Lizenztext) — öffentlich, enthalten keine Kundendaten.
+@statisch path /assets/* /wasm/* /THIRD_PARTY_LICENSES.txt
+handle @statisch {
+	root * {$SCANVIEW_WEB}
+	header Cache-Control "public, max-age=31536000, immutable"
+	header /THIRD_PARTY_LICENSES.txt Cache-Control "public, max-age=3600"
+	file_server
+}
+
+# Web-App (Manifest und Symbole für „Zum Home-Bildschirm“, web/scripts/webApp.ts) — öffentlich, ohne Kundendaten.
+# Eigener Zweig, sonst schriebe der Portal-Zweig unten sie auf portal.html um. Kein immutable: die Namen tragen
+# keinen Hash. Der Medientyp des Manifests steht ausdrücklich da (.webmanifest ist nicht überall bekannt).
+# CSP unverändert: manifest-src und img-src fallen auf 'self' zurück (Viewer- und Wildcard-CSP).
+@webapp path /manifest.webmanifest /icons/*
+handle @webapp {
+	root * {$SCANVIEW_WEB}
+	header Cache-Control "public, max-age=86400"
+	header /manifest.webmanifest Content-Type "application/manifest+json"
+	file_server
+}
+
+# Portal: alle übrigen Pfade → portal.html (strenge Wildcard-CSP bleibt).
+handle {
+	root * {$SCANVIEW_WEB}
+	rewrite * /portal.html
+	header Cache-Control "no-store"
+	file_server
+}

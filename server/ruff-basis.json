@@ -1,0 +1,8 @@
+{
+  "src/scanview_server/web.py": {
+    "C901": 1
+  },
+  "tests/test_rueckmelder.py": {
+    "BLE001": 1
+  }
+}

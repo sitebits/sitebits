@@ -1,0 +1,11 @@
+[Unit]
+Description=scanview Nachweis-Archiv: jährliche Zweitablage (git bundle)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Ergebnisse, Bundles und Metrik nur für das Betriebskonto lesbar.
+UMask=0077
+ExecStart=%h/scanview-betrieb/bin/aufbewahrung.sh
+TimeoutStartSec=1h

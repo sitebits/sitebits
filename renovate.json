@@ -1,0 +1,49 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":pinDigests"
+  ],
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
+  "rangeStrategy": "pin",
+  "automerge": false,
+  "platformAutomerge": false,
+  "prConcurrentLimit": 5,
+  "dependencyDashboard": true,
+  "ignorePaths": [
+    "import/**",
+    "**/tests/fixtures/**",
+    "nachweise/sast/regeln/**"
+  ],
+  "enabledManagers": [
+    "npm",
+    "pep621",
+    "dockerfile",
+    "docker-compose",
+    "custom.regex"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^nachweise/werkzeuge\\.json$/"
+      ],
+      "matchStrings": [
+        "\"image\": \"(?<depName>[^@\"]+)@(?<currentDigest>sha256:[0-9a-f]{64})\",\\s*\"version\": \"[^\"]+\",\\s*\"tag\": \"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "docker",
+      "autoReplaceStringTemplate": "\"image\": \"{{{depName}}}@{{{newDigest}}}\",\n    \"version\": \"{{{replace '^v|-[a-z]+$' '' newValue}}}\",\n    \"tag\": \"{{{newValue}}}\""
+    }
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "pep621"
+      ],
+      "prBodyNotes": [
+        "Vorschlag: lokal übernehmen — exclude-newer-Stichtag, no-build-package, hatchling-Pin, Qualitätstor; siehe docs/public/support-und-patches.md."
+      ]
+    }
+  ]
+}

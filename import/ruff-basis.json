@@ -1,0 +1,29 @@
+{
+  "scripts/spike/obj_read.py": {
+    "C901": 1
+  },
+  "scripts/spike/tiles_contract.py": {
+    "BLE001": 6
+  },
+  "scripts/spike/tiles_passthrough.py": {
+    "BLE001": 2
+  },
+  "src/scanview_import/cli.py": {
+    "C901": 1
+  },
+  "src/scanview_import/mesh_gltf.py": {
+    "C901": 1
+  },
+  "src/scanview_import/mesh_source.py": {
+    "C901": 2
+  },
+  "src/scanview_import/point_source.py": {
+    "C901": 1
+  },
+  "src/scanview_import/source_points.py": {
+    "C901": 1
+  },
+  "src/scanview_import/tiled_thinning.py": {
+    "C901": 1
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {"Version": "0.74.0"},
+  "ArtifactName": "/in/sbom.cdx.json",
+  "ArtifactType": "cyclonedx",
+  "Results": [
+    {
+      "Target": "Node.js",
+      "Class": "lang-pkgs",
+      "Type": "node-pkg",
+      "Packages": [
+        {"ID": "lodash@4.17.20", "Name": "lodash", "Version": "4.17.20",
+         "Identifier": {"PURL": "pkg:npm/lodash@4.17.20", "UID": "ebbfc0e6c3417df1",
+                        "BOMRef": "pkg:npm/lodash@4.17.20"}}
+      ],
+      "Vulnerabilities": [
+        {"VulnerabilityID": "CVE-2026-4800", "PkgName": "lodash", "InstalledVersion": "4.17.20",
+         "PkgIdentifier": {"PURL": "pkg:npm/lodash@4.17.20", "UID": "ebbfc0e6c3417df1",
+                           "BOMRef": "pkg:npm/lodash@4.17.20"},
+         "Status": "fixed", "Severity": "HIGH", "FixedVersion": "4.17.24"},
+        {"VulnerabilityID": "CVE-2020-28500", "PkgName": "lodash", "InstalledVersion": "4.17.20",
+         "PkgIdentifier": {"PURL": "pkg:npm/lodash@4.17.20", "UID": "ebbfc0e6c3417df1",
+                           "BOMRef": "pkg:npm/lodash@4.17.20"},
+         "Status": "fixed", "Severity": "MEDIUM", "FixedVersion": "4.17.21"},
+        {"VulnerabilityID": "CVE-2099-0002", "PkgName": "lodash", "InstalledVersion": "4.17.20",
+         "PkgIdentifier": {"PURL": "pkg:npm/lodash@4.17.20", "UID": "ebbfc0e6c3417df1",
+                           "BOMRef": "pkg:npm/lodash@4.17.20"},
+         "Status": "affected", "Severity": "UNKNOWN"},
+        {"VulnerabilityID": "CVE-2099-0003", "PkgName": "lodash", "InstalledVersion": "4.17.20",
+         "PkgIdentifier": {"PURL": "pkg:npm/lodash@4.17.20", "UID": "ebbfc0e6c3417df1",
+                           "BOMRef": "pkg:npm/lodash@4.17.20"},
+         "Status": "fixed", "Severity": "LOW"}
+      ],
+      "ExperimentalModifiedFindings": [
+        {"Type": "vulnerability", "Status": "not_affected",
+         "Statement": "vulnerable_code_not_in_execute_path", "Source": "/in/vex.openvex.json",
+         "Finding": {"VulnerabilityID": "CVE-2021-23337", "PkgName": "lodash",
+                     "InstalledVersion": "4.17.20",
+                     "PkgIdentifier": {"PURL": "pkg:npm/lodash@4.17.20",
+                                       "UID": "ebbfc0e6c3417df1",
+                                       "BOMRef": "pkg:npm/lodash@4.17.20"},
+                     "Status": "fixed", "Severity": "HIGH", "FixedVersion": "4.17.21"}}
+      ]
+    },
+    {
+      "Target": "",
+      "Class": "lang-pkgs",
+      "Type": "cargo",
+      "Packages": [
+        {"ID": "pyo3@0.25.1", "Name": "pyo3", "Version": "0.25.1",
+         "Identifier": {"PURL": "pkg:cargo/pyo3@0.25.1", "UID": "d1e8615f6121fa09",
+                        "BOMRef": "pdal|pkg:cargo/pyo3@0.25.1?package-id=e94aa02f239c2713"}}
+      ],
+      "Vulnerabilities": [
+        {"VulnerabilityID": "GHSA-36hh-v3qg-5jq4", "PkgName": "pyo3", "InstalledVersion": "0.25.1",
+         "PkgIdentifier": {"PURL": "pkg:cargo/pyo3@0.25.1", "UID": "d1e8615f6121fa09",
+                           "BOMRef": "pdal|pkg:cargo/pyo3@0.25.1?package-id=e94aa02f239c2713"},
+         "Status": "fixed", "Severity": "CRITICAL", "FixedVersion": "0.29.0"}
+      ]
+    },
+    {
+      "Target": "Python",
+      "Class": "lang-pkgs",
+      "Type": "python-pkg",
+      "Packages": []
+    }
+  ]
+}

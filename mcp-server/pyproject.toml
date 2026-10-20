@@ -1,0 +1,113 @@
+[project]
+name = "scanview-mcp"
+version = "0.10.3"
+description = "MCP-Server (stdio) für die scanview-Plattform: Werkzeuge über die öffentliche API v1"
+requires-python = ">=3.11,<3.13"
+# Exakte Top-Level-Pins (per `uv lock` mit >=-Untergrenzen ermittelt, jüngste Versionen vor dem
+# ursprünglichen Stichtag 2026-09-20; danach wurde der Stichtag in [tool.uv] exclude-newer nur für
+# pyjwt vorgezogen, die Pins unten blieben): mcp 2.2.0 (PyPI 2026-09-07), httpx 0.28.1 (wie
+# server/).
+# Keine Extras wie mcp[cli] — jedes Extra ist Angriffsfläche.
+# mcp 2.x bringt einen eigenen HTTP-Stapel mit (httpx2/httpcore2/truststore); `httpx` hier ist
+# der Client für die scanview-API (Schnittstelle `api.Client`).
+dependencies = [
+    "mcp==2.2.0",
+    "httpx==0.28.1",
+]
+
+[project.scripts]
+scanview-mcp = "scanview_mcp.server:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]
+
+[build-system]
+# Wie server/: Build-Backend exakt gepinnt (steht nicht im uv.lock), 1.32.3 ist die jüngste
+# Version vor dem ursprünglichen Stichtag 2026-09-20 (1.32.4 erschien 2026-09-20T22:48Z; der Pin
+# bleibt bewusst, auch wenn der Stichtag unten für pyjwt vorgezogen wurde).
+requires = ["hatchling==1.32.3"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scanview_mcp"]
+
+[tool.uv]
+# Lieferkette wie server/ (Lieferkettenregeln, Begründung ausführlich
+# in server/pyproject.toml): fester ISO-Stichtag statt relativer Angabe, damit die geprüfte
+# Mindestalter-Grenze beim nächsten Relock nicht still weiterwandert.
+# Stichtag 2026-09-24 (statt 2026-09-20): pyjwt 2.15.0 (PyPI 2026-09-23) behebt CVE-2026-101918,
+# ist am Freigabedatum ≥ 7 Tage alt; pyjwt 2.15.1 (2026-09-28) bleibt ausgeschlossen.
+exclude-newer = "2026-09-24T00:00:00Z"
+# Wie server/: kein globales no-build (blockiert unter uv 0.11.3 auch das eigene Paket), sondern
+# alle Fremdpakete aus uv.lock (auch die nur unter Windows/Emscripten gezogenen colorama, pywin32,
+# httpx2-jsfetch) plus die Build-Zeit-Abhängigkeiten von hatchling, die nicht im Lock stehen
+# (hatchling, trove-classifiers, tomlkit; packaging/pathspec/pluggy stehen schon drin).
+# tests/test_lieferkette.py prüft die Vollständigkeit gegen uv.lock.
+no-build-package = [
+    "annotated-types",
+    "anyio",
+    "ast-serialize",
+    "attrs",
+    "certifi",
+    "cffi",
+    "click",
+    "colorama",
+    "cryptography",
+    "h11",
+    "hatchling",
+    "httpcore",
+    "httpcore2",
+    "httpx",
+    "httpx2",
+    "httpx2-jsfetch",
+    "idna",
+    "iniconfig",
+    "jsonschema",
+    "jsonschema-specifications",
+    "librt",
+    "mcp",
+    "mcp-types",
+    "mypy",
+    "mypy-extensions",
+    "opentelemetry-api",
+    "packaging",
+    "pathspec",
+    "pluggy",
+    "pycparser",
+    "pydantic",
+    "pydantic-core",
+    "pygments",
+    "pyjwt",
+    "pytest",
+    "python-multipart",
+    "pywin32",
+    "referencing",
+    "rpds-py",
+    "ruff",
+    "sse-starlette",
+    "starlette",
+    "tomlkit",
+    "trove-classifiers",
+    "truststore",
+    "typing-extensions",
+    "typing-inspection",
+    "uvicorn",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+extend-select = ["BLE", "C90", "ASYNC"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+strict_optional = true
+
+[tool.pytest.ini_options]
+pythonpath = ["tests"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15

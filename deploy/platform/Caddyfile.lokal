@@ -1,0 +1,68 @@
+# Lokaler Nachbau des Wildcard-Blocks des Produktionshosts (Stand 27.09.) — nur für den Test.
+# Außen wortgleich (encode, header inkl. -Server, log), ohne `tls`, Host `localhost`.
+# Keine TLS-Zertifikate: http://localhost ist für Chromium ein sicherer Kontext (WebAuthn,
+# __Host-Cookie mit Secure); `tls internal` würde WebAuthn wegen Zertifikatsfehler verweigern.
+{
+	# network_mode: host → die Admin-API würde sonst :2019 auf dem Host belegen.
+	admin off
+	auto_https off
+}
+
+http://localhost:18090 {
+	encode zstd gzip
+	header {
+		# `?` = nur setzen, wenn der innere Zweig keine eigene CSP gesetzt hat (Viewer /ansicht).
+		# Ohne `?` gewinnt die äußere Zeile (Block mit -Server wird verzögert angewendet) und der
+		# Viewer bekommt die strenge CSP → WASM-Decoder blockiert. Gemessen, siehe
+		# deploy/platform/README.md („Caddy einbinden“). Dieselbe Ein-Zeichen-Änderung gehört ins Produktions-Caddyfile.
+		?Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		X-Frame-Options "DENY"
+		# `?` wie bei der CSP: Nur der Viewer (/ansicht, scanview.caddy) erlaubt die Kamera für den
+		# Fenster-Effekt (F32); überall sonst bleibt sie gesperrt. Gehört ebenso ins Produktions-Caddyfile.
+		?Permissions-Policy "geolocation=(), microphone=(), camera=()"
+		-Server
+		# BB-I2: Proxy-Antworten tragen sonst `Via: 1.1 Caddy`.
+		-Via
+	}
+	# BB-N1: Antworten aus dem Fehlerpfad (413 der Körpergrenze, 404 von file_server, 502, …)
+	# laufen NICHT durch den `header`-Block oben (der ist wegen `-Server` verzögert und greift nur,
+	# wenn ein Handler selbst schreibt). Derselbe Satz hier; `respond` schreibt den Status mit
+	# leerem Körper durch den Header-Handler, sonst fielen auch diese verzögerten Header weg.
+	# `?` bei der CSP: eine im Zweig schon gesetzte (z. B. sandbox auf /data) bleibt.
+	handle_errors {
+		header {
+			?Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			X-Content-Type-Options "nosniff"
+			Referrer-Policy "same-origin"
+			X-Frame-Options "DENY"
+			Permissions-Policy "geolocation=(), microphone=(), camera=()"
+			-Server
+			-Via
+		}
+		respond "" {err.status_code}
+	}
+	log {
+		output stderr
+		format filter {
+			wrap console
+			fields {
+				request>remote_ip ip_mask {
+					ipv4 24
+					ipv6 48
+				}
+			}
+		}
+	}
+
+	@scanview host localhost
+	handle @scanview {
+		import /etc/caddy/scanview.caddy
+	}
+	handle {
+		abort
+	}
+}

@@ -1,0 +1,126 @@
+[project]
+name = "scanview-server"
+version = "0.10.3"
+requires-python = ">=3.11,<3.13"
+# Exakte Top-Level-Pins (per `uv lock` mit >=-Untergrenzen ermittelt);
+# keine Extras wie fastapi[standard] / uvicorn[standard] — jedes Extra ist Angriffsfläche.
+# webauthn 3.0.1 (PyPI 2026-09-25) ist am Stichtag < 7 Tage alt und fällt darum auf 3.0.0
+# zurück — von uv selbst so aufgelöst, kein manuelles Downgrade.
+dependencies = [
+    "fastapi==0.141.1",
+    "uvicorn==0.53.0",
+    "webauthn==3.0.0",
+    "argon2-cffi==25.1.0",
+]
+
+[project.scripts]
+scanview-server = "scanview_server.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11", "httpx>=0.27"]
+
+[build-system]
+# Build-Backend exakt pinnen (steht nicht im uv.lock): neueste Version, die laut PyPI
+# ≥ 7 Tage alt ist (Stichtag siehe [tool.uv] exclude-newer unten). 1.32.4 erschien
+# 2026-09-20T22:48Z (nach dem Stichtag 2026-09-20T00:00Z) und fällt damit raus;
+# 1.32.3 erschien 2026-09-17T20:05Z und ist die gewählte Version.
+requires = ["hatchling==1.32.3"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scanview_server"]
+
+[tool.uv]
+# Lieferkette: nur Pakete, die mindestens 7 Tage
+# öffentlich sind; nie sdists fremder Pakete bauen (das eigene Paket wird weiter gebaut).
+# Fester ISO-Stichtag statt "7 days" (= 2026-09-27 minus 7 Tage): empirisch geprüft, eine
+# relative Angabe erzeugt zusätzlich `exclude-newer-span = "P7D"` im uv.lock, das laut uv-Doku
+# nur bei echter Neuauflösung (uv lock, --upgrade, --refresh, neue Abhängigkeit) neu gegen die
+# dann aktuelle Zeit berechnet wird — nicht bei `uv sync --locked` (nutzt die Lock-Datei
+# unverändert; per Test bestätigt: `uv sync --locked` scheitert dabei NICHT, siehe Report).
+# Effekt bei "7 days": die geprüfte Mindestalter-Grenze würde beim nächsten Relock still auf
+# den dann aktuellen Tag weiterwandern statt am geprüften Stichtag verankert zu bleiben. Der
+# feste ISO-Wert bleibt dagegen über jeden künftigen Lock/Sync konstant, bis jemand ihn
+# bewusst vorzieht.
+exclude-newer = "2026-09-20T00:00:00Z"
+# no-build = true (Vorgabe) blockiert unter der installierten uv 0.11.3 auch den Bau des
+# eigenen, lokalen Pakets (kein Wheel vorhanden) — empirisch: "Distribution scanview-server
+# ... can't be installed because it is marked as --no-build but has no binary distribution".
+# uv 0.12.6 lockert das nur für "explicit uv build und non-editable first-party workspace
+# packages" (Changelog, PR #21294) — der editable Install von `uv sync`/`uv run` bliebe damit
+# vermutlich weiter betroffen; ein uv-Upgrade ist hier ohnehin nicht im Scope. Ersatz:
+# `no-build-package` listet explizit alle 38 Fremdpakete aus dem aktuellen uv.lock plus die 3
+# Build-Zeit-Abhängigkeiten von hatchling, die nicht im Lock stehen (packaging/pathspec/pluggy
+# sind bereits gelistet, siehe requires_dist von hatchling 1.32.3 auf PyPI) statt eines
+# globalen Schalters — das eigene Paket (nicht gelistet) bleibt baubar, jedes gelistete Paket
+# bleibt auf vorgebaute Wheels beschränkt. Muss bei jeder Lock-/Build-Backend-Änderung
+# mitgepflegt werden.
+no-build-package = [
+    "annotated-doc",
+    "annotated-types",
+    "anyio",
+    "argon2-cffi",
+    "argon2-cffi-bindings",
+    "ast-serialize",
+    "cbor2",
+    "certifi",
+    "cffi",
+    "click",
+    "colorama",
+    "cryptography",
+    "fastapi",
+    "h11",
+    "hatchling",
+    "httpcore",
+    "httpx",
+    "idna",
+    "iniconfig",
+    "librt",
+    "mypy",
+    "mypy-extensions",
+    "packaging",
+    "pathspec",
+    "pluggy",
+    "pyasn1",
+    "pyasn1-modules",
+    "pycparser",
+    "pydantic",
+    "pydantic-core",
+    "pygments",
+    "pyopenssl",
+    "pytest",
+    "ruff",
+    "starlette",
+    "tomlkit",
+    "trove-classifiers",
+    "typing-extensions",
+    "typing-inspection",
+    "uvicorn",
+    "webauthn",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+extend-select = ["BLE", "C90", "ASYNC"]
+
+# FastAPIs Depends(...)/Query(...) als Default-Argument ist der dokumentierte Weg, Abhängigkeiten
+# je Route einzuhängen (für die DB-Verbindung und CSRF genutzt); B008 hält Funktionsaufrufe
+# in Default-Argumenten sonst für einen Bug (mutable default). extend-immutable-calls markiert
+# Depends als bewusst ausgenommen, statt B008 pauschal abzuschalten oder jede Zeile mit noqa
+# zuzupflastern.
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+strict_optional = true
+
+[tool.pytest.ini_options]
+pythonpath = ["tests"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15

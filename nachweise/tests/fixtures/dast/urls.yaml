@@ -1,0 +1,31 @@
+- node: Sites
+  children:
+  - node: https://l.example.invalid
+    url: https://l.example.invalid
+    method: GET
+    responseLength: 646
+    statusCode: 200
+    children:
+    - node: api
+      url: https://l.example.invalid/api
+      method: GET
+      children:
+      - node: v1
+        url: https://l.example.invalid/api/v1
+        method: GET
+        children:
+        - node: GET:version
+          url: https://l.example.invalid/api/v1/version
+          method: GET
+          responseLength: 27
+          statusCode: 200
+        - node: GET:projekte
+          url: https://l.example.invalid/api/v1/projekte
+          method: GET
+          responseLength: 12
+          statusCode: 401
+    - node: GET:robots.txt
+      url: https://l.example.invalid/robots.txt
+      method: GET
+      responseLength: 133
+      statusCode: 404

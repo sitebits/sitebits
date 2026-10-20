@@ -1,0 +1,46 @@
+# Git-Export der Bearbeitungen: neue Protokoll-Ereignisse je Projekt als Commits
+# nach /srv/scanview/state/git/<projekt>/ (SCANVIEW_GIT_DIR). Ausgelöst von
+# scanview-git-export.timer; installiert von einrichten.sh, der Timer läuft nur bei
+# SCANVIEW_GIT_EXPORT=1. Ohne diese Zeile beendet sich der Befehl sofort ohne Wirkung.
+#
+# Härtung wie scanview-backup.service (dieselben Direktiven). Folge: PrivateNetwork=yes und nur
+# AF_UNIX — lokal exportieren geht, PUSHEN NICHT. Ist SCANVIEW_GIT_REMOTE gesetzt, pusht der
+# Wrapper unten mit --push; dafür braucht die Unit das Netz-Drop-in aus docs/public/betrieb.md
+# („Git-Export der Bearbeitungen“), das
+# Netz und SSH-Schlüssel freigibt. Remote ohne Drop-in → der Lauf scheitert laut (Exit 1).
+[Unit]
+Description=scanview-Plattform: Bearbeitungen nach Git exportieren
+After=scanview-server.service
+
+[Service]
+Type=oneshot
+User=scanview
+Group=scanview
+UMask=0077
+EnvironmentFile=/etc/scanview/scanview-server.env
+# systemd: $$ = $ (sonst ersetzt systemd die Variable selbst, bevor sh sie sieht).
+ExecStart=/bin/sh -c 'if [ -n "$${SCANVIEW_GIT_REMOTE:-}" ]; then exec /opt/scanview/server/.venv/bin/scanview-server git-export --push; else exec /opt/scanview/server/.venv/bin/scanview-server git-export; fi'
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/srv/scanview/state
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=
+RemoveIPC=yes
+# Lokaler Export braucht kein Netz; für den Push öffnet das Drop-in (docs/public/betrieb.md) Netz
+# und AF_INET*.
+RestrictAddressFamilies=AF_UNIX

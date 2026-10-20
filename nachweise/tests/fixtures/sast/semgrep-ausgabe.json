@@ -1,0 +1,33 @@
+{
+  "version": "1.177.0",
+  "results": [
+    {
+      "check_id": "regeln.python.lang.security.audit.dangerous-subprocess-use-audit",
+      "path": "/quelle/server/src/paket/modul.py",
+      "start": {"line": 3, "col": 5, "offset": 30},
+      "end": {"line": 3, "col": 40, "offset": 65},
+      "extra": {"message": "Detected subprocess function 'run' without a static string.",
+                "severity": "ERROR", "lines": "requires login", "metadata": {"category": "security"}}
+    },
+    {
+      "check_id": "regeln.javascript.browser.security.js-open-redirect",
+      "path": "/quelle/web/src/seite.ts",
+      "start": {"line": 2, "col": 1, "offset": 10},
+      "end": {"line": 2, "col": 30, "offset": 40},
+      "extra": {"message": "Possible open redirect", "severity": "WARNING",
+                "lines": "requires login", "metadata": {"category": "security"}}
+    },
+    {
+      "check_id": "regeln.javascript.lang.security.audit.unsafe-formatstring",
+      "path": "/quelle/web/src/seite.ts",
+      "start": {"line": 1, "col": 1, "offset": 0},
+      "end": {"line": 1, "col": 20, "offset": 20},
+      "extra": {"message": "Detected string concatenation with a non-literal variable",
+                "severity": "INFO", "lines": "requires login", "metadata": {"category": "security"}}
+    }
+  ],
+  "errors": [],
+  "paths": {"scanned": ["/quelle/server/src/paket/modul.py", "/quelle/web/src/seite.ts",
+                        "/quelle/server/src/paket/__pycache__/modul.cpython-311.pyc"]},
+  "skipped_rules": []
+}

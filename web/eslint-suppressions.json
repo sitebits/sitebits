@@ -1,0 +1,414 @@
+{
+  "e2e/a11y/auswertung.vitest.ts": {
+    "playwright/no-standalone-expect": {
+      "count": 28
+    }
+  },
+  "e2e/a11y/ergaenzend.spec.ts": {
+    "playwright/consistent-spacing-between-blocks": {
+      "count": 21
+    },
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    },
+    "playwright/no-networkidle": {
+      "count": 8
+    }
+  },
+  "e2e/a11y/ergebnis-schreiben.vitest.ts": {
+    "playwright/no-standalone-expect": {
+      "count": 8
+    }
+  },
+  "e2e/a11y/farben.vitest.ts": {
+    "playwright/consistent-spacing-between-blocks": {
+      "count": 1
+    },
+    "playwright/no-standalone-expect": {
+      "count": 5
+    }
+  },
+  "e2e/a11y/halten.spec.ts": {
+    "playwright/expect-expect": {
+      "count": 1
+    }
+  },
+  "e2e/a11y/instanz-aufraeumen.vitest.ts": {
+    "playwright/consistent-spacing-between-blocks": {
+      "count": 1
+    },
+    "playwright/no-duplicate-hooks": {
+      "count": 1
+    },
+    "playwright/no-standalone-expect": {
+      "count": 15
+    }
+  },
+  "e2e/a11y/instanz-portcheck.vitest.ts": {
+    "playwright/no-standalone-expect": {
+      "count": 10
+    }
+  },
+  "e2e/a11y/instanz.vitest.ts": {
+    "playwright/no-standalone-expect": {
+      "count": 22
+    }
+  },
+  "e2e/a11y/manuell-automatisiert.spec.ts": {
+    "playwright/consistent-spacing-between-blocks": {
+      "count": 6
+    },
+    "playwright/expect-expect": {
+      "count": 8
+    },
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    }
+  },
+  "e2e/a11y/portal.spec.ts": {
+    "playwright/consistent-spacing-between-blocks": {
+      "count": 33
+    },
+    "playwright/expect-expect": {
+      "count": 29
+    }
+  },
+  "e2e/a11y/vorbefunde.spec.ts": {
+    "playwright/consistent-spacing-between-blocks": {
+      "count": 5
+    }
+  },
+  "e2e/bedienung-dialoge.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    }
+  },
+  "e2e/befund.spec.ts": {
+    "playwright/no-wait-for-timeout": {
+      "count": 9
+    }
+  },
+  "e2e/begehen-leistung.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 4
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 7
+    }
+  },
+  "e2e/begehen.spec.ts": {
+    "playwright/no-conditional-expect": {
+      "count": 1
+    },
+    "playwright/no-conditional-in-test": {
+      "count": 3
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 16
+    }
+  },
+  "e2e/edge-snap.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 1
+    }
+  },
+  "e2e/egress.spec.ts": {
+    "playwright/no-wait-for-timeout": {
+      "count": 2
+    }
+  },
+  "e2e/empfang-mobil.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 1
+    }
+  },
+  "e2e/empfang.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 3
+    }
+  },
+  "e2e/entwurf.spec.ts": {
+    "playwright/no-wait-for-timeout": {
+      "count": 7
+    }
+  },
+  "e2e/farbe.spec.ts": {
+    "playwright/no-conditional-expect": {
+      "count": 2
+    },
+    "playwright/no-conditional-in-test": {
+      "count": 2
+    }
+  },
+  "e2e/gamepad.spec.ts": {
+    "playwright/no-useless-not": {
+      "count": 1
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 10
+    }
+  },
+  "e2e/helpers.ts": {
+    "playwright/no-wait-for-timeout": {
+      "count": 3
+    }
+  },
+  "e2e/hinweise.spec.ts": {
+    "playwright/consistent-spacing-between-blocks": {
+      "count": 1
+    },
+    "playwright/no-conditional-in-test": {
+      "count": 2
+    }
+  },
+  "e2e/keine-falle.spec.ts": {
+    "playwright/no-wait-for-timeout": {
+      "count": 2
+    }
+  },
+  "e2e/mausrad.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 2
+    }
+  },
+  "e2e/measure-tools.spec.ts": {
+    "playwright/no-wait-for-timeout": {
+      "count": 7
+    },
+    "playwright/prefer-web-first-assertions": {
+      "count": 1
+    }
+  },
+  "e2e/mesh.spec.ts": {
+    "playwright/consistent-spacing-between-blocks": {
+      "count": 1
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 2
+    }
+  },
+  "e2e/nur-tastatur.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 2
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 2
+    }
+  },
+  "e2e/orbit.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 1
+    }
+  },
+  "e2e/overlay.spec.ts": {
+    "playwright/expect-expect": {
+      "count": 1
+    },
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 3
+    }
+  },
+  "e2e/pano-fadenkreuz.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 2
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 2
+    }
+  },
+  "e2e/pano-reference.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 4
+    },
+    "playwright/prefer-to-have-length": {
+      "count": 1
+    }
+  },
+  "e2e/pano-timing.spec.ts": {
+    "playwright/consistent-spacing-between-blocks": {
+      "count": 1
+    },
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 1
+    }
+  },
+  "e2e/pano.spec.ts": {
+    "playwright/no-wait-for-timeout": {
+      "count": 2
+    },
+    "playwright/prefer-to-have-length": {
+      "count": 1
+    }
+  },
+  "e2e/plattform.spec.ts": {
+    "playwright/consistent-spacing-between-blocks": {
+      "count": 1
+    }
+  },
+  "e2e/plattform/befundlink.spec.ts": {
+    "playwright/no-networkidle": {
+      "count": 1
+    }
+  },
+  "e2e/plattform/empfang.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 1
+    }
+  },
+  "e2e/plattform/entwurf.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 2
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 3
+    }
+  },
+  "e2e/plattform/instanz.vitest.ts": {
+    "playwright/consistent-spacing-between-blocks": {
+      "count": 1
+    },
+    "playwright/no-standalone-expect": {
+      "count": 10
+    }
+  },
+  "e2e/plattform/projektleitung.spec.ts": {
+    "playwright/no-conditional-expect": {
+      "count": 1
+    },
+    "playwright/no-conditional-in-test": {
+      "count": 2
+    },
+    "playwright/prefer-web-first-assertions": {
+      "count": 1
+    }
+  },
+  "e2e/plattform/rueckmelder.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    }
+  },
+  "e2e/pois.spec.ts": {
+    "playwright/no-wait-for-timeout": {
+      "count": 4
+    },
+    "playwright/prefer-to-have-count": {
+      "count": 1
+    }
+  },
+  "e2e/reference.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 16
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 1
+    },
+    "playwright/prefer-to-have-length": {
+      "count": 1
+    }
+  },
+  "e2e/scan-filter.spec.ts": {
+    "playwright/no-wait-for-timeout": {
+      "count": 1
+    }
+  },
+  "e2e/smoke.spec.ts": {
+    "playwright/consistent-spacing-between-blocks": {
+      "count": 1
+    },
+    "playwright/no-conditional-in-test": {
+      "count": 3
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 1
+    }
+  },
+  "e2e/stations.spec.ts": {
+    "playwright/no-wait-for-timeout": {
+      "count": 1
+    }
+  },
+  "e2e/user-task.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 2
+    }
+  },
+  "e2e/waterfall.spec.ts": {
+    "playwright/consistent-spacing-between-blocks": {
+      "count": 1
+    },
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    }
+  },
+  "e2e/zielpunkt-probe.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    }
+  },
+  "e2e/zielpunkt-wand.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 2
+    }
+  },
+  "e2e/zielpunkt.spec.ts": {
+    "playwright/no-conditional-in-test": {
+      "count": 1
+    },
+    "playwright/no-wait-for-timeout": {
+      "count": 15
+    },
+    "playwright/prefer-web-first-assertions": {
+      "count": 1
+    }
+  },
+  "src/measure.ts": {
+    "@typescript-eslint/no-unsafe-call": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 1
+    }
+  },
+  "tests/manifest.test.ts": {
+    "@typescript-eslint/no-unsafe-return": {
+      "count": 1
+    }
+  },
+  "tests/meshGlb.test.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-member-access": {
+      "count": 2
+    }
+  },
+  "tests/portal-api-zugaenge.test.ts": {
+    "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    }
+  }
+}

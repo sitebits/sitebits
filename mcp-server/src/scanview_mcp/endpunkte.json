@@ -1,0 +1,23 @@
+[
+  {"werkzeug": "projekte_auflisten", "methode": "GET", "pfad": "/api/v1/projekte"},
+  {"werkzeug": "projekt_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}"},
+  {"werkzeug": "beteiligte_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/beteiligte"},
+  {"werkzeug": "beschreibung_setzen", "methode": "PATCH", "pfad": "/api/v1/projekte/{pid}"},
+  {"werkzeug": "pois_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/pois"},
+  {"werkzeug": "poi_anlegen", "methode": "POST", "pfad": "/api/v1/projekte/{pid}/pois"},
+  {"werkzeug": "poi_aendern", "methode": "PATCH", "pfad": "/api/v1/projekte/{pid}/pois/{eid}"},
+  {"werkzeug": "messungen_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/messungen"},
+  {"werkzeug": "messung_anlegen", "methode": "POST", "pfad": "/api/v1/projekte/{pid}/messungen"},
+  {"werkzeug": "protokoll_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/protokoll"},
+  {"werkzeug": "export", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/export.json"},
+  {"werkzeug": "faden_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/pois/{eid}/faden"},
+  {"werkzeug": "kommentar_anlegen", "methode": "POST", "pfad": "/api/v1/projekte/{pid}/pois/{eid}/faden"},
+  {"werkzeug": "status_setzen", "methode": "POST", "pfad": "/api/v1/projekte/{pid}/pois/{eid}/faden"},
+  {"werkzeug": "poi_loeschen", "methode": "DELETE", "pfad": "/api/v1/projekte/{pid}/pois/{eid}"},
+  {"werkzeug": "messung_loeschen", "methode": "DELETE", "pfad": "/api/v1/projekte/{pid}/messungen/{eid}"},
+  {"werkzeug": "link_anlegen", "methode": "POST", "pfad": "/api/v1/projekte/{pid}/pois/{eid}/faden"},
+  {"werkzeug": "zustaendig_setzen", "methode": "POST", "pfad": "/api/v1/projekte/{pid}/pois/{eid}/faden"},
+  {"werkzeug": "frist_setzen", "methode": "POST", "pfad": "/api/v1/projekte/{pid}/pois/{eid}/faden"},
+  {"werkzeug": "gewerke_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/gewerke"},
+  {"werkzeug": "paket_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/paket"}
+]

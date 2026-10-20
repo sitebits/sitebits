@@ -1,0 +1,37 @@
+# Nachweisquellen der Release-Kette (scanview-nachweise, Stufe „matrix“).
+#
+# Für jede Kontrolle mit release_voraussetzung = true (docs/compliance/kontrollmatrix.toml) muss
+# jeder Teil ihres nachweis_schluessel hier stehen und im Release-Lauf vorliegen:
+#   schluessel = "pfad"                   Datei im Release-Commit (relativ zur Repo-Wurzel),
+#                                         vorhanden und nicht leer
+#   schluessel = { pruefung = "stufe" }   Ergebnis einer Prüfung der Kette = bestanden
+#   "vault:x"  = { vault = "pfad" }       Datei unter $SCANVIEW_VAULT (Wurzel des privaten
+#                                         Vaults), vorhanden und nicht leer
+# `doku:*` sind immer Pfade, `vault:*` immer Vault-Dateien. `manifest` und `archiv` werden erst
+# nach Signaturprüfung bzw. Archivierung bestätigt (vor dem Tag), nicht in der Stufe „matrix“.
+# Dokumente, die noch fehlen, lassen den Lauf an der Stufe „matrix“ mit einer Liste abbrechen.
+
+# Prüfungen der Kette
+scan = { pruefung = "scan" }
+sbom = { pruefung = "sbom" }
+negativtests = { pruefung = "negativtests" }
+lizenzen = { pruefung = "lizenzen" }
+manifest = { pruefung = "manifest" }
+archiv = { pruefung = "archiv" }
+commit-signatur = { pruefung = "commit-signatur" }
+npm-signaturen = { pruefung = "npm-signaturen" }
+sast = { pruefung = "sast" }
+fuzzing = { pruefung = "fuzzing" }
+egress = { pruefung = "egress" }
+
+# Produktdokumente (öffentlich)
+"doku:readme" = "README.md"
+"doku:release" = "docs/public/release.md"
+"doku:sicherheitsarchitektur" = "docs/public/sicherheitsarchitektur.md"
+"doku:support" = "docs/public/support-und-patches.md"
+"doku:betrieb" = "docs/public/betrieb.md"
+"doku:security" = "SECURITY.md"
+changelog = "CHANGELOG.md"
+
+# Organisation (privat, Vault)
+"vault:meldeplaybook" = { vault = "Ops/security/governance/cra-meldeplaybook.md" }

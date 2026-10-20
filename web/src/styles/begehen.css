@@ -1,0 +1,5 @@
+/* Begehen: Randabdunklung bei hoher Geschwindigkeit (Deckkraft setzt begehen.ts per CSSOM) und der
+   Leistenknopf, solange das Begehen nicht verfügbar ist (Panorama). */
+.sv-vignette { position: fixed; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, #000 100%); }
+#toolbar button[aria-disabled='true'] { opacity: 0.45; cursor: not-allowed; }
