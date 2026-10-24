@@ -9,11 +9,11 @@ from scipy.spatial.transform import Rotation
 from scanview_import.cli import main
 from scanview_import.fotos import write_images
 from scanview_import.fotos_pruefung import pruefe_fotos_paket, rueckprojektion
-from scanview_import.metashape import TieProjection, read_frame_cameras
+from scanview_import.kameras import TieProjection, read_frame_cameras
 from scanview_import.verzeichnung import Kalibrierung
 from tests.test_fotos import frames, projektionen_json
-from tests.test_metashape_cli import package
-from tests.test_metashape_frames import CALIB
+from tests.test_kameras_cli import package
+from tests.test_kameras_frames import CALIB
 
 
 def projektionen(path):
@@ -117,7 +117,7 @@ def test_paketpruefung_altes_paket_ohne_revision(tmp_path):
 
 
 def _verschoben(path, kamera, dx):
-    """Projektionen einer Kamera um dx px versetzt (Metashape-Restfehler)."""
+    """Projektionen einer Kamera um dx px versetzt (Restfehler der Ausrichtung)."""
     return [
         TieProjection(p.camera, (p.pixel[0] + dx, p.pixel[1]), p.world) if p.camera == kamera else p
         for p in projektionen(path)

@@ -26,18 +26,27 @@ from .werkzeuge import Werkzeug, gefilterte_umgebung
 #: Schema neuer Manifeste. Jede Änderung einer Pflichtliste hebt das Schema; gelesen werden alle
 #: Schemata aus `PFLICHT_JE_SCHEMA`, jedes gegen seine eigenen Listen (archivierte Manifeste
 #: bleiben prüfbar, ein Host mit älterem Prüfer lehnt ein neueres Schema ab).
-SCHEMA = "scanview-release-manifest/2"
+SCHEMA = "scanview-release-manifest/3"
 SCHEMA_1 = "scanview-release-manifest/1"
+SCHEMA_2 = "scanview-release-manifest/2"
 NAMESPACE = "scanview-release"
 KENNUNG = "release@scanview"
 MANIFEST_DATEI = "manifest.json"
 SIGNATUR_ENDUNG = ".sig"
 #: Einzig zulässige Prüfergebnisse. „gescheitert“ gibt es nicht: die Kette bricht vorher ab.
 PRUEFUNG_WERTE = frozenset({"bestanden", "nicht-anwendbar"})
-#: Release 0.1.0 liefert genau diese Artefakte aus (was auf den Instanzen bereitgestellt wird).
-#: Fest verdrahtet, damit eine falsche Kennzeichnung kein ausgeliefertes Artefakt still von der
-#: Hash-Prüfung ausnimmt; eine Änderung ist eine bewusste Code-Änderung mit Review.
-AUSGELIEFERT = frozenset({"web", "server", "mcp"})
+#: Ausgelieferte Artefakte je Schema (was auf den Instanzen bereitgestellt wird). Fest verdrahtet,
+#: damit eine falsche Kennzeichnung kein ausgeliefertes Artefakt still von der Hash-Prüfung
+#: ausnimmt; eine Änderung ist eine bewusste Code-Änderung mit Review. Bis Schema /2 web, server
+#: und mcp; ab /3 auch import (die Import-Umgebung des Jobläufers läuft auf dem Server).
+#: Archivierte Manifeste werden gegen die Menge ihres eigenen Schemas geprüft.
+AUSGELIEFERT_JE_SCHEMA: dict[str, frozenset[str]] = {
+    SCHEMA_1: frozenset({"web", "server", "mcp"}),
+    SCHEMA_2: frozenset({"web", "server", "mcp"}),
+    SCHEMA: frozenset({"web", "server", "mcp", "import"}),
+}
+#: Auslieferungsmenge neuer Manifeste.
+AUSGELIEFERT = AUSGELIEFERT_JE_SCHEMA[SCHEMA]
 #: Pflichtangaben der Bau-Umgebung: Toolchain-Versionen und Architektur.
 UMGEBUNG_PFLICHT = ("node", "npm", "python", "uv", "docker", "architektur")
 #: Prüfungen, die jedes Manifest mit „bestanden“ nennen muss (die Stufen der Release-Kette,
@@ -73,9 +82,11 @@ PFLICHT_WERKZEUGE = (*_WERKZEUGE_1, "semgrep", "bandit", "schemathesis", "zap", 
 PFLICHT_PRUEFUNGEN = (*_PRUEFUNGEN_1, "commit-signatur", "npm-signaturen", "sast",
                       "fuzzing", "egress")
 #: Je Schema genau diese Pflichtlisten (Berichte, Werkzeuge, Prüfungen); /1 ist eingefroren.
+#: /3 unterscheidet sich von /2 nur in der Auslieferungsmenge (`AUSGELIEFERT_JE_SCHEMA`).
 #: Drift-getestet gegen deploy/platform/release_pruefen.py.
 PFLICHT_JE_SCHEMA: dict[str, tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]] = {
     SCHEMA_1: (_BERICHTE_1, _WERKZEUGE_1, _PRUEFUNGEN_1),
+    SCHEMA_2: (PFLICHT_BERICHTE, PFLICHT_WERKZEUGE, PFLICHT_PRUEFUNGEN),
     SCHEMA: (PFLICHT_BERICHTE, PFLICHT_WERKZEUGE, PFLICHT_PRUEFUNGEN),
 }
 
@@ -87,6 +98,14 @@ _FELDER = ("schema", "version", "erstellt", "quellcommit", "exportcommit", "arte
            "berichte", "werkzeuge", "db_stand", "netzschritte", "pruefungen", "umgebung",
            "trockenlauf")
 _STDERR_AUSZUG = 2000
+
+
+def ausgeliefert_fuer(manifest: dict[str, Any]) -> frozenset[str]:
+    """Auslieferungsmenge des Schemas eines (gelesenen) Manifests; unbekanntes Schema → Fehler."""
+    schema = manifest.get("schema")
+    if not isinstance(schema, str) or schema not in AUSGELIEFERT_JE_SCHEMA:
+        raise NachweisFehler("manifest", f"unbekanntes Schema „{schema}“")
+    return AUSGELIEFERT_JE_SCHEMA[schema]
 
 
 def kanonisch(obj: Any) -> bytes:
@@ -146,7 +165,7 @@ def baue_manifest(
 ) -> dict[str, Any]:
     """Manifest als JSON-fähiges dict. Alle Hashes werden aus den Dateien neu berechnet; weicht
     ein Artefakt von seinem Bau-Hash ab, ist das ein Fehler (fail-closed). `ausgeliefert` nennt
-    die Artefakte, die das Release an Instanzen ausliefert (web, server, mcp); alle übrigen
+    die Artefakte, die das Release an Instanzen ausliefert (`AUSGELIEFERT`); alle übrigen
     stehen mit `"ausgeliefert": false` nur zur Information im Manifest. Dateien stehen mit ihrem
     Dateinamen drin (ohne Pfad), damit das Manifest vom Ablageort unabhängig bleibt.
     `umgebung` nennt Toolchain-Versionen und Architektur des Baus (`UMGEBUNG_PFLICHT`);
@@ -285,7 +304,15 @@ def _pruefe_inhalt(daten: dict[str, Any], wo: str) -> None:
     if not isinstance(sboms, dict) or not all(
             _dateiname(n) and _hex(h, _SHA256) for n, h in sboms.items()):
         raise fehler("SBOM-Liste fehlt oder ist ungültig (Dateiname → SHA-256)")
-    fehlend = sorted(n for n in AUSGELIEFERT
+    soll = AUSGELIEFERT_JE_SCHEMA[daten["schema"]]
+    # Wie release_pruefen.py: genau die Auslieferungsmenge des Schemas, schon beim Laden — ein
+    # /2-Manifest mit ausgeliefertem import oder ein /3-Manifest ohne ist kein gültiges Manifest.
+    _pruefe_artefaktliste(daten.get("artefakte"), wo)
+    kennzeichnung = {a["name"] for a in daten["artefakte"] if a["ausgeliefert"] is True}
+    if kennzeichnung != soll:
+        raise fehler(f"ausgeliefert: {', '.join(sorted(kennzeichnung)) or '(nichts)'} — "
+                     f"erwartet genau {', '.join(sorted(soll))}")
+    fehlend = sorted(n for n in soll
                      if f"scanview-{n}-{daten.get('version')}.cdx.json" not in sboms)
     if fehlend:
         raise fehler(f"SBOM fehlt für ausgelieferte Artefakte: {', '.join(fehlend)}")
@@ -457,14 +484,16 @@ def pruefe_artefakte(manifest: dict[str, Any], verzeichnis: Path, *,
                      nur_ausgeliefert: bool = False) -> None:
     """SHA-256 und SHA-512 jedes Artefakts in `verzeichnis/<datei>` gegen das Manifest. Mit
     `nur_ausgeliefert` nur die ausgelieferten (Deploy hat nur diese). In jedem Fall
-    müssen genau die Artefakte aus `AUSGELIEFERT` als ausgeliefert im Manifest stehen."""
+    müssen genau die Artefakte aus `AUSGELIEFERT_JE_SCHEMA` (Schema des Manifests) als
+    ausgeliefert im Manifest stehen."""
     _pruefe_artefaktliste(manifest.get("artefakte"), "Manifest")
     eintraege: list[dict[str, Any]] = manifest["artefakte"]
+    soll = ausgeliefert_fuer(manifest)
     kennzeichnung = {a["name"] for a in eintraege if a["ausgeliefert"] is True}
-    if kennzeichnung != AUSGELIEFERT:
+    if kennzeichnung != soll:
         raise NachweisFehler("artefakt-hash", "als ausgeliefert gekennzeichnet: "
                                               f"{', '.join(sorted(kennzeichnung)) or '(nichts)'}"
-                                              f" — erwartet {', '.join(sorted(AUSGELIEFERT))}")
+                                              f" — erwartet {', '.join(sorted(soll))}")
     geprueft = 0
     for a in eintraege:
         if nur_ausgeliefert and a["ausgeliefert"] is not True:

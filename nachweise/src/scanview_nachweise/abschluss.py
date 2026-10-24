@@ -15,8 +15,8 @@ besteht. Der Zielhost (`deploy/platform/release_pruefen.py`) verlangt ihn zwinge
   anhängen — `releases/<version>/` bleibt unverändert.
 - `deploy_ordner` stellt den Release-Ordner für den Host aus dem **committeten** Archiv zusammen
   genau `manifest.json`, `manifest.json.sig`, `abschluss.json`,
-  `abschluss.json.sig` und die drei ausgelieferten Tarballs unter `artefakte/`, alles vorher
-  gegen die Signaturen geprüft."""
+  `abschluss.json.sig` und die ausgelieferten Tarballs (Menge je Schema) unter
+  `artefakte/`, alles vorher gegen die Signaturen geprüft."""
 
 from __future__ import annotations
 
@@ -34,10 +34,10 @@ from typing import Any
 from . import signaturen
 from .fehler import NachweisFehler
 from .manifest import (
-    AUSGELIEFERT,
     KENNUNG,
     MANIFEST_DATEI,
     SIGNATUR_ENDUNG,
+    ausgeliefert_fuer,
     kanonisch,
     lade_signiertes_manifest,
     pruefe_version,
@@ -292,7 +292,7 @@ def deploy_ordner(archiv: Path, version: str, ziel: Path, allowed_signers: Path)
     pruefe_archivierte_nachweise(archiv, "HEAD", version, m)
     tarballs: dict[str, bytes] = {}
     for a in m["artefakte"]:
-        if a["name"] not in AUSGELIEFERT:
+        if a["name"] not in ausgeliefert_fuer(m):
             continue
         daten = _blob(archiv, "HEAD", f"releases/{version}/{ARTEFAKT_ORDNER}/{a['datei']}")
         if (hashlib.sha256(daten).hexdigest(), hashlib.sha512(daten).hexdigest()) != (

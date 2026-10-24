@@ -57,16 +57,25 @@ def test_named_installer_hat_eigene_spuren_und_keine_git_units() -> None:
     assert "install -m 0644 \"$HIER/scanview-git-export" not in text
     assert "systemctl enable --now scanview-git-export" not in text
     assert "http://127.0.0.1:8811/api/gesundheit" in text
+    # Der Jobläufer (Nutzer scanview-import, Gruppe scanview-jobs) gehört nur zum Standard: eine
+    # benannte Instanz darf ihn weder anlegen noch abschalten.
+    assert "JOBLAEUFER" not in text and "scanview-import" not in text
+    assert "scanview-jobs" not in text and "joblaeufer" not in text
     import subprocess
     assert subprocess.run(["bash", "-n"], input=text, text=True,
                           capture_output=True, check=False).returncode == 0
 
 
 def test_standard_installer_ausser_dispatch_bytegleich_zur_basis() -> None:
+    """Außer dem Dispatch und den markierten Abschnitten des Jobläufers (ab Werk aus; die
+    Probe `test_einrichten_probe.py::test_joblaeufer_aus_*` belegt, dass sie dann nichts tun) ist
+    jede Zeile die aus 0.5.0."""
     import re
     text = (PLATFORM / "einrichten.sh").read_text()
     text = re.sub(r"# INSTANZ_DISPATCH_BEGIN\n.*?# INSTANZ_DISPATCH_END\n\n", "", text,
                   flags=re.DOTALL)
+    assert text.count("# JOBLAEUFER_BEGIN") == text.count("# JOBLAEUFER_END") == 5
+    text = re.sub(r"[ \t]*# JOBLAEUFER_BEGIN\n.*?# JOBLAEUFER_END\n", "", text, flags=re.DOTALL)
     basis = _installer_0_5_0(PLATFORM)
     assert text == basis
 

@@ -22,7 +22,7 @@ from typing import Any
 
 from . import osv, scan, vex
 from .fehler import NachweisFehler
-from .manifest import AUSGELIEFERT, lade_signiertes_manifest, pruefe_version
+from .manifest import ausgeliefert_fuer, lade_signiertes_manifest, pruefe_version
 from .werkzeuge import Werkzeug, gefilterte_umgebung, git_befehl
 
 UNTERSTUETZT = Path("betrieb") / "unterstuetzt.toml"
@@ -72,8 +72,9 @@ def release_sboms(archiv: Path, version: str, allowed_signers: Path
                   ) -> tuple[dict[str, Path], str]:
     """SBOMs der ausgelieferten Artefakte einer archivierten Version und ihr Quellcommit. Das
     Manifest ist gegen `allowed_signers` (den übergebenen Anker, nie die archivierte Kopie)
-    signiert; der SHA-256 jedes SBOMs stimmt mit dem Manifest überein, alle `AUSGELIEFERT` sind
-    vorhanden — sonst `NachweisFehler` (`signatur`, `wochenscan-sbom`)."""
+    signiert; der SHA-256 jedes SBOMs stimmt mit dem Manifest überein, alle ausgelieferten
+    (Menge des Manifest-Schemas) sind vorhanden — sonst `NachweisFehler` (`signatur`,
+    `wochenscan-sbom`)."""
     pruefe_version(version, "wochenscan-versionen")
     ordner = archiv / "releases" / version
     daten = lade_signiertes_manifest(ordner / "manifest.json", allowed_signers)
@@ -81,7 +82,7 @@ def release_sboms(archiv: Path, version: str, allowed_signers: Path
         raise NachweisFehler("wochenscan-sbom", f"{version}: Manifest gehört zur Version "
                                                 f"{daten['version']}")
     sboms: dict[str, Path] = {}
-    for name in sorted(AUSGELIEFERT):
+    for name in sorted(ausgeliefert_fuer(daten)):
         datei = f"scanview-{name}-{version}.cdx.json"
         soll = daten["sboms"].get(datei)
         pfad = ordner / "sbom" / datei
@@ -153,7 +154,7 @@ def wochenscan(archiv: Path, repo: Path, vex_pfad: Path, allowed_signers: Path, 
         locks = lock_hashes_im_commit(repo, quellcommit)
         lauf = scan.scanne_alle(sboms, cache, vex_pfad, werkzeuge, uhr=jetzt, osv=osv_stand)
         stand = lauf.stand
-        geliefert = [t for t in lauf.treffer if t.artefakt in AUSGELIEFERT]
+        geliefert = [t for t in lauf.treffer if t.artefakt in sboms]
         treffer_je_version[version] = geliefert
         artefakte[version] = lauf.artefakte
         zeilen = vex.treffer_gate(geliefert, aussagen, jetzt.date(), lock_hashes=locks)

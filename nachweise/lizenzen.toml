@@ -43,3 +43,8 @@ erlaubt = [
 "License :: OSI Approved :: ISC License (ISCL)" = "ISC"
 "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)" = "MPL-2.0"
 "License :: OSI Approved :: Python Software Foundation License" = "PSF-2.0"
+
+# Belegte Lizenzfeststellungen: nur für Pakete, deren Metadaten keine Lizenz erklären, und nur für
+# genau diese Version. Beleg = Lizenztext im veröffentlichten Paket (SHA-256 des Textes).
+[feststellungen]
+"embreex@4.4.0" = { ausdruck = "BSD-2-Clause AND Apache-2.0", beleg = "Wheel embreex 4.4.0: dist-info/licenses/LICENSE ist BSD-2-Clause (Copyright (c) 2015, Anthony Scopatz); METADATA „License:“ enthält nur die Copyright-Zeile. Das Wheel bündelt Embree 4 und oneTBB, beide Apache-2.0 (deren Lizenztexte fehlen im Wheel und stehen in docs/THIRD_PARTY.md)", sha256 = "ff1b98027d39113f6c3fcd9c3b0ebcc60b145b9a2b82f5670f444be3028a900e" }

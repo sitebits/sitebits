@@ -1,7 +1,7 @@
 import { sourceFromPick } from './pointSources';
-// Zielpunkt im Begehen: Setzen am Fadenkreuz (auch „Befund setzen“ mit F bzw. Gamepad Y), Fadenkreuz mit
-// gedrosselter Vorschau, Live-Wert und dessen Ansage sowie die Abbildung des Gamepads auf Begehen, Rückfrage
-// und Verteiler. Dazu das Fadenkreuz im Panorama (Fokus auf der Leinwand, Werkzeug gewählt): Pfeiltasten
+// Zielpunkt im Begehen: Setzen am Fadenkreuz (auch „Befund setzen“ mit F bzw. Controller △/Y), Fadenkreuz mit
+// gedrosselter Vorschau, Live-Wert und dessen Ansage sowie das Setzen in Bildmitte für den Controller in der Übersicht.
+// Dazu das Fadenkreuz im Panorama (Fokus auf der Leinwand, Werkzeug gewählt): Pfeiltasten
 // drehen in Schritten, Leertaste und F setzen per feiner Suche mit Panorama-Budget, ohne Vorschau und
 // Live-Wert. main.ts verdrahtet nur.
 import { PerspectiveCamera, Vector3 } from 'three';
@@ -11,17 +11,13 @@ import type { Ansage } from './bedienDialoge';
 import type { BedienEinstellungen } from './bedienEinstellungen';
 import type { Begehen } from './begehen';
 import { createFadenkreuz } from './fadenkreuz';
-import type { PadAktion } from './gamepad';
-import type { KeyAction } from './keymap';
 import type { MeasureTool } from './measure';
-import { erzeugePadQuelle } from './padQuelle';
 import type { Panorama } from './panorama';
 import type { PoiPanel } from './pois';
 import { panoPickOptions } from './rayPick';
 import type { PickSource, Vorschau } from './rayPick';
 import type { RueckfrageDialog } from './rueckfrage';
-import { padBelegung } from './tastenbelegung';
-import type { AktionId, Belegung, HalteAktion } from './tastenbelegung';
+import type { AktionId, HalteAktion } from './tastenbelegung';
 import type { Toolbar } from './toolbar';
 import type { Viewer } from './viewer';
 import { SetzZaehler } from './walkControls';
@@ -43,8 +39,10 @@ export interface ZielpunktSteuerung {
   groesse(px: number): void;
   /** Abfragetaste: frische Vorschau, sofort ansagen (ohne die Ruhezeit abzuwarten). */
   ansageJetzt(): void;
-  /** Gamepad an das Begehen hängen; `verteile` ist der Kürzel-Verteiler. */
-  verbindePad(verteile: (a: KeyAction) => void): void;
+  /** Übersicht (Orbit) mit Controller: Punkt bzw. Befund in Bildmitte setzen, wie im Begehen am Fadenkreuz. */
+  mitteSetzen(): Promise<void>;
+  /** Controller zuletzt benutzt: in der Übersicht mit Werkzeug ein Fadenkreuz in Bildmitte zeigen. */
+  padKreuz(an: boolean): void;
 }
 
 export function attachZielpunktSteuerung(o: {
@@ -60,15 +58,14 @@ export function attachZielpunktSteuerung(o: {
   pose: () => number[];
   pois: () => PoiPanel | null;
   einstellungen: () => BedienEinstellungen;
-  belegung: () => Belegung;
   kuerzel: (a: AktionId) => string;
   say: (t: string) => void;
   ansage: Ansage;
   cloudVisible: () => boolean;
   hiddenCloudMessage: string;
-  /** Rückmeldung für die Tastenhinweise: ein Punkt oder Befund am Fadenkreuz wurde gesetzt (Taste oder Controller; nicht bei Abbruch oder ohne Treffer),
-   *  ein Controller-Knopf wirkt (nicht bei offenem Dialog oder Formular). */
-  hinweis?: { gesetzt(befund: boolean): void; pad(a: PadAktion, runter: boolean): void };
+  /** Rückmeldung für die Tastenhinweise (und die Vibration des Controllers): ein Punkt oder Befund am Fadenkreuz wurde
+   *  gesetzt (Taste oder Controller; nicht bei Abbruch oder ohne Treffer). */
+  hinweis?: { gesetzt(befund: boolean): void };
 }): ZielpunktSteuerung {
   const { v, pano, picker, tool, toolbar, rueckfrage, kuerzel, say, ansage, cloudVisible, hiddenCloudMessage } = o;
   const walk = o.begehen;
@@ -86,7 +83,8 @@ export function attachZielpunktSteuerung(o: {
   // immer das Formular. Im Begehen mit Sichtbarkeitsregel, im Panorama ohne sie und mit Panorama-Budget. Die
   // Suche startet sofort; Rückfrage und Anwenden laufen erst nach dem vorigen Setzen.
   const setzenImBegehen = async ({ zielen, vorher, befund = false }: { zielen: boolean; vorher: Promise<void>; befund?: boolean }): Promise<void> => {
-    const imPanorama = !walk.aktiv && pano.active;
+    const ort: 'begehen' | 'panorama' | 'orbit' = walk.aktiv ? 'begehen' : pano.active ? 'panorama' : 'orbit';
+    const imPanorama = ort === 'panorama';
     const werkzeug = toolbar.tool();
     if (!befund && werkzeug === 'navigate') {
       await vorher;
@@ -130,7 +128,9 @@ export function attachZielpunktSteuerung(o: {
     await vorher;
     const e = await laufend;
     // Inzwischen beendet oder (beim Werkzeug) gewechselt: ansagen statt still verwerfen.
-    if (imPanorama ? !pano.active : !walk.aktiv) return say(imPanorama ? 'Panorama verlassen – kein Befund gesetzt' : 'Begehen beendet – kein Befund gesetzt');
+    if (ort === 'panorama' && !pano.active) return say('Panorama verlassen – kein Befund gesetzt');
+    if (ort === 'begehen' && !walk.aktiv) return say('Begehen beendet – kein Befund gesetzt');
+    if (ort === 'orbit' && (walk.aktiv || pano.active)) return say('Ansicht gewechselt – kein Befund gesetzt');
     if (!befund && toolbar.tool() !== werkzeug) return say('Werkzeug gewechselt – kein Befund gesetzt');
     // Im Panorama prüft die Suche die Ansicht nicht selbst (keine Sichtbarkeitsregel): hier, wie beim Messen.
     if (imPanorama && !(gleichePose(kameraPose(), pose0) && pano.state?.station === station0)) return say('abgebrochen – Ansicht hat sich bewegt');
@@ -143,7 +143,7 @@ export function attachZielpunktSteuerung(o: {
     if (o.pois()?.openAt(e.punkt, station0,{positionSource:sourceFromPick(e.info)})) {
       o.hinweis?.gesetzt(befund);
       // Das Formular braucht die Tastatur: Pointer-Lock frei, gehaltene Tasten los.
-      if (!imPanorama) walk.zeigerFreigeben();
+      if (ort === 'begehen') walk.zeigerFreigeben();
       say('Befund am Zielpunkt, Formular geöffnet');
     }
   };
@@ -215,10 +215,17 @@ export function attachZielpunktSteuerung(o: {
   // bleibt stehen, solange dort ein Setzen läuft (die Rückfrage nimmt der Leinwand den Fokus).
   const fadenkreuz = createFadenkreuz(document.body);
   fadenkreuz.groesse(o.einstellungen().fadenkreuzPx);
+  let padKreuzAn = false;
   function zeigeFadenkreuz(): void {
     const imZiel = panoramaZiel();
     if (!imZiel) panoSetzBereit = false;
     if (walk.aktiv) return fadenkreuz.zeige(true);
+    if (!pano.active && padKreuzAn && toolbar.tool() !== 'navigate') {
+      fadenkreuz.zeige(true);
+      fadenkreuz.zielen(false);
+      fadenkreuz.aktualisiere({ zustand: 'neutral', punktBildschirm: null, text: null });
+      return;
+    }
     const panoKreuz = pano.active && (imZiel || panoSetzLaeuft.laeuft);
     fadenkreuz.zeige(panoKreuz);
     if (!panoKreuz) return;
@@ -335,51 +342,23 @@ export function attachZielpunktSteuerung(o: {
     stilleBis = aktiv ? performance.now() + 1500 : 0;
   });
 
-  // Gamepad: nur im Begehen, je Bild über die Eingabequelle des Begehens. Bei offener Rückfrage
-  // bestätigt A, B bricht sie ab (statt das Begehen zu beenden), das Steuerkreuz oben/unten wechselt.
-  const verbindePad = (run: (a: KeyAction) => void): void => {
-    const padKante = (a: PadAktion, runter: boolean): void => {
-      // Modaler Dialog (Tastenhilfe, Einstellungen) oder Befund-Formular offen: der Controller wirkt nicht — sonst
-      // wechselte LB/RB das Werkzeug (und verwürfe das Formular), RT setzte dahinter einen Messpunkt.
-      if (document.querySelector('dialog[open]') || o.pois()?.formularOffen()) return;
-      o.hinweis?.pad(a, runter);
-      if (rueckfrage.offen() && (a === 'bestaetigen' || a === 'zurueck' || a === 'hoch' || a === 'runter')) {
-        if (!runter) return;
-        if (a === 'bestaetigen') rueckfrage.bestaetige();
-        else if (a === 'zurueck') rueckfrage.abbreche();
-        else rueckfrage.wechsle();
-        return;
-      }
-      if (a === 'zielen') walk.halte('begehen.zielen', runter);
-      else if (a === 'setzen') walk.halte('begehen.setzen', runter);
-      if (!runter) return;
-      switch (a) {
-        case 'werkzeug-voriges':
-          return run({ type: 'werkzeug-wechsel', richtung: -1 });
-        case 'werkzeug-naechstes':
-          return run({ type: 'werkzeug-wechsel', richtung: 1 });
-        case 'standpunkt-voriger':
-          return run({ type: 'standpunkt', richtung: -1 });
-        case 'standpunkt-naechster':
-          return run({ type: 'standpunkt', richtung: 1 });
-        case 'karte':
-          return run({ type: 'toggle-panel', panel: 'karte' });
-        case 'befund':
-          return run({ type: 'befund' });
-        case 'zurueck':
-          return walk.beenden(austrittsTreffer());
-        default:
-          return; // zielen/setzen oben; hoch/runter wirken gehalten über die Eingabequelle
-      }
-    };
-    const padQuelle = erzeugePadQuelle({
-      belegung: () => padBelegung(o.belegung()),
-      invertY: () => o.einstellungen().invertY,
-      melde: say,
-      kante: padKante,
+  // Übersicht mit Controller: eigene Setz-Warteschlange (Reihenfolge wie im Begehen).
+  let orbitKette: Promise<void> = Promise.resolve();
+  const mitteSetzen = (): Promise<void> => {
+    if (o.pois()?.formularOffen()) {
+      say(FORMULAR_OFFEN);
+      return Promise.resolve();
+    }
+    if (rueckfrage.offen()) {
+      say('Erst die Rückfrage beantworten');
+      return Promise.resolve();
+    }
+    const vorher = orbitKette;
+    orbitKette = setzenImBegehen({ zielen: false, vorher }).catch((e: unknown) => {
+      console.error('Setzen fehlgeschlagen:', e);
+      say('Punkt konnte nicht ausgewertet werden');
     });
-    walk.setzeEingabeQuelle(padQuelle.quelle);
-    walk.onChange(() => padQuelle.zuruecksetzen());
+    return orbitKette;
   };
 
   return {
@@ -394,6 +373,11 @@ export function attachZielpunktSteuerung(o: {
       vorschauSchritt(true);
       ansage.melde(fadenkreuz.aktuellerText() ?? 'kein Treffer');
     },
-    verbindePad,
+    mitteSetzen,
+    padKreuz: (an) => {
+      if (padKreuzAn === an) return;
+      padKreuzAn = an;
+      zeigeFadenkreuz();
+    },
   };
 }

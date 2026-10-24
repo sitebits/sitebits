@@ -136,7 +136,7 @@ uv run --locked scanview-import verify /daten/wolke.laz /daten/paket
   --ziel-hoehensystem dhhn2016`); eine Umrechnung lehnt der Import ab.
 - **Nachweis:** `sourceOptions.hoehe` der Ebene hält Quelle, Ziel, Gitter und dessen SHA-256.
   `verify` rechnet die Quellpunkte für den Vergleich genauso um.
-- **Metashape-Kameras:** `panos-metashape` und `fotos-metashape` rechnen Kamerapositionen sowie
+- **Kameras aus `kameras.json`:** `panos-kameras` und `fotos-kameras` rechnen Kamerapositionen sowie
   Tie Points ins Paket-Höhensystem um, wenn `kameras.json` ellipsoidisch und das Paket DHHN2016
   ist (oder umgekehrt); die Drehung bleibt. Andere Abweichungen brechen ab.
 
@@ -155,7 +155,7 @@ Alle übrigen Felder der Datei (Referenz, Restfehler, Stand) landen als Herkunft
 
 - **Reihenfolge:** erst die Höhen an der Originallage umrechnen (`--quell-hoehensystem`), dann die
   Bewegung anwenden. Die Matrix muss also gegen die bereits umgerechneten Höhen bestimmt sein.
-- **Ein Wert für alle Ebenen:** `panos-metashape` und `fotos-metashape` übernehmen die Bewegung aus
+- **Ein Wert für alle Ebenen:** `panos-kameras` und `fotos-kameras` übernehmen die Bewegung aus
   dem Paket, Kameras samt Blickrichtung und Tie Points. `add` bewegt die Mesh-Vertices (nach der
   Höhenumrechnung) und vermerkt die Matrix in der Mesh-Ebene; frameCheck misst danach gegen die
   Wolke. `verify` bewegt die Quelle vor dem Vergleich genauso. Das Mesh also im Bezug der
@@ -163,44 +163,41 @@ Alle übrigen Felder der Datei (Referenz, Restfehler, Stand) landen als Herkunft
 - **Grenzen:** nur starre Bewegungen (orthonormal, det 1), Drehung höchstens 5°, Versatz höchstens
   100 m (Koordinatensystem prüfen statt verschieben). Für E57 noch nicht eingebaut.
 
-## Panoramen aus Metashape
+## Panoramen aus `kameras.json`
 
-Wolke und Kameras müssen **aus demselben Metashape-Arbeitsstand** kommen, mit **demselben
-Ziel-CRS und demselben Höhensystem**. Eine Übereinstimmung der EPSG-Nummer allein genügt nicht:
+Kugelpanoramen und orientierte Fotos kommen über das herstellerneutrale Austauschformat
+`kameras.json` ins Paket (Felder und Konventionen unter „Austauschformat `kameras.json`“). Jede
+Photogrammetrie-Software, die ausgerichtete Kameras samt Kalibrierung ausgeben kann, lässt sich
+damit anbinden; Exportwerkzeuge für einzelne Programme gehören nicht zu diesem Repository.
+
+Wolke und Kameras müssen **aus demselben Ausrichtungsstand** kommen, mit **demselben Ziel-CRS
+und demselben Höhensystem**. Eine Übereinstimmung der EPSG-Nummer allein genügt nicht:
 Ellipsoidhöhen und Gebrauchshöhen unterscheiden sich. Die Panoramen im **unbegradigten Original**
 verwenden. Begradigte Kopien haben andere Pixelrichtungen und passen nicht zur exportierten Pose.
 
-1. In Metashape Pro 2.x den betreffenden Chunk aktivieren. Die Punktwolke als LAS/LAZ oder E57
-   im gewählten metrischen Ziel-CRS exportieren. Dieses Skript exportiert Kameras, keine Punktwolke.
-2. Unter **Werkzeuge → Skript ausführen** `scripts/metashape/kameras_exportieren.py` wählen.
-   Beispiel für die Skriptargumente (Pfade anpassen):
-
-   ```text
-   --epsg 32632 --hoehensystem ellipsoidisch --ausgabe /daten/projekt/kameras.json
-   ```
-
-   Ohne Gruppenfilter werden alle ausgerichteten Kugelkameras (`Spherical`) exportiert.
-   Mit beispielsweise `--gruppe Boden --gruppe Luft` werden nur diese Gruppen aufgenommen.
-   Gruppennamen werden im Standpunktnamen vorangestellt, etwa `Luft / Kamera A`.
-   Nicht ausgerichtete Kameras und nicht ausgewählte Gruppen stehen mit Grund unter `skipped`
-   in der JSON-Datei und im Konsolenprotokoll. Bildpfade müssen absolut und zugänglich sein.
-
-   `--hoehensystem` **beschreibt** das tatsächlich exportierte Höhensystem; die Angabe
-   rechnet keine Höhen um. Für Gebrauchshöhen müssen das ausgewählte EPSG-CRS (gegebenenfalls
-   ein zusammengesetztes CRS) und die Geoid-Konfiguration in Metashape dazu passen.
-   Das Skript projiziert Kameraachsen numerisch ins Gitter des Ziel-CRS und orthonormalisiert
-   sie. Es verwendet keine geografische Nordausrichtung aus `localframe()`.
-   API-Referenz: [Metashape Python 2.3.1](https://www.agisoft.com/pdf/metashape_python_api_2_3_1.pdf).
+1. In der Photogrammetrie-Software die Punktwolke als LAS/LAZ oder E57 im gewählten metrischen
+   Ziel-CRS exportieren.
+2. Die ausgerichteten Kameras desselben Stands als `kameras.json` exportieren, zum Beispiel
+   nach `/daten/projekt/kameras.json`. Für den Export gilt:
+   - Kameras mit Gruppe (etwa `Boden`, `Luft`) behalten sie im Feld `group`; der Gruppenname
+     wird im Standpunktnamen vorangestellt, etwa `Luft / Kamera A`.
+   - Nicht ausgerichtete oder bewusst ausgelassene Kameras gehören mit Grund unter `skipped`.
+     Bildpfade müssen absolut und zugänglich sein.
+   - `crs.verticalDatum` **beschreibt** das tatsächlich exportierte Höhensystem; die Angabe
+     rechnet keine Höhen um. Für Gebrauchshöhen müssen CRS (gegebenenfalls ein zusammengesetztes
+     CRS) und Geoid-Konfiguration der Software dazu passen.
+   - Kameraachsen numerisch ins Gitter des Ziel-CRS projizieren und orthonormalisieren, nicht
+     die geografische Nordrichtung übernehmen (Meridiankonvergenz).
 3. Zuerst das Wolkenpaket erzeugen, dann die Panoramen hinein schreiben:
 
    ```bash
    uv run --locked scanview-import convert /daten/projekt/wolke.laz /daten/projekt/paket
    uv run --locked scanview-import verify /daten/projekt/wolke.laz /daten/projekt/paket
-   uv run --locked scanview-import panos-metashape --kameras /daten/projekt/kameras.json /daten/projekt/paket --hoehensystem ellipsoidisch > /daten/projekt/panorama-import.json
+   uv run --locked scanview-import panos-kameras --kameras /daten/projekt/kameras.json /daten/projekt/paket --hoehensystem ellipsoidisch > /daten/projekt/panorama-import.json
    ```
 
-   Der LAZ-Export muss EPSG:32632 enthalten (sonst Sidecar oder `--crs EPSG:32632`).
-   So lautet der Ablauf Metashape-LAZ → `convert` → `verify` → `panos-metashape`,
+   Der LAZ-Export muss das CRS enthalten (sonst Sidecar oder `--crs EPSG:32632`).
+   So lautet der Ablauf LAZ-Export → `convert` → `verify` → `panos-kameras`,
    ohne Zwischenumwandlung in E57. Ohne `--quell-hoehensystem` trägt `convert` kein bekanntes
    Höhensystem ein. In diesem Fall bestätigt
    `--hoehensystem` ausdrücklich die Höhen der **Punktwolke** und schreibt die Erklärung in das
@@ -213,18 +210,45 @@ verwenden. Begradigte Kopien haben andere Pixelrichtungen und passen nicht zur e
 
 ### Orientierte Fotos (Rahmenkameras)
 
-Derselbe Export (formatVersion 2) enthält auch ausgerichtete Rahmenkameras, zum Beispiel
-Drohnenbilder; `--art frame` beschränkt ihn darauf. Danach in das vorhandene Paket:
+Derselbe Export (`formatVersion: 2`) kann auch ausgerichtete Rahmenkameras enthalten, zum
+Beispiel Drohnenbilder (`kind: "frame"`). Danach in das vorhandene Paket:
 
 ```bash
-uv run --locked scanview-import fotos-metashape --kameras /daten/projekt/kameras.json /daten/projekt/paket --prozesse 4
+uv run --locked scanview-import fotos-kameras --kameras /daten/projekt/kameras.json /daten/projekt/paket --prozesse 4
 uv run --locked scanview-import fotos-pruefen /daten/projekt/paket
 ```
 
 Die Wolke des Pakets muss aus **demselben Ausrichtungsstand** stammen wie die Kameras (sonst
-Abbruch der Rahmenprüfung). `--hoehensystem` wirkt wie bei `panos-metashape`.
+Abbruch der Rahmenprüfung). `--hoehensystem` wirkt wie bei `panos-kameras`.
 Prüfungen, Abbruchgründe und Datenschutz: `docs/public/fotos.md`.
 Gemessen: 36,6-MP-Foto entzerren ≈ 13,5 s je Prozess.
+
+### Orientierte Fotos aus COLMAP und OpenDroneMap
+
+Ohne eigenen `kameras.json`-Export: eine georeferenzierte Rekonstruktion aus COLMAP oder
+OpenDroneMap (ODM) direkt lesen.
+
+```bash
+# ODM-Lauf mindestens bis odm_georeferencing; Paket aus ODMs Wolke (Farbe dort 0–255):
+uv run --locked scanview-import convert --rgb-8bit /daten/odm/projekt/odm_georeferencing/odm_georeferenced_model.laz /daten/paket
+uv run --locked scanview-import fotos-odm --projekt /daten/odm/projekt --hoehensystem ellipsoidisch /daten/paket --prozesse 4
+
+# COLMAP: Modell vorher mit model_aligner ins Paket-CRS bringen (Referenzkoordinaten im Ziel-CRS):
+uv run --locked scanview-import fotos-colmap --modell /daten/colmap/sparse_utm --bilder /daten/colmap/bilder \
+  --epsg 25833 --hoehensystem DHHN2016 /daten/paket
+```
+
+- `--hoehensystem` ist Pflicht: Es nennt das Höhensystem der Rekonstruktion und wird nicht geraten. Bei Ausrichtung
+  über EXIF-GPS hängt es von der Kamera ab (Hersteller schreiben ellipsoidische oder Normalhöhen) — vorher prüfen. EPSG liest `fotos-odm` aus `odm_georeferencing/coords.txt`, `fotos-colmap` braucht `--epsg`;
+  `--versatz E,N,H` addiert einen festen Versatz, falls das Modell im verschobenen Rahmen ausgerichtet wurde.
+- Kameramodelle: COLMAP SIMPLE_PINHOLE, PINHOLE, SIMPLE_RADIAL, RADIAL, OPENCV, FULL_OPENCV ohne k4–k6;
+  ODM/OpenSfM perspective und brown. Fisheye und Kugel brechen ab.
+- Statt der Referenzpaare aus `kameras.json` belegen die Merkmalspositionen der Rekonstruktion das Kameramodell: Der
+  Median-Restvektor muss ≤ 0,1 px sein (`modellbeleg` im Bericht, `provenance.modelCheck` in `images.json`).
+- ODM: gelesen wird die lokale Rekonstruktion; scanview rechnet selbst nach UTM (gleiche Abbildung wie ODMs Wolke,
+  Kameradrehung als echte Drehung). Die Rahmenprüfung gegen ODMs eigene Wolke belegt Konsistenz, keine Genauigkeit.
+- Rahmen- und Rückprojektionsprüfung wie bei `fotos-kameras`. Die Wolke muss aus derselben Rekonstruktion stammen;
+  eine dünne SfM-Wolke über flachem Gelände reicht dafür nicht („Szene zu eben“).
 
 Jedes Panorama liefert sechs 90°-Lochkameraseiten. Die Seitengröße ist Bildbreite / 4 (abgerundet),
 höchstens 4096 Pixel. Standardstufen sind 512, 1024, 2048 und 4096; `--levels 256,512,1024`
@@ -237,7 +261,7 @@ E57-Standpunkte an. Paketformat und Viewer bleiben gleich. Kameraposen behalten 
 Weltkoordinaten, der vorhandene Paketursprung bleibt erhalten. Die Punkte werden keinem Panorama
 zugeordnet (`pointSourceId` ist `null`). Die Seiten werden erst beim Schreiben einzeln erzeugt.
 
-Vor Nutzung mit echten Daten muss der Export in Metashape und die Deckung im Viewer geprüft werden.
+Vor Nutzung mit echten Daten müssen der Kameraexport und die Deckung im Viewer geprüft werden.
 Die synthetischen Tests belegen Format, Richtungen, Kanten und Projektion; sie ersetzen keine
 Messung der realen Bilddeckung.
 
@@ -247,11 +271,11 @@ Messung der realen Bilddeckung.
 uv run --locked scanview-import genauigkeit --datei /daten/projekt/genauigkeit.json /daten/projekt/paket
 ```
 
-Die Datei erzeugt in Metashape Pro 2.x **Werkzeuge → Skript ausführen** mit
-`scripts/metashape/genauigkeit_exportieren.py` und den Argumenten
-`--epsg 25833 --hoehensystem ellipsoidisch --ausgabe /daten/projekt/genauigkeit.json`
-(optional `--bericht /daten/projekt/report.pdf`, `--pass-strecke NAME` für Strecken, die außerhalb des
-Ausgleichs zum Skalieren dienten — sonst zählen sie als Kontrollstrecke). Das Projekt muss gespeichert sein.
+Die Datei ist ein herstellerneutrales Austauschformat (Felder unten): Ein Export aus der
+Photogrammetrie-Software schreibt Marker, Strecken und Kameragruppen samt Soll-, Ist- und
+Genauigkeitswerten im Paket-CRS. Strecken, die außerhalb des Ausgleichs zum Skalieren dienten, tragen
+`role: control` (Passstrecke); sonst zählen sie als Kontrollstrecke (`check`). `source.projectSha256`
+ist die Prüfsumme der gespeicherten Projektdatei.
 
 Schreibt `provenance.accuracy` an alle Punktwolken- und Mesh-Ebenen (`--ebene ID` wählt aus) und legt
 `genauigkeit.json` ins Paket. Nur **Kontroll**punkte (`role: check`) und **Kontroll**strecken ergeben einen
@@ -276,22 +300,184 @@ Felder, nicht endliche Zahlen und mehr als 10 000 Einträge je Liste brechen ab.
 
 ## Austauschformat `kameras.json`
 
-Version 1 enthält `formatVersion: 1`, `crs` mit ganzzahligem `epsg` und Text `verticalDatum`,
-`cameras` sowie optional `skipped` mit `label`/`reason`. Jede Kamera trägt `label`, `group`
-(leer erlaubt), absoluten `imagePath`, `width`, `height`, `position` als E/N/H und `rotation`
-als 3x3-Matrix. Die Matrixspalten bilden Kameraachsen im Gitter des Ziel-CRS ab:
-Metashape-X rechts, Y unten, Z vorn. Die Basisumrechnung in die bestehende Import-Konvention
-(-Z Blick, +Y oben) erfolgt ausschließlich im Adapter.
+Herstellerneutrales JSON (UTF-8) für ausgerichtete Kameras, gelesen von `panos-kameras` und
+`fotos-kameras`. Jede Software kann es erzeugen; der Import prüft die ganze Datei samt Bildern,
+bevor er etwas schreibt.
+
+**Kopf**
+
+| Feld | Inhalt |
+|---|---|
+| `formatVersion` | `1` (nur Kugelkameras) oder `2` (Kugel- und Rahmenkameras) |
+| `crs.epsg` | positive ganze Zahl, metrisches Ziel-CRS der Wolke (z. B. 25833) |
+| `crs.verticalDatum` | Höhensystem der Positionen als Text, z. B. `ellipsoidisch`, `DHHN2016` |
+| `cameras` | Liste der Kameras |
+| `skipped` | optional: [{`label`, `reason`}] — ausgelassene Kameras mit Grund |
+| `sensors` | nur v2, Pflicht bei Rahmenkameras: Sensoren mit Kalibrierung |
+| `tiePoints` | nur v2, optional: [[E, N, H], …] Verknüpfungspunkte im Weltrahmen |
+| `tieProjections` | nur v2, optional: [{`camera`, `pixel`: [u, v], `world`: [E, N, H]}] |
+| `document` | nur v2, optional: Objekt zur Herkunft (etwa `path`, `mtime`, `chunk`); landet unverändert in `provenance.document` von `images.json` |
+
+**Kamera** (`cameras[]`)
+
+| Feld | Inhalt |
+|---|---|
+| `label` | Name, Text; bei Rahmenkameras über alle Gruppen eindeutig (Tie-Point-Projektionen hängen nur am Label) |
+| `group` | Gruppe, Text (leer erlaubt) |
+| `kind` | nur v2: `spherical` oder `frame`; andere Arten werden übersprungen |
+| `imagePath` | absoluter Pfad zum Originalbild (unbegradigt, unverändert) |
+| `width`, `height` | Bildmaße in Pixeln; Kugelbild 2:1, Rahmenkamera gleich dem Sensor |
+| `sensor` | nur Rahmenkamera: `id` des Sensors |
+| `position` | [E, N, H] Projektionszentrum in Metern im Ziel-CRS, Höhe im `verticalDatum` |
+| `rotation` | 3×3-Matrix (zeilenweise); ihre **Spalten** sind die Kameraachsen X, Y, Z in Weltkoordinaten (Kamera → Welt), rechtshändig orthonormal (Toleranz 1e-6) |
+
+**Achsen.** Kamerabasis des Austauschformats: +X rechts, +Y unten, +Z Blickrichtung (bei
+Kugelkameras die Mitte des Equirektangularbilds; x im Bild nach rechts, y nach unten). Die Achsen
+liegen im Gitter des Ziel-CRS (Easting, Northing, Höhe), nicht in geografischer Nordrichtung. Die
+Umrechnung in die Paket-Konvention (+Y oben, -Z Blick, `R_paket = R @ diag(1, -1, -1)`) macht
+ausschließlich der Import.
+
+**Pixel.** Ursprung in der linken oberen Bildecke, die Mitte des Pixels (i, j) liegt bei
+(i + 0,5, j + 0,5). Gerechnet wird in Sensorpixeln: Bilder mit EXIF-Orientation ≠ 1 brechen ab
+(Ausnahme `fotos-kameras --exif-drehung-ignorieren`, siehe `docs/public/fotos.md`).
+
+**Sensor** (`sensors[]`, nur Rahmenkameras): `id` (ganze Zahl), `label`, `type: "frame"`,
+`width`, `height`, `rollingShutter`, `calibrationAdjusted`, `calibration` und `referencePairs`.
+
+- `rollingShutter` (true/false, Pflichtangabe des Exports): ob die Ausrichtung für diesen Sensor
+  eine Rolling-Shutter-Kompensation verwendet. Das Kameramodell bildet sie nicht ab; bei `true`
+  bricht der Import ab.
+- `calibrationAdjusted` (true/false, Pflichtangabe des Exports): ob `calibration` die in der
+  Ausrichtung angepasste Kalibrierung ist (nicht nur Startwerte). Bei `false` bricht der Import ab.
+- Fehlen die Felder (ältere Exporte), gilt `rollingShutter: false` und `calibrationAdjusted: true`.
+
+`calibration` enthält `f`, `cx`, `cy`, `k1`, `k2`, `k3`, `k4`, `p1`, `p2`, `b1`, `b2` (alle Pflicht,
+Pixel bzw. dimensionslos; `p3`/`p4` nur mit Wert 0). Modell für einen Punkt (X, Y, Z) im
+Kamerakoordinatensystem:
+
+```text
+x = X/Z, y = Y/Z, r² = x² + y²
+x' = x(1 + k1r² + k2r⁴ + k3r⁶ + k4r⁸) + (p1(r² + 2x²) + 2p2xy)
+y' = y(1 + k1r² + k2r⁴ + k3r⁶ + k4r⁸) + (p2(r² + 2y²) + 2p1xy)
+u = width/2 + cx + x'f + x'b1 + y'b2
+v = height/2 + cy + y'f
+```
+
+`cx`/`cy` sind also Versätze des Hauptpunkts gegen die Bildmitte. Die Tangentialterme stehen in
+anderer Reihenfolge als bei OpenCV (OpenCV-`p1` entspricht hier `p2` und umgekehrt); Koeffizienten
+nie nur nach Namen übertragen.
+
+`referencePairs` belegt, dass dieses Modell der Projektion der Software entspricht: mindestens 8
+Einträge `{"ray": [x, y], "pixel": [u, v]}`, `ray` als normierte Kamerakoordinaten (X/Z, Y/Z),
+`pixel` aus der **eigenen Projektionsfunktion der Software** (nicht aus obigen Formeln), über das
+Bild verteilt bis nahe an den Rand. Weicht ein Paar mehr als 0,1 px vom Modell ab, bricht der Import
+ab.
+
+`tiePoints` dienen der Rahmenprüfung (Fotos und Paketwolke aus demselben Ausrichtungsstand),
+`tieProjections` der Rückprojektionsprüfung: gemessene Pixel eines Verknüpfungspunkts im
+Originalbild der Kamera `camera` samt seiner Weltkoordinate. Eine Stichprobe genügt (etwa
+höchstens 50 Kameras je Gruppe mit je bis zu 200 Projektionen); Punkte im Unendlichen weglassen.
+
+Version 1 kennt nur `formatVersion`, `crs`, `cameras` (ohne `kind`, alle Kugelkameras) und
+`skipped`.
+
+## Sonne: Verschattung und Ertrag (`scanview-sonne`, Extra `[sonne]`)
+
+```bash
+uv sync --extra sonne
+# Fläche: Flächenmessung aus dem Viewer als JSON ({"kind": "area", "points": [[x, y, z], …]}, Weltkoordinaten)
+uv run scanview-sonne bericht --paket <paket> --flaeche flaeche.json --modul-wp 800 --kappung-w 800 --aus bericht/
+# Rechenweg ohne Verschattung gegen PVGIS PVcalc (Neigung/Azimut, Süd = 180)
+uv run scanview-sonne gegenprobe --breite 52.39 --laenge 13.03 35/180 90/270
+```
+
+- Liest die erste Mesh-Ebene (`--ebene`), legt Stichpunkte im Raster (`--raster`, Vorgabe 10 cm) auf das Mesh und
+  rechnet je Stichpunkt eine Richtungskarte der Verdeckung (2° × 1°). Daraus folgen Direktmaske, Himmelssicht und
+  Horizontband; der Fernhorizont kommt aus PVGIS `printhorizon`, die Einstrahlung aus `seriescalc`/`tmy` mit
+  `usehorizon=0`.
+- PVGIS wird nur von hier abgerufen und mit URL und Abrufdatum unter `~/.cache/scanview-sonne/pvgis` abgelegt;
+  `--offline` rechnet nur aus dem Cache.
+- Ausgabe: `ergebnis.json` (alle Zahlen, Prüfsumme in `lauf.json`), `stichpunkte.csv`/`.geojson`, `waermekarte.png`,
+  `bericht.html` und `bericht.pdf` (headless Chromium). Gleiche Eingaben ergeben dieselbe Prüfsumme.
+- Große Pakete als Unit mit Speichergrenze starten (`systemd-run --user -p MemoryMax=…`); ein Paket mit 2,2 Mio.
+  Dreiecken braucht ≈ 2 GB.
+
+### Sonnenbericht Garten (`scanview-sonne garten`)
+
+```bash
+uv run scanview-sonne garten --paket <paket> --flaeche beet.json --aus garten/ --belaubung "voll belaubt"
+```
+
+- Die Fläche gilt als **Grundriss**: Stichpunkte im XY-Raster (`--raster`, Vorgabe 20 cm), der Boden je Punkt ist
+  der erste Treffer eines senkrechten Strahls von unten, gesucht nur ±`--fenster` (Vorgabe 1 m) um die Ebene durch
+  die Ecken. So landet ein Punkt unter einem Baum am Boden und nicht durch ein Mesh-Loch in der Krone.
+- Je Bodenpunkt direkte Sonnenstunden je Tag und Monat (Viertelstunden 2023, ohne Wolken), Lichtlage nach RHS aus
+  dem Juni/Juli-Mittel: sonnig ab 6 h, halbschattig 3–6 h, mäßig schattig 2–3 h, schattig unter 2 h; ±0,4 h um
+  eine Schwelle gelten als Grenzbereich. Dazu die Himmelssicht (Streulicht).
+- Baumkronen aus Fotos sind im Mesh löchrig. Deshalb rechnet der Bericht zweimal: mit dem Mesh wie aufgenommen und
+  mit einem dichten Kronendach (höchste Mesh-Ecke je 50-cm-Zelle über 2 m Wuchshöhe, nie näher als 2 m über einem
+  Stichpunkt). Jede Zahl steht als Spanne; „unsicher“ heißt Grenzbereich oder je nach Kronen andere Lichtlage.
+- PVGIS nur für den Geländehorizont (`printhorizon`). Ausgabe wie beim Ertragsbericht, Karten `kategorien.png`
+  und `stunden.png`. Eine Pflanzenliste gibt es noch nicht; der Bericht nennt Boden und Feuchte als Pflichtfragen.
+
+## Lieferung prüfen (`scanview-pruefen`, Stufen P1 bis P3, B1)
+
+```bash
+uv run scanview-pruefen <lieferordner> --profil bestandserfassung --aus pruefung/ [--paket <paket>] [--pdf]
+uv run scanview-pruefen <lieferordner> --katalog eigener-katalog.toml --aus pruefung/
+# Dichte, Lücken, Bodenauflösung brauchen die Auftragsfläche des Auftraggebers
+uv run scanview-pruefen <lieferordner> --profil bestandserfassung --flaeche auftrag.geojson --paket <paket> --aus pruefung/
+# Boden gegen das amtliche DGM des Auftraggebers (Kacheln: --dgm mehrfach)
+uv run scanview-pruefen <lieferordner> --profil bestandserfassung --dgm dgm1_33_365_5806.tif --aus pruefung/
+```
+
+- Prüft eine fremde Lieferung gegen einen Anforderungskatalog (TOML, `schema = 1`; Beispielprofil
+  `src/scanview_import/pruefen/profile/bestandserfassung.toml`). Je Zeile **erfüllt**, **nicht erfüllt** oder
+  **nicht prüfbar**, mit Grund und Belegen. Fehlt, was die Zeile verlangt (Datei, Deklaration), ist das „nicht
+  erfüllt“; „nicht prüfbar“ heißt nur, dass das Prüfwerkzeug fehlt (z. B. Lagemessung am Modell, Befunde, Zeitstände).
+- Prüfarten P1: `bezugssystem` (LAS-Kopf, GeoTIFF-Schlüssel, E57, Paket), `klassen`, `raster` (GeoTIFF ohne GDAL),
+  `formate` (Kopf und Lesbarkeit; RCP/DWG nur Vorhandensein), `pruefsummen` (sha256sum-Liste; fehlend,
+  abweichend, überzählig getrennt), `anhang`, `bericht`.
+- Prüfarten P2 über der Auftragsfläche (`--flaeche`, GeoJSON; `crs`-Member oder WGS84, sonst `--flaeche-epsg`,
+  geraten wird nie): `dichte` (Punkte/m² je Zelle, Anteil der Fläche), `luecken` (Anteil Zellen ohne Punkt, Karte im
+  Bericht), `gsd` (Bodenauflösung je senkrechtem Luftbild aus `images.json` des Pakets: Entfernung entlang der
+  Blickachse bis zum Boden durch `focalPx`; Boden = Referenz-DGM, wenn `--dgm` passt, sonst Klasse 2 der Wolke mit
+  Vorbehalt im Beleg). Ein Lesedurchgang für alle drei; je Zelle zählt das Maximum
+  über die Dateien, damit eine doppelt gelieferte Wolke die Dichte nicht verdoppelt. Ohne Fläche: „nicht prüfbar
+  (Grundlage fehlt)“.
+- Prüfarten P3 (Kontrollpunkte, F15 Teil 2): Liste als CSV aus der Lieferung (`*kontrollpunkt*.csv`) oder vom
+  Auftraggeber (`--kontrollpunkte`, `--kontrollpunkte-crs`). Kopf `id;rolle;e;n;h` plus optional
+  `sigma_lage;sigma_hoehe;ist_e;ist_n;ist_h`, Trenner `;` (Dezimalkomma erlaubt) oder `,`; Bezugssystem mit Höhe muss
+  deklariert sein (`# crs = EPSG:25833+7837`), umgerechnet wird nie. Nur Rolle `check`/`kontrollpunkt` zählt,
+  `control`/`passpunkt` nie. `kontrollpunkte` mit `rmse_v_m`: Höhe misst siteBits an der Wolke (Median im Radius,
+  Klasse 2 bevorzugt); mit `rmse_h_m`: Lage aus den Ist-Spalten — vom Messenden geliefert oder im Viewer-Panel
+  „Kontrollpunkte“ am Modell gepickt (Export mit `# quelle = siteBits-Viewer …, am Modell gepickt`, im Beleg so
+  ausgewiesen). Je RMSE eine Einordnung in BFR-Verm OGL/OGH, USIBD LOA und Eckstein-Stufen (Orientierung, kein Urteil). RMSE = √(Messung² + RMS σ²),
+  Ausreißer bleiben drin, nicht messbare Punkte einzeln. `massstab`: Strecken aus Kontrollpunktpaaren.
+  Messwerte je Punkt in `ergebnis.json` und `<Zeile>-messwerte.csv`.
+- Prüfarten B1 gegen das Referenz-DGM des Auftraggebers (`--dgm`, Float-GeoTIFF ohne GDAL gelesen; Höhensystem aus
+  GeoKey 4096 oder `--dgm-crs EPSG:25833+7837`, umgerechnet wird nie; Kacheln auf demselben Pixelgitter). Verglichen
+  wird je DGM-Pixel: Mittel der Bodenpunkte (Klasse 2) minus DGM, nicht interpoliert. `einpassung`: mittlere
+  absolute Abweichung über alle verglichenen Pixel, große Abweichungen bleiben drin (nur Höhe; bDOM und Lage folgen in
+  J4). `klassen_richtig`: Anteil der Pixel mit Boden jenseits `toleranz_m`, getrennt darüber (Dach oder Bewuchs als
+  Boden) und darunter, mit Karte. Betrachtet werden die Pixel der Auftragsfläche, ohne Fläche alle mit Punkten;
+  Pixel ohne DGM-Wert oder ohne Bodenpunkt werden gezählt, `min_ueberdeckung` verlangt einen Mindestanteil. Ohne
+  DGM: „nicht prüfbar (Grundlage fehlt)“.
+- Die Lieferung wird nur gelesen, symbolische Links werden nicht verfolgt, Pfade aus Katalog und Prüfsummenliste
+  bleiben im Lieferordner. Kein Netz. Fläche, Referenz-DGM und externes Paket stehen mit SHA-256 in der Kette.
+- Ausgabe: `ergebnis.json` (deterministisch, Prüfsumme in `lauf.json`), `pruefsummen.sha256` der gelesenen
+  Dateien, Karten `<Zeile>-dichte.png`/`-luecken.png`/`-boden.png`, `bericht.html`, mit `--pdf` auch `bericht.pdf`. Exit 0: nichts „nicht erfüllt“, 1: mindestens eine
+  Zeile nicht erfüllt, 2: Katalog- oder Eingabefehler.
 
 ## Prüfung
 
 ```bash
 uv run --locked pytest
 uv run --locked ruff check .
-uv run --locked mypy src scripts/metashape
+uv run --locked mypy src
 ```
 
-Die Tests verwenden synthetische Bilder und einen Metashape-API-Stub. Für die bestehenden
+Die Tests verwenden synthetische Bilder und Kameras. Für die bestehenden
 Docker-Smoke-Tests muss `busybox:latest` lokal vorhanden sein.
 
 
@@ -461,7 +647,8 @@ Lagematrix aus `sourceOptions.lage` der Paketwolke übernommen. Gauß-Mittelpunk
 und Skalen werden gemeinsam transformiert. Beim Kameraweg liegen die Weltzentren **bereits im
 endgültigen Paketrahmen/Höhensystem**, inklusive Lageanpassung; keine zweite Anwendung.
 Kameranamen müssen exakt übereinstimmen, kein Abschneiden von Pfaden oder Dateiendungen.
-Welt-CSV: `label,E,N,H`. Metashape-XML: ein lokaler Chunk samt Chunk-Transformation;
+Welt-CSV: `label,E,N,H`. Kamera-XML (Elemente `chunk`, `transform`, `camera`): ein lokaler Chunk samt
+Chunk-Transformation;
 georeferenziertes XML wird konservativ abgewiesen, dafür Welt-CSV exportieren.
 
 Mindestens vier nicht kollineare Kamerapaare, 80 % Inlier, positiver Maßstab; standardmäßig

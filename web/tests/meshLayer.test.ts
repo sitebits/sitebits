@@ -1,6 +1,6 @@
 // Lader-Lebenszyklus ohne WebGL: Decoder liefern reale three-Geometrie, Netz und GPU werden ersetzt.
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { BufferAttribute, BufferGeometry, CompressedTexture, Group, Mesh, MeshBasicMaterial, Plane, Raycaster, Vector3 } from 'three';
+import { BufferAttribute, BufferGeometry, CompressedTexture, Group, LineSegments, Mesh, MeshBasicMaterial, MeshLambertMaterial, MeshNormalMaterial, Plane, Raycaster, Vector3 } from 'three';
 import type Instance from '@giro3d/giro3d/core/Instance.js';
 import type { MeshLayer } from '../src/manifest';
 import { createMeshLayer, PREVIEW_TIMEOUT_MS } from '../src/meshLayer';
@@ -179,4 +179,63 @@ it('Vollstufenlader bereitet Kanten über Material-Primitiven hinweg vor', async
  const h=await make();h.setMeasuring(true);await vi.waitFor(()=>expect(h.stage).toBe('full'));
  expect(h.pickMeshes).toHaveLength(2);for(const mesh of h.pickMeshes) expect(meshFeatureEdges(mesh)).toHaveLength(1);
  h.dispose();
+});
+
+it('Darstellung: Grau mit/ohne Licht, Normalen, Aus — Normalen nur für Licht, Rückweg auf das Originalmaterial', async () => {
+  const g = scene(); const mesh = g.children[0] as Mesh;
+  const compute = vi.spyOn(mesh.geometry, 'computeVertexNormals'); mock.parse.mockResolvedValue({ scene: g });
+  const h = await make(); const original = mesh.material;
+  h.setFlaeche('grau'); expect(mesh.material).toBeInstanceOf(MeshLambertMaterial); expect(compute).not.toHaveBeenCalled();
+  expect((mesh.material as MeshLambertMaterial).flatShading).toBe(true); // ohne Normalen flach, kein Budget
+  expect((mesh.material as MeshLambertMaterial).map).toBeNull();
+  h.setShading(true); expect(compute).toHaveBeenCalledOnce(); // jetzt mit Normalen: glatt
+  expect((mesh.material as MeshLambertMaterial).flatShading).toBe(false);
+  h.setFlaeche('normalen'); expect(mesh.material).toBeInstanceOf(MeshNormalMaterial);
+  h.setFlaeche('aus'); expect((mesh.material as MeshBasicMaterial).visible).toBe(false);
+  h.setShading(false); h.setFlaeche('textur'); expect(mesh.material).toBe(original);
+  expect((mesh.material as MeshBasicMaterial).visible).toBe(true); expect(compute).toHaveBeenCalledOnce();
+  expect(h.flaeche).toBe('textur'); h.dispose();
+});
+it('Drahtgitter: Linien als Kind, teilen Positionen, zählen im Budget, messen nicht; Abschalten lässt die Fläche heil', async () => {
+  const g = scene(); const mesh = g.children[0] as Mesh; mock.parse.mockResolvedValue({ scene: g });
+  const h = await make(); const bytes = h.bytes;
+  h.setDraht(true);
+  const linien = mesh.children.filter((c): c is LineSegments => c instanceof LineSegments);
+  expect(linien).toHaveLength(1); expect(linien[0]!.geometry.attributes.position).toBe(mesh.geometry.attributes.position);
+  expect([...linien[0]!.geometry.index!.array]).toEqual([0, 1, 1, 2, 2, 0]);
+  expect(h.bytes).toBe(bytes + 24); expect((mesh.material as MeshBasicMaterial).polygonOffset).toBe(true);
+  const ray = new Raycaster(new Vector3(.2, .2, 5), new Vector3(0, 0, -1)); const treffer: unknown[] = [];
+  linien[0]!.raycast(ray, treffer as never); expect(treffer).toHaveLength(0);
+  const dispose = vi.spyOn(linien[0]!.geometry, 'dispose');
+  h.setDraht(false); expect(mesh.children).toHaveLength(0); expect(dispose).toHaveBeenCalledOnce();
+  expect(mesh.geometry.attributes.position).toBeDefined(); expect(h.bytes).toBe(bytes); expect(h.draht).toBe(false); h.dispose();
+});
+it('Drahtgitter über dem Budget bleibt aus und meldet sich', async () => {
+  const groß = scene(MESH_BUDGET_BYTES - 10); mock.parse.mockResolvedValue({ scene: groß });
+  const notify = vi.fn();
+  const h = await createMeshLayer({ instance: instance(), layer, originWorld: [31, 40, 10], pkgBase: 'http://localhost/data/pkg/', wasmBase: '/wasm/', notify });
+  h.setDraht(true); expect(h.draht).toBe(false); expect(notify).toHaveBeenCalledWith('Drahtgitter überschreitet das Grafikbudget'); h.dispose();
+});
+it('Fläche „aus“: weder messbar noch verdeckend, auch mit Drahtgitter', async () => {
+  const h = await make(); expect(h.occluderMeshes).toHaveLength(1);
+  h.setFlaeche('aus'); h.setDraht(true); expect(h.occluderMeshes).toHaveLength(0); expect(h.pickMeshes).toHaveLength(0);
+  h.setFlaeche('grau'); expect(h.occluderMeshes).toHaveLength(1); h.dispose();
+});
+it('Budget: Grau/Normalen tragen keine Textur, sie bleibt aber im Budget; ohne Normalen kein Zuwachs', async () => {
+  const g = scene(); const quelle = (g.children[0] as Mesh).material as MeshBasicMaterial;
+  quelle.map = new CompressedTexture([{ data: new Uint8Array(4096), width: 64, height: 64 }], 64, 64);
+  mock.parse.mockResolvedValue({ scene: g });
+  const h = await make(); const vorher = h.bytes;
+  h.setFlaeche('normalen'); expect(h.bytes).toBe(vorher); // flach, keine Normalen; Textur bleibt im Budget
+  h.setFlaeche('grau'); expect(h.bytes).toBe(vorher); h.dispose();
+});
+it('Grau schaltet das Licht an; Schattierung über dem Budget wird flach statt abgelehnt', async () => {
+  const i = instance(); const groß = scene(MESH_BUDGET_BYTES - 10); mock.parse.mockResolvedValue({ scene: groß });
+  const notify = vi.fn(); const mesh = groß.children[0] as Mesh;
+  const h = await createMeshLayer({ instance: i, layer, originWorld: [31, 40, 10], pkgBase: 'http://localhost/data/pkg/', wasmBase: '/wasm/', notify });
+  const licht = () => i.threeObjects.children.find((c) => c.name === 'scanview-mesh-licht')!;
+  h.setFlaeche('grau'); expect(licht().visible).toBe(true); h.setFlaeche('textur'); expect(licht().visible).toBe(false);
+  h.setShading(true); expect(h.shading).toBe(true); expect(mesh.geometry.attributes.normal).toBeUndefined();
+  expect((mesh.material as MeshLambertMaterial).flatShading).toBe(true);
+  expect(notify).toHaveBeenCalledWith('Schattierung flach – Normalen passen nicht ins Grafikbudget'); h.dispose();
 });

@@ -172,6 +172,11 @@ export function createPanelHost(o: { root: HTMLElement; panels: readonly PanelSp
     saveLayout(storage, projectId, layout);
   }
 
+  /** Handy-Layout (schmal, oder Touch quer mit wenig Höhe) — wie render() es bestimmt, auch vor dem ersten render(). */
+  function handy(): boolean {
+    return istMobil(innerWidth, innerHeight, istTouch());
+  }
+
   function isMobile(): boolean {
     return root.dataset.mobile === 'true';
   }
@@ -179,12 +184,19 @@ export function createPanelHost(o: { root: HTMLElement; panels: readonly PanelSp
   /** Öffnen/Schließen ist immer diese Abfolge, egal ob durch die API oder durch den MutationObserver ausgelöst. */
   function applyOpenChange(id: string, open: boolean): void {
     layout = setOpen(layout, id, open);
+    // Handy: immer nur ein Panel im Blatt — die übrigen schließen (ausgelagerte bleiben, sie liegen neben dem Bild).
+    const verdraengt = open && handy() ? layout.order.filter((x) => x !== id && layout.panels[x]?.open && !ausgelagert.has(x)) : [];
+    for (const x of verdraengt) {
+      layout = setOpen(layout, x, false);
+      wraps.get(x)!.content.hidden = true;
+    }
     if (open) {
       layout = activate(layout, id);
       lastActive = id;
     }
     persist();
     render();
+    for (const x of verdraengt) for (const cb of changeListeners) cb(x, false);
     for (const cb of changeListeners) cb(id, open);
   }
 
@@ -720,6 +732,9 @@ export function createPanelHost(o: { root: HTMLElement; panels: readonly PanelSp
     root.dataset.mobile = String(mobile);
     // Quer: das Blatt liegt rechts statt unten (panels.css), sonst bliebe vom Bild kaum etwas.
     root.dataset.quer = String(mobile && innerWidth > innerHeight);
+    // Für Leisten außerhalb des Panel-Hosts (toolbar.css, bedienung.css): Handy hoch bzw. quer.
+    document.body.classList.toggle('sv-handy', mobile);
+    document.body.classList.toggle('sv-handy-quer', mobile && innerWidth > innerHeight);
     for (const side of DOCK_SIDES) {
       const dockEl = docks[side];
       dockEl.replaceChildren();
@@ -762,6 +777,9 @@ export function createPanelHost(o: { root: HTMLElement; panels: readonly PanelSp
     restoreScrollTops(scrollTops);
     restoreFocus?.();
   }
+
+  // Handy: Start mit freiem Modell — kein Panel offen (nur für diese Sitzung, gespeichert wird erst bei einer Änderung).
+  if (handy()) for (const p of panels) layout = setOpen(layout, p.id, false);
 
   for (const p of panels) {
     const wrapper = document.createElement('div');
@@ -811,6 +829,8 @@ export function createPanelHost(o: { root: HTMLElement; panels: readonly PanelSp
     const before = layout;
     clearLayout(storage, projectId);
     layout = defaultLayout(panels);
+    // Handy: wie beim Start freies Modell statt dreier Panels im Blatt.
+    if (handy()) for (const p of panels) layout = setOpen(layout, p.id, false);
     lastActive = null;
     for (const p of panels) wraps.get(p.id)!.content.hidden = !layout.panels[p.id]!.open;
     render();

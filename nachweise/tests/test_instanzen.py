@@ -58,7 +58,7 @@ def test_instanznamen_und_ports() -> None:
     instanz = _renderer()["Instanz"]
     for name in ("ab", "beispiel", "a-", "a" * 20, "a1-b2"):
         assert instanz(name, 8811).name == name
-    for name in ("a", "a" * 21, "Aaa", "-abc", "1abc", "ab_", "äb", "scanview",
+    for name in ("a", "a" * 21, "Aaa", "-abc", "1abc", "ab_", "äb", "scanview", "import", "jobs",
                  "ab-deploy", "../ab", "ab\n", "ab;id", "ab deploy"):
         with pytest.raises(ValueError, match="Instanzname"):
             instanz(name, 8811)

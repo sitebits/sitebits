@@ -302,7 +302,7 @@ Prüfskripte.
    /usr/bin/ssh-keygen -Y verify -f "$ANKER" -I release@scanview -n scanview-abschluss \
      -s abschluss.json.sig <abschluss.json
    # 3. Inhalt: Version, kein Trockenlauf, Abschluss gehört zum Manifest, Prüfsummen der
-   #    drei ausgelieferten Archive.
+   #    ausgelieferten Archive (Menge je Manifest-Schema: bis /2 drei, ab /3 mit import).
    /usr/bin/python3 -I - "$V" <<'PY'
    import hashlib, json, sys
    def pruefe(ok, was):
@@ -315,8 +315,12 @@ Prüfskripte.
    pruefe(m["version"] == v and m["trockenlauf"] is False, "Version oder Trockenlauf")
    pruefe(a["version"] == v and a["manifest_sha256"] == hashlib.sha256(roh).hexdigest(),
           "Abschluss gehört nicht zu diesem Manifest")
-   geliefert = [x for x in m["artefakte"] if x["ausgeliefert"]]
-   pruefe(sorted(x["name"] for x in geliefert) == ["mcp", "server", "web"], "Artefakte")
+   soll = {"scanview-release-manifest/1": ["mcp", "server", "web"],
+           "scanview-release-manifest/2": ["mcp", "server", "web"],
+           "scanview-release-manifest/3": ["import", "mcp", "server", "web"]}.get(m["schema"])
+   pruefe(soll is not None, "Schema unbekannt (neueres Bootstrap-Skript aus der Anleitung nehmen)")
+   geliefert = [x for x in m["artefakte"] if x["ausgeliefert"] is True]
+   pruefe(sorted(x["name"] for x in geliefert) == soll, "Artefakte")
    for x in geliefert:
        pruefe("/" not in x["datei"], x["datei"])
        ist = hashlib.sha256(open("artefakte/" + x["datei"], "rb").read()).hexdigest()
@@ -350,7 +354,10 @@ Prüfskripte.
    solches Release wird wie beim ersten Mal über das Bootstrap-Skript eingespielt (Schritt 3):
    es prüft Signaturen und Prüfsummen selbst, entpackt erst danach die Prüfskripte des neuen
    Releases und richtet mit ihnen ein. Nie ein Prüfskript aus dem noch ungeprüften Release direkt
-   aufrufen.
+   aufrufen. Ändert ein Schema die Menge der ausgelieferten Archive (`/3`: dazu import), muss
+   vorher das Bootstrap-Skript selbst aus der aktuellen Fassung dieser Anleitung erneuert werden
+   (Schritt 2) — ein älteres bricht mit `Abbruch: Artefakte` bzw. `Abbruch: Schema unbekannt` ab,
+   ohne etwas zu verändern.
 
 **Release-Ordner** — genau diese Einträge, jede weitere oder fehlende Datei bricht ab. Auf der
 Release-Workstation stellt `scanview-nachweise deploy-ordner --version X.Y.Z --ziel <ordner>` ihn
@@ -364,9 +371,12 @@ aus dem Nachweis-Archiv zusammen:
 <ordner>/artefakte/scanview-web-X.Y.Z.tar.gz
 <ordner>/artefakte/scanview-server-X.Y.Z.tar.gz
 <ordner>/artefakte/scanview-mcp-X.Y.Z.tar.gz
+<ordner>/artefakte/scanview-import-X.Y.Z.tar.gz   (ab Manifest-Schema /3)
 ```
 
-Der MCP-Server wird mitgeprüft, aber nicht auf dem Host installiert (er läuft beim Nutzer).
+Der MCP-Server wird mitgeprüft, aber nicht auf dem Host installiert (er läuft beim Nutzer). Das
+Import-Archiv (ab Schema /3) wird entpackt: `einrichten.sh` baut daraus die Import-Umgebung des
+Jobläufers (nur mit `SCANVIEW_JOBLAEUFER=1`).
 
 **Ablauf:**
 
@@ -380,7 +390,8 @@ Der MCP-Server wird mitgeprüft, aber nicht auf dem Host installiert (er läuft 
      Abschlussnachweis (nur vorhanden, wenn Archivierung und Tag des Releases gelungen sind;
      Namensraum `scanview-abschluss`, gehört zu genau diesem Manifest), das Manifest (vollständig: Exportcommit, SBOMs der ausgelieferten Artefakte, Berichte,
      Werkzeuge, Datenbankstand und jede Pflichtprüfung „bestanden“; kein
-     Probe-Manifest mit `"trockenlauf": true`, ausgeliefert genau web, server, mcp), SHA-256 und
+     Probe-Manifest mit `"trockenlauf": true`, ausgeliefert genau die Menge des Schemas: bis /2
+     web, server, mcp, ab /3 dazu import), SHA-256 und
      SHA-512 jedes Archivs und dessen Inhalt (nur Dateien und Ordner unter den erwarteten Pfaden,
      keine absoluten Pfade, kein `..`, keine Links oder Gerätedateien);
    - entpackt aus den geprüften Kopien in ein temporäres Verzeichnis — **bei jeder Abweichung
@@ -848,6 +859,14 @@ nicht vor Plattenverlust — dafür zusätzlich eine Sicherung des ganzen Hosts 
 `/srv/scanview/state` an einen anderen Ort einrichten. Projektpakete sind Kopien der beim
 Aufbereiter liegenden Originale.
 
+Mit eingeschaltetem Jobläufer sichert derselbe Lauf auch die Auftragsdatenbank nach
+`/srv/scanview/state/backups/jobs/JJJJ-MM-TT.db` (7 Stück) und spiegelt die Berichte nach
+`/srv/scanview/state/backups/berichte/` (ein Stand; gelöschte Berichte verschwinden mit dem nächsten
+Lauf auch dort). Wiederherstellen: Worker und Webdienst stoppen, Sicherung als
+`/srv/scanview/jobs/jobs.db` einsetzen (Eigentümer `root:scanview-jobs`, 0660, alte
+`-wal`/`-shm` beiseitelegen), Berichte nach `/srv/scanview/berichte/` zurückkopieren (Eigentümer
+`scanview-import:scanview-jobs`, Ordner 0750, Dateien 0640), beide Dienste starten.
+
 ### Restore-Test (regelmäßig, mindestens nach jeder Schemaänderung)
 
 ```bash
@@ -938,6 +957,67 @@ abgeschaltet, bleiben die Mängellisten der Projektleitung und Admins vorbehalte
 Die Server-Endpunkte `GET /api/v1/projekte/{id}/maengelliste.xlsx` (Download) und
 `GET /api/v1/projekte/{id}/maengelliste` (Druckdaten) prüfen diese Rechte wie der CSV-Export.
 Texte in der XLSX-Datei bleiben Text, auch wenn sie mit einem Formelzeichen beginnen.
+
+## Jobläufer: Auswertungen auf dem Server (optional)
+
+Der Jobläufer `scanview-import-worker` rechnet Auswertungen (z. B. den Prüfbericht) in einem
+eigenen Dienst unter dem eigenen Nutzer `scanview-import`; der Webdienst reiht nur Aufträge ein und
+liefert Berichte aus. Jeder Auftrag läuft als eigene, gesperrte systemd-Unit ohne Netz
+([Sicherheitsarchitektur](sicherheitsarchitektur.md), Abschnitt „Import-Worker und
+Auswertungsjobs“). Ab Werk aus; nur für die Standardinstanz, nicht für weitere Instanzen auf dem
+Host.
+
+**Voraussetzungen** (prüft `einrichten.sh` vor jeder Änderung und bricht sonst mit Meldung ab):
+
+- Debian 13 (systemd 257 oder neuer), cgroup v2 mit dem Controller `memory`, systemd-logind,
+  Paket `dbus-user-session`.
+- Arbeitsspeicher (bei Containern: deren Grenze) mindestens `SCANVIEW_JOBS_RAM_GB` + 1 GB, also
+  3 GB für das Standardbudget von 2 GB. In einem LXC-Container zusätzlich `nesting=1`, damit die
+  Aufträge eigene Namensräume bekommen, und `memory` muss bis in den Container delegiert sein.
+- Die Import-Umgebung mit `scanview-pruefen` (root-eigen, für niemanden sonst beschreibbar); ihr
+  `bin`-Ordner steht in `SCANVIEW_IMPORT_BIN`.
+
+**Einschalten:**
+
+1. `/etc/scanview/scanview-joblaeufer.env` (legt `einrichten.sh` beim ersten Lauf an) bearbeiten:
+   `SCANVIEW_JOBLAEUFER=1`, `SCANVIEW_IMPORT_BIN` prüfen, bei Bedarf `SCANVIEW_JOBS_RAM_GB`
+   (2 bis 40) und `SCANVIEW_JOBS_RESERVE_GB` (freier Platz vor jedem Auftrag, Standard 10).
+   `SCANVIEW_JOBS_DB` und `SCANVIEW_BERICHTE` bleiben auf den vorgegebenen Pfaden.
+2. `einrichten.sh` wie beim Aktualisieren erneut laufen lassen. Es legt Nutzer, Gruppe
+   `scanview-jobs`, `/srv/scanview/jobs` und `/srv/scanview/berichte` an, schaltet Linger für
+   `scanview-import` ein, begrenzt den Arbeitsspeicher aller Aufträge und startet den Dienst. Der
+   Lauf gilt erst als gelungen, wenn der Worker seinen Selbsttest bestanden hat (bis 60 s).
+
+**Rechte** (so eng wie möglich):
+
+| Ort / Konto | Eigentümer, Modus | Webdienst `scanview` | Worker `scanview-import` |
+|---|---|---|---|
+| Nutzer `scanview-import` | Systemnutzer ohne Anmeldung, eigene Gruppe, Home `/var/lib/scanview-import` (0700) | — | Linger an: sein User-Manager läuft ohne Anmeldung |
+| Gruppe `scanview` | Mitglied `scanview-import` | — | liest Pakete (`/srv/scanview/data` root:scanview 0750); schreiben kann dort nur root |
+| Gruppe `scanview-jobs` | Mitglied `scanview-import`; der Webdienst erhält sie nur über sein Drop-in | ohne Drop-in kein Zugriff | — |
+| `/srv/scanview/jobs` | `root:scanview-jobs` 3770 (setgid + sticky: keiner tauscht `jobs.db` aus) | schreibt `jobs.db` (+ `-wal`/`-shm`) | schreibt `jobs.db` |
+| `jobs.db` | `root:scanview-jobs` 0660 | Aufträge einreihen, Löschwunsch | abarbeiten, Herzschlag |
+| `/srv/scanview/berichte` | `scanview-import:scanview-jobs` 2750 (setgid) | nur lesen | schreibt (Ordner 0750, Dateien 0640) und löscht |
+| `/srv/scanview/state`, `/srv/scanview/eingang` | wie bisher | wie bisher | unsichtbar |
+
+Webdienst und Sicherung bekommen Drop-ins (`scanview-server.service.d/joblaeufer.conf`,
+`scanview-backup.service.d/joblaeufer.conf`), ihre Units bleiben unverändert. Jeder Auftrag ist
+eine transiente Unit im User-Manager von `scanview-import`; der Worker erreicht ihn über
+`/run/user/<uid>/bus` (Drop-in `scanview-import-worker.service.d/laufzeit.conf` mit der uid) und hat
+selbst kein IP-Netz. Die RAM-Grenze aller Aufträge zusammen steht deshalb auf `user@<uid>.service`
+(`SCANVIEW_JOBS_RAM_GB` + 256 MB für den User-Manager, ohne Swap), nicht in der Worker-Unit.
+
+**Gesundheit:** `curl -s http://127.0.0.1:8803/api/gesundheit` zeigt bei eingeschaltetem Jobläufer
+das Feld `worker`: `aktiv` (Herzschlag frisch), `still` (Herzschlag zu alt — Dienst hängt oder ist
+beendet) oder `aus` (nie gestartet bzw. Auftragsdatenbank nicht lesbar). Bei `still` oder `aus`:
+`systemctl status scanview-import-worker` und `journalctl -u scanview-import-worker`. Ein
+gescheiterter Selbsttest (Isolation greift nicht) beendet den Dienst ohne Neustart; erst die Ursache
+beheben, dann `systemctl restart scanview-import-worker`.
+
+**Ausschalten:** `SCANVIEW_JOBLAEUFER=0` und `einrichten.sh` erneut: Der Dienst wird angehalten,
+Unit, Drop-ins und Linger entfernt; die Auswertungsrouten antworten wieder 404. Nutzer,
+Auftragsdatenbank und Berichte bleiben liegen; sie zu löschen ist ein bewusster eigener Schritt
+(Berichte können Ort und Lage eines Projekts nennen).
 
 ## Git-Export der Bearbeitungen (optional)
 

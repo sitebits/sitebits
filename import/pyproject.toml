@@ -1,6 +1,6 @@
 [project]
 name = "scanview-import"
-version = "0.1.0"
+version = "0.11.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "pye57>=0.4",
@@ -15,12 +15,20 @@ dependencies = [
 
 [project.scripts]
 scanview-import = "scanview_import.cli:main"
+scanview-sonne = "scanview_import.sonne.cli:main"
+scanview-pruefen = "scanview_import.pruefen.cli:main"
+
+[project.optional-dependencies]
+sonne = [
+    "embreex>=4.4.0",
+    "pvlib>=0.16.1",
+]
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling==1.32.3"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
@@ -55,3 +63,72 @@ addopts = "--import-mode=importlib"
 
 [tool.ruff.lint.mccabe]
 max-complexity = 15
+
+[tool.uv]
+# Mindestalter wie server/ und mcp-server/: nur Pakete, die vor diesem festen Stichtag öffentlich
+# waren (fester ISO-Wert statt "7 days", Begründung in server/pyproject.toml). Stichtag
+# 2026-10-15 = mindestens sieben Tage vor der Härtung am 22.10.2026; der vorhandene Lock lag
+# vollständig davor (uv lock änderte keine Paketversion).
+# Stichtag 2026-10-21 (statt 2026-10-15, 22.10.2026): gezielt angehoben (uv lock
+# --upgrade-package certifi --upgrade-package pillow), alle übrigen Versionen blieben —
+# certifi 2026.10.19 (PyPI 2026-10-20T02:24Z) behebt GHSA-6q48-6c7w-9gw2 (kritisch),
+# Pillow 13.0.0 (PyPI 2026-10-16T22:15Z) behebt 29 CVEs aus 12.3.0 (B-SCAN-IMPORT-LOCK).
+# Pillow 13 erreicht das Mindestalter am 23.10.2026 22:15Z. certifi (Freigabe nach Regel erst 28.10.)
+# per Sicherheits-Hotfix-Pfad (docs/public/support-und-patches.md) vorgezogen, Prüfung 22.10.2026:
+# Wheel-SHA-256 = PyPI = Lock, nicht zurückgezogen; gegenüber 2026.7.22 nur ein Stammzertifikat
+# entfernt (emSign ECC Root CA - G3) und __version__, kein Code. Befund B-SCAN-IMPORT-LOCK.
+exclude-newer = "2026-10-21T00:00:00Z"
+# Lieferkette (Import-Umgebung auf dem Server, einrichten.sh): Fremdpakete nur als vorgebaute
+# Wheels, nie aus einem Quellpaket bauen. Einzige Ausnahme ist meshoptimizer — PyPI liefert dafür
+# keine Wheels (nachweise/nur-sdist.toml); einrichten.sh baut es ohne root-Rechte mit gepinnten
+# Bauabhängigkeiten (deploy/platform/import-bau-einschraenkungen.txt). Die Liste umfasst alle
+# Fremdpakete aus uv.lock plus die Bauabhängigkeiten von hatchling und meshoptimizer; sie muss
+# bei jeder Lock-Änderung mitgepflegt werden (Test in nachweise/tests/test_joblaeufer_deploy.py).
+no-build-package = [
+    "ast-serialize",
+    "certifi",
+    "charset-normalizer",
+    "colorama",
+    "dataclasses-json",
+    "deprecated",
+    "embreex",
+    "h5py",
+    "hatchling",
+    "idna",
+    "iniconfig",
+    "laspy",
+    "lazrs",
+    "librt",
+    "marshmallow",
+    "mypy",
+    "mypy-extensions",
+    "numpy",
+    "packaging",
+    "pandas",
+    "pathspec",
+    "pillow",
+    "pluggy",
+    "pvlib",
+    "pye57",
+    "pygltflib",
+    "pygments",
+    "pyproj",
+    "pyquaternion",
+    "pytest",
+    "python-dateutil",
+    "pytz",
+    "requests",
+    "ruff",
+    "scipy",
+    "setuptools",
+    "setuptools-scm",
+    "six",
+    "tomlkit",
+    "trove-classifiers",
+    "typing-extensions",
+    "typing-inspect",
+    "tzdata",
+    "urllib3",
+    "wheel",
+    "wrapt",
+]

@@ -3,6 +3,7 @@ import json
 import laspy
 import numpy as np
 import pytest
+from pyproj import CRS
 from scipy.spatial import cKDTree
 
 from scanview_import.convert import convert
@@ -143,3 +144,45 @@ def test_never_overwrite_source_copc(tmp_path):
     with pytest.raises(ValueError, match="Quelldatei"):
         convert(path, tmp_path, None)
     assert path.read_bytes() == original
+
+
+def _las_rgb(path, rot, mit_farbe=True):
+    header = laspy.LasHeader(point_format=7 if mit_farbe else 6, version="1.4")
+    header.scales = [0.001] * 3
+    header.offsets = [400_000, 5_800_000, 30]
+    header.add_crs(CRS.from_epsg(32633))
+    las = laspy.LasData(header)
+    xyz = np.random.default_rng(1).uniform(0, 5, (len(rot), 3)) + [400_000, 5_800_000, 30]
+    las.x, las.y, las.z = xyz.T
+    if mit_farbe:
+        las.red = las.green = las.blue = np.asarray(rot, np.uint16)
+    las.write(path)
+    return path
+
+
+def test_rgb_8bit_nur_mit_werten_bis_255(tmp_path):
+    from scanview_import.point_convert import pruefe_rgb_8bit
+    from scanview_import.source_points import inspect_points
+
+    for name, rot, mit_farbe, fehler in [
+        ("ok.las", [0, 17, 255], True, None),
+        ("hoch.las", [0, 256, 3], True, "Farbwert 256"),
+        ("grau.las", [0, 0, 0], False, "nur für LAS/LAZ mit Farbe"),
+    ]:
+        src = resolve_source(_las_rgb(tmp_path / name, rot, mit_farbe), None, None, "z", None)
+        if fehler is None:
+            pruefe_rgb_8bit(src, inspect_points(src))
+        else:
+            with pytest.raises(ValueError, match=fehler):
+                pruefe_rgb_8bit(src, inspect_points(src))
+
+
+@pytest.mark.docker
+def test_rgb_8bit_wird_skaliert(tmp_path):
+    src = _las_rgb(tmp_path / "odm.laz", [0, 1, 128, 255] * 50)
+    m = convert(src, tmp_path / "pkg", None, rgb_8bit=True)
+    las = laspy.read(tmp_path / "pkg" / "cloud.copc.laz")
+    assert sorted(set(las.red.tolist())) == [0, 257, 128 * 257, 65535]
+    assert cloud_of(m)["pointCount"] == 200
+    with pytest.raises(ValueError, match="nur für LAS/LAZ"):
+        convert(tmp_path / "x.e57", tmp_path / "pkg2", None, rgb_8bit=True)

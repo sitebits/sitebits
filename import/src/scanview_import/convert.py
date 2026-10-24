@@ -418,6 +418,7 @@ def convert(
     columns: str | None = None,
     ausduennen: float | None = None,
     float32_zulassen: bool = False,
+    rgb_8bit: bool = False,
     hoehe: tuple[str | None, str | None] = (None, None),
     lage: Lage | None = None,
 ) -> dict[str, Any]:
@@ -432,8 +433,10 @@ def convert(
 
         return convert_points(
             e57, out_dir, crs, max_points, mode, unit, up, columns, ausduennen, hoehe=hoehe,
-            lage_=lage,
+            lage_=lage, rgb_8bit=rgb_8bit,
         )
+    if rgb_8bit:
+        raise ValueError("--rgb-8bit gilt nur für LAS/LAZ; E57 deklariert seine Farbtiefe selbst")
     if lage is not None:
         raise ValueError("Lageanpassung für E57 ist noch nicht eingebaut")
     if hoehe[0] is not None and hoehe[0] != hoehe[1]:

@@ -6,13 +6,15 @@ import logging
 import re
 import sqlite3
 import time
+from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 
-from . import faden, fotos_tor, konten, lesezugriff, projektverwaltung, teilen
+from . import auftraege, faden, fotos_tor, konten, lesezugriff, projektverwaltung, teilen
+from .api_modelle import Projektliste, Sitzung, antwort
 from .katalog import PROJECT_ID_RE, Karte
 from .web import DIENST, aktueller_nutzer, db, fehler
 from .zugriff import angemeldet
@@ -62,13 +64,34 @@ def karte_json(
 
 
 @router.get("/api/gesundheit", include_in_schema=False)
-async def gesundheit() -> dict[str, bool]:
-    # async: kein Thread aus dem gemeinsamen Pool nötig (WB-M3).
-    return {"ok": True}
+async def gesundheit(request: Request) -> dict[str, bool | str]:
+    # async: kein Thread aus dem gemeinsamen Pool nötig (WB-M3). `ok` meint den Webdienst; der
+    # Import-Worker steht daneben („aktiv“, „still“ = Herzschlag zu alt, „aus“ = nie gestartet),
+    # nur wenn Auswertungen eingerichtet sind.
+    pfad = request.app.state.settings.jobs_db
+    if pfad is None:
+        return {"ok": True}
+    return {"ok": True, "worker": _worker_zustand(pfad)}
+
+
+def _worker_zustand(pfad: Path) -> str:
+    """Nur lesend und mit kurzem Zeitlimit: die Gesundheitsabfrage darf nie lange blockieren."""
+    try:
+        conn = sqlite3.connect(f"{pfad.as_uri()}?mode=ro", uri=True, timeout=0.2)
+    except sqlite3.Error:
+        return "aus"
+    try:
+        conn.row_factory = sqlite3.Row
+        return auftraege.worker_zustand(conn)
+    except sqlite3.Error:
+        return "aus"
+    finally:
+        conn.close()
 
 
 @router.get("/api/sitzung", include_in_schema=False)
-@router.get("/api/v1/sitzung", summary="Angemeldeter Nutzer (401 ohne Sitzung)")
+@router.get("/api/v1/sitzung", summary="Angemeldeter Nutzer (401 ohne Sitzung)",
+            responses=antwort(Sitzung))
 def sitzung(request: Request, conn: sqlite3.Connection = Depends(db)) -> JSONResponse:
     # Gast eines Nur-Lese-Links (F28): nur auf dem Browser-Weg /api/sitzung und nur ohne Konto-
     # Sitzung; der Viewer erkennt daran die Gast-Ansicht. Mit Konto zusätzlich `gast`, damit ein
@@ -88,6 +111,8 @@ def sitzung(request: Request, conn: sqlite3.Connection = Depends(db)) -> JSONRes
         {"dienst": DIENST,
          "nutzer": {"id": n.id, "name": n.name, "email": n.email, "admin": n.is_admin},
          **({"gast": gast_json} if gast_json is not None else {}),
+         # Hochladen und neue Projekte (nur Admins, nur mit SCANVIEW_IMPORT=1).
+         "import": bool(request.app.state.settings.import_enabled and n.is_admin),
          "quelltext_url": request.app.state.settings.quelltext_url},
     )
 
@@ -198,7 +223,8 @@ def _log_authz(begonnen: float, status: int, pid: str | None) -> None:
 
 
 @router.get("/api/projekte", include_in_schema=False)
-@router.get("/api/v1/projekte", summary="Projekte, auf die der Nutzer ein Recht hat")
+@router.get("/api/v1/projekte", summary="Projekte, auf die der Nutzer ein Recht hat",
+            responses=antwort(Projektliste))
 def projekte(request: Request, conn: sqlite3.Connection = Depends(db)) -> JSONResponse:
     n = angemeldet(request, conn)
     meta = {r["project_id"]: r for r in conn.execute("SELECT * FROM project_meta")}

@@ -193,7 +193,7 @@ def test_cli_verschiebung_und_transformation_schliessen_sich_aus(tmp_path: Path)
 
 
 def test_frame_export_wird_mit_drehung_bewegt() -> None:
-    from scanview_import.metashape import FrameCamera, FrameExport, TieProjection, lage_anwenden
+    from scanview_import.kameras import FrameCamera, FrameExport, TieProjection, lage_anwenden
 
     m = _kippung(0.7, -0.4, (-1.34, -0.63, 0.4))
     blick = np.eye(3)
@@ -222,9 +222,9 @@ def test_frame_export_wird_mit_drehung_bewegt() -> None:
     np.testing.assert_allclose(nachher, vorher, atol=1e-6)
 
 
-def test_panos_metashape_uebernimmt_lage_aus_paket(tmp_path: Path) -> None:
-    from tests.test_metashape import camera_file
-    from tests.test_metashape_cli import package
+def test_panos_kameras_uebernimmt_lage_aus_paket(tmp_path: Path) -> None:
+    from tests.test_kameras import camera_file
+    from tests.test_kameras_cli import package
 
     source = camera_file(tmp_path)
     data = json.loads(source.read_text())
@@ -239,7 +239,7 @@ def test_panos_metashape_uebernimmt_lage_aus_paket(tmp_path: Path) -> None:
     wolke.setdefault("sourceOptions", {})["lage"] = block
     (pkg / "project.json").write_text(json.dumps(manifest))
 
-    rc = cli.main(["panos-metashape", "--kameras", str(source), str(pkg), "--levels", "32"])
+    rc = cli.main(["panos-kameras", "--kameras", str(source), str(pkg), "--levels", "32"])
 
     assert rc == 0
     station = json.loads((pkg / "stations.json").read_text())["stations"][0]

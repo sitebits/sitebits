@@ -86,8 +86,11 @@ function webglRenderer(): string {
  * ohne DOM (Vitest), deshalb jedes Feld einzeln über typeof abgesichert statt eines direkten
  * Browser-API-Zugriffs.
  */
+/** Versionskennung des Baus (package.json-Version + Git-Hash); im Devserver ohne Bau-Konstante „dev“. */
+export const viewerVersion = (): string => (typeof __SCANVIEW_VERSION__ !== 'undefined' ? __SCANVIEW_VERSION__ : 'dev');
+
 export function diagnose(): Record<string, string | number | boolean> {
-  const version = typeof __SCANVIEW_VERSION__ !== 'undefined' ? __SCANVIEW_VERSION__ : 'dev';
+  const version = viewerVersion();
   return {
     version,
     modus: import.meta.env.MODE,

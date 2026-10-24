@@ -604,12 +604,25 @@ _INTERN = re.compile(r"Spec §|\bSpec\b|Ruling|\bP24-"
                      r"|\bReview Focus\b|\bTask \d{1,3}[a-z]?\b"
                      r'|^\s*(?:"""|#:?|//|/\*\*?|\*)\s*(?:Review )?[CIMN]\d{1,2}:')
 
+#: Controller-Knöpfe (L1/R1, L2/R2, R3 …) sind Gerätebegriffe: Ein `R` mit Ziffer zählt in
+#: einer Zeile mit eindeutigem Controller-Vokabular (Knopf-Gegenstücke, Symbole, „Controller“)
+#: nicht als private Kennung. Jeder andere Treffer derselben Zeile zählt weiter.
+_CONTROLLER = re.compile(r"\b(?:LT|RT|LB|RB|LS|RS|L[123])\b|Controller|Gamepad|DualSense|✕|△|○|□")
+
+
+def _intern(zeile: str) -> bool:
+    for m in _INTERN.finditer(zeile):
+        if re.fullmatch(r"R\d{1,2}", m.group()) and _CONTROLLER.search(zeile):
+            continue
+        return True
+    return False
+
 
 def test_oeffentliche_doku_ohne_interne_kennungen():
     treffer = [f"{p.relative_to(WURZEL)}:{nr}: {z.strip()[:80]}"
                for p in sorted((WURZEL / "docs" / "public").rglob("*.md"))
                for nr, z in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
-               if _INTERN.search(z)]
+               if _intern(z)]
     assert treffer == []
 
 
@@ -622,7 +635,7 @@ def test_oeffentliche_matrixzeilen_ohne_interne_kennungen():
     for k in lade_matrix(WURZEL / "docs" / "compliance" / "kontrollmatrix.toml"):
         if k.oeffentlich:
             for feld in (k.quelle, k.titel, k.pruefhandlung, k.sollwert):
-                assert not _INTERN.search(feld), (k.id, feld)
+                assert not _intern(feld), (k.id, feld)
 
 
 #: Diese Datei definiert und prüft `_INTERN` — nur die Definition (samt erklärendem Kommentar
@@ -681,7 +694,7 @@ def test_exportierter_quellcode_ohne_interne_kennungen():
         for nr, zeile in enumerate(text.splitlines(), 1):
             if eigene and nr in selbst:
                 continue
-            if _INTERN.search(zeile):
+            if _intern(zeile):
                 treffer.append(f"{pfad.relative_to(WURZEL)}:{nr}: {zeile.strip()[:100]}")
     assert treffer == []
 
@@ -715,8 +728,11 @@ def test_interne_kennungen_muster_erkennt_verstoss():
                         "für den aktuellen Task (Datenvertrag) unschädlich", "Task-Liste",
                         "P1: -1,000 -2,000", "    # P2: Messpunkt", "x = M1: y",
                         "    # Lizenz P10: frei", "C14: Kohlenstoff im Fließtext",
-                        "'L1', 'R1', 'L2', 'R2'", '["R3"]'):
-        assert not _INTERN.search(unbedenklich), unbedenklich
+                        "'L1', 'R1', 'L2', 'R2'", '["R3"]', "L2/R2 (LT/RT) zoomen",
+                        "| L1 / LB · R1 / RB | Werkzeug |", "setzt ✕/A statt R2"):
+        assert not _intern(unbedenklich), unbedenklich
+    for verstoss in ("Spec § 4 mit L2/R2", "Ruling R3 beim Controller"):
+        assert _intern(verstoss), verstoss
 
 
 def test_cli_darstellen_betrieb_schreibt_betriebsnachweise_und_laesst_matrix_unberuehrt(tmp_path):

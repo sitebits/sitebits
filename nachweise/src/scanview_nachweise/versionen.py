@@ -1,13 +1,11 @@
 """Einheitliche Produktversion aller ausgelieferten Teilprojekte.
 
 Ein Release trägt genau eine Version `X.Y.Z`. Sie steht in jedem ausgelieferten Teilprojekt
-(Viewer/Portal `web`, Plattform-Server `server`, MCP-Server `mcp-server`) und in der Nachweiskette
-selbst (`nachweise`, dort zusätzlich die Konstante `_VERSION`, die `scanview-nachweise version`
-ausgibt); die Release-Kette prüft beim Einfrieren, dass alle übereinstimmen und der
-angeforderten Version entsprechen.
-
-Das Import-Werkzeug (`import/`) ist nicht Teil der Prüfung: Es wird derzeit nicht ausgeliefert
-und bis zur Zusammenführung mit seinem Entwicklungszweig getrennt versioniert."""
+(Viewer/Portal `web`, Plattform-Server `server`, MCP-Server `mcp-server`, ab Manifest-Schema /3
+das Import-Werkzeug `import`, dessen `__version__` aus den Paket-Metadaten kommt) und in der
+Nachweiskette selbst (`nachweise`, dort zusätzlich die Konstante `_VERSION`, die
+`scanview-nachweise version` ausgibt); die Release-Kette prüft beim Einfrieren, dass alle
+übereinstimmen und der angeforderten Version entsprechen."""
 
 from __future__ import annotations
 
@@ -25,7 +23,8 @@ _SEMVER = re.compile(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)")
 
 #: Die Version, die `scanview-nachweise version` ausgibt (Konstante `_VERSION` im CLI-Modul).
 CLI_QUELLE = "nachweise/src/scanview_nachweise/cli.py#_VERSION"
-_PYPROJECTS = ("server/pyproject.toml", "mcp-server/pyproject.toml", "nachweise/pyproject.toml")
+_PYPROJECTS = ("server/pyproject.toml", "mcp-server/pyproject.toml", "import/pyproject.toml",
+               "nachweise/pyproject.toml")
 
 #: Quelle (Repo-relativ, bei der Sperrdatei mit Feld) → wo die Version steht.
 TEILE = (

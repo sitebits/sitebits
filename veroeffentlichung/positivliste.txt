@@ -40,6 +40,9 @@ server/**
 !server/dist/**
 mcp-server/**
 
+# API-Client mit Beispielskripten und Integrationstest (synthetische Wegwerf-Instanz)
+clients/**
+
 # Installation und Betrieb der Plattform (ohne Betriebs-README und Messskript)
 deploy/platform/**
 !deploy/platform/README.md

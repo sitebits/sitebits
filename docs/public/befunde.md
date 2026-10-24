@@ -6,7 +6,7 @@ Jeder eigene und fremde Sicherheitsbefund mit stabiler ID. Release-Schwelle: kei
 
 Diese Fassung nennt je Befund nur Kennung, Schwere, Kategorie und Status. Beschreibung, Fundstelle und Nachweis der Behebung liegen in der internen Dokumentation und werden Prüfern auf Anfrage vorgelegt.
 
-Stand: 169 Befunde — offen: 38, behoben: 34, akzeptiert: 0, kein-befund: 97.
+Stand: 180 Befunde — offen: 36, behoben: 40, akzeptiert: 0, kein-befund: 104.
 
 | ID | Schwere | Kategorie | Status | Betrifft |
 |---|---|---|---|---|
@@ -59,13 +59,13 @@ Stand: 169 Befunde — offen: 38, behoben: 34, akzeptiert: 0, kein-befund: 97.
 | B-TE-I8 | info | abfluss | offen | alle |
 | B-TE-I9 | info | abfluss | offen | alle |
 | B-TE-I10 | info | sonstiges | kein-befund | alle |
-| B-LK-IMPORT | mittel | lieferkette | offen | import |
-| B-LK-UNTWINE | mittel | lieferkette | offen | import |
-| B-SBOM-IMAGES | mittel | lieferkette | offen | import |
+| B-LK-IMPORT | mittel | lieferkette | behoben | import |
+| B-LK-UNTWINE | mittel | lieferkette | offen | importbilder |
+| B-SBOM-IMAGES | mittel | lieferkette | behoben | import |
 | B-SBOM-LIZENZ | niedrig | sonstiges | offen | alle |
 | B-SBOM-ERSTELLER | niedrig | sonstiges | offen | alle |
-| B-SCAN-IMG-PDAL | hoch | lieferkette | offen | import |
-| B-SCAN-IMG-UNTWINE | hoch | lieferkette | offen | import |
+| B-SCAN-IMG-PDAL | kritisch | lieferkette | offen | importbilder |
+| B-SCAN-IMG-UNTWINE | kritisch | lieferkette | offen | importbilder |
 | B-CX-P1-1 | hoch | rechte | behoben | alle |
 | B-CX-P1-2 | hoch | rechte | behoben | alle |
 | B-CX-P1-3 | hoch | haertung | behoben | alle |
@@ -79,6 +79,7 @@ Stand: 169 Befunde — offen: 38, behoben: 34, akzeptiert: 0, kein-befund: 97.
 | B-FUZZ-2 | niedrig | haertung | behoben | alle |
 | B-FUZZ-3 | niedrig | sonstiges | offen | alle |
 | B-FUZZ-4 | mittel | verfuegbarkeit | behoben | alle |
+| B-FUZZ-5 | niedrig | verfuegbarkeit | behoben | alle |
 | B-SAST-SEMGREP-F418401D449114A3 | hoch | haertung | kein-befund | import |
 | B-SAST-SEMGREP-2461A4574831893D | hoch | haertung | kein-befund | alle |
 | B-SAST-SEMGREP-325CF3B40DF8D0C2 | hoch | haertung | kein-befund | alle |
@@ -97,8 +98,8 @@ Stand: 169 Befunde — offen: 38, behoben: 34, akzeptiert: 0, kein-befund: 97.
 | B-SAST-SEMGREP-B9EC6512DC58C134 | hoch | haertung | kein-befund | alle |
 | B-SAST-SEMGREP-70383636D47A1220 | hoch | haertung | kein-befund | alle |
 | B-SAST-SEMGREP-102E2BE4728300A7 | hoch | haertung | kein-befund | alle |
-| B-SAST-SEMGREP-D8CB3220C231FF6C | mittel | verfuegbarkeit | kein-befund | alle |
-| B-SAST-SEMGREP-0D4B16DFB49E33C1 | mittel | verfuegbarkeit | kein-befund | alle |
+| B-SAST-SEMGREP-ACD15CCD6BE6BEF4 | mittel | verfuegbarkeit | kein-befund | alle |
+| B-SAST-SEMGREP-897F308374442685 | mittel | verfuegbarkeit | kein-befund | alle |
 | B-SAST-SEMGREP-05F335590B7D96A1 | hoch | haertung | kein-befund | alle |
 | B-SAST-SEMGREP-9BD39E36DC56CF56 | hoch | haertung | kein-befund | alle |
 | B-SAST-SEMGREP-0543C194CD92C2B8 | hoch | haertung | kein-befund | alle |
@@ -179,3 +180,13 @@ Stand: 169 Befunde — offen: 38, behoben: 34, akzeptiert: 0, kein-befund: 97.
 | B-SAST-BANDIT-16610BE1A4DC75AE | mittel | abfluss | kein-befund | alle |
 | B-SAST-BANDIT-51F7BD83118E225C | mittel | abfluss | kein-befund | alle |
 | B-SAST-BANDIT-4DF2ECA5419FF746 | mittel | abfluss | kein-befund | alle |
+| B-SAST-SEMGREP-39F02737D87DD322 | mittel | haertung | kein-befund | import |
+| B-SAST-BANDIT-42257C8FDAC5C316 | mittel | haertung | kein-befund | import |
+| B-LK-EMBREEX | niedrig | lieferkette | behoben | import |
+| B-LK-ZSTD | hoch | lieferkette | behoben | web |
+| B-SAST-SEMGREP-DB7E0B252DC33A74 | hoch | haertung | kein-befund | import |
+| B-SAST-SEMGREP-477186D16727C518 | hoch | haertung | kein-befund | alle |
+| B-SAST-SEMGREP-EA3E67947FDEC13C | hoch | haertung | kein-befund | alle |
+| B-SAST-SEMGREP-D6B7DA0E5F2B91F5 | mittel | haertung | kein-befund | alle |
+| B-SAST-BANDIT-723722FF08CF2C61 | mittel | haertung | kein-befund | import |
+| B-SCAN-IMPORT-LOCK | kritisch | lieferkette | behoben | import |

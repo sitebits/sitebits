@@ -70,3 +70,24 @@ export async function leseBegrenzt(body: ReadableStream<Uint8Array> | null, laen
   for (const t of teile) { aus.set(t, o); o += t.byteLength; }
   return aus.buffer;
 }
+
+/** Drahtgitter als Linienindex: je Dreieck drei Kanten (6 Indizes) direkt als Uint32Array. three.js'
+ *  `wireframe: true` baut denselben Index über ein JS-Zahlenarray (≈ 48 Byte je Dreieck vorübergehend) —
+ *  bei 4 Mio. Dreiecken ein Ruck von ~200 MB. Gemeinsame Kanten bleiben doppelt; Entdoppeln kostete eine
+ *  Hashtabelle derselben Größe. Ohne Index: Ecken der Reihe nach (nicht indizierte Dreiecksliste). */
+export function drahtIndex(index: ArrayLike<number> | null, ecken: number): Uint32Array {
+  const n = index ? Math.floor(index.length / 3) : Math.floor(ecken / 3);
+  const aus = new Uint32Array(n * 6);
+  for (let i = 0; i < n; i++) {
+    const a = index ? index[3 * i]! : 3 * i, b = index ? index[3 * i + 1]! : 3 * i + 1, c = index ? index[3 * i + 2]! : 3 * i + 2;
+    const o = 6 * i;
+    aus[o] = a; aus[o + 1] = b; aus[o + 2] = b; aus[o + 3] = c; aus[o + 4] = c; aus[o + 5] = a;
+  }
+  return aus;
+}
+/** Grafikspeicher des Drahtgitters (Uint32-Linienindex, Positionen werden geteilt). */
+export const drahtBytes = (dreiecke: number): number => dreiecke * 6 * 4;
+
+/** Darstellung der Mesh-Fläche (meshLayer.ts); hier, damit das Ebenen-Panel ohne three.js auskommt. */
+export type MeshFlaeche = 'textur' | 'grau' | 'normalen' | 'aus';
+export const MESH_FLAECHEN: readonly MeshFlaeche[] = ['textur', 'grau', 'normalen', 'aus'];

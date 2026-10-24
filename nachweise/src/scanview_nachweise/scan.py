@@ -50,9 +50,12 @@ DB_STAND = "db-stand.json"
 SCHWERE = {"CRITICAL": "kritisch", "HIGH": "hoch", "MEDIUM": "mittel", "LOW": "niedrig",
            "UNKNOWN": "hoch"}
 
-#: bom-ref-Präfixe des Image-Inhalts im Import-SBOM (`sbom._roh_images`): die beiden
-#: Container-Images selbst (`image:…`) und ihr Paketinhalt (`pdal|…`, `untwine|…`).
+#: bom-ref-Präfixe des Image-Inhalts im Nachweis-SBOM der Werkzeug-Images (`sbom.erzeuge_bilder`):
+#: die beiden Container-Images selbst (`image:…`) und ihr Paketinhalt (`pdal|…`, `untwine|…`).
 IMAGE_PRAEFIXE = ("pdal|", "untwine|", "image:")
+#: Name dieses SBOMs (wie `sbom.BILDER`; drift-getestet). Nur hier gilt die Image-Ausnahme der
+#: Abdeckung — im ausgelieferten Import-SBOM muss jede Komponente gescannt sein.
+BILDER = "importbilder"
 
 _CACHE_IM_CONTAINER = "/cache"
 _SBOM_IM_CONTAINER = "/eingabe/sbom.cdx.json"
@@ -393,9 +396,10 @@ def abdeckung(bom: dict[str, Any], daten: dict[str, Any], artefakt: str,
     PURLs verschiedener Images zusammen). Dateikomponenten zählen nicht mit. „0 Treffer“ heißt
     nur für gescannte Komponenten „nichts bekannt“ — der Rest steht in `ungescannt` je PURL-Typ
     bzw. „ohne PURL“; `ungescannt_pflicht` nennt die bom-refs, die gescannt sein müssen (die
-    CLI bricht dann ab): beim Import alles außer dem Image-Inhalt, bei web/server/mcp jede
-    ungescannte Komponente — dort gibt es keinen Image-Inhalt, ein `pdal|`-Präfix ist dort
-    keine Ausnahme. `ersatz` (bom-ref → PURL) deckt eine Ersatzprüfung ab (Eigenbauten über
+    CLI bricht dann ab): im Nachweis-SBOM der Werkzeug-Images (`BILDER`) alles außer dem
+    Image-Inhalt, in jedem Artefakt-SBOM (web, server, mcp, import) jede ungescannte Komponente —
+    dort gibt es keinen Image-Inhalt, ein `pdal|`-Präfix ist dort keine Ausnahme. `ersatz`
+    (bom-ref → PURL) deckt eine Ersatzprüfung ab (Eigenbauten über
     OSV, `osv.ersatz_fuer`): Eine Komponente mit genau dieser bom-ref **und** PURL bleibt in
     `ungescannt` gezählt und steht in `ersatz`, fällt aber aus `ungescannt_pflicht`.
     Komponenten `type: machine-learning-model` (unverändert übernommene Modelle, per SHA-256 im
@@ -432,7 +436,7 @@ def abdeckung(bom: dict[str, Any], daten: dict[str, Any], artefakt: str,
             ersetzt.append(ref)
         elif k.get("type") == "machine-learning-model":
             modelle.append(ref)
-        elif artefakt != "import" or not ref.startswith(IMAGE_PRAEFIXE):
+        elif artefakt != BILDER or not ref.startswith(IMAGE_PRAEFIXE):
             eigene.append(ref)
     return {"komponenten": len(komponenten),
             "gescannt": len(komponenten) - sum(ungescannt.values()),

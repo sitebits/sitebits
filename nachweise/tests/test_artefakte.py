@@ -39,6 +39,7 @@ POSITIVLISTE = """\
 web/**
 server/**
 mcp-server/**
+import/**
 deploy/platform/**
 !deploy/platform/README.md
 """

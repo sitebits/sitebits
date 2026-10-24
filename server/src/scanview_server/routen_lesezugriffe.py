@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import JSONResponse
 
 from . import lesezugriff
+from .api_modelle import FEHLER_ALS_JSON
 from .katalog import PROJECT_ID_RE
 from .routen_export import JsonLinesAntwort, Limit, Vor, _jsonl
 from .web import SQLITE_GANZZAHL_MAX, Ungueltig, db
@@ -74,7 +75,7 @@ def projekt_lesezugriffe(pid: str, request: Request, vor: Vor = None, limit: Lim
 
 @router.get("/projekte/{pid}/lesezugriffe.jsonl",
             summary="Lesezugriffe eines Projekts als JSON Lines (Admin)",
-            response_class=JsonLinesAntwort)
+            response_class=JsonLinesAntwort, responses=FEHLER_ALS_JSON)
 def projekt_lesezugriffe_jsonl(pid: str, request: Request, konto: Konto = None,
                                conn: sqlite3.Connection = Depends(db)) -> Response:
     a = admin(request, conn)
@@ -95,7 +96,7 @@ def lesezugriffe_alles(request: Request, vor: Vor = None, limit: Limit = 50,
 
 
 @router.get("/lesezugriffe.jsonl", summary="Lesezugriffe aller Projekte als JSON Lines (Admin)",
-            response_class=JsonLinesAntwort)
+            response_class=JsonLinesAntwort, responses=FEHLER_ALS_JSON)
 def lesezugriffe_alles_jsonl(request: Request,
                              projekt_id: Annotated[str | None, Query(alias="projekt")] = None,
                              konto: Konto = None,

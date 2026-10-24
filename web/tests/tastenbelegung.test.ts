@@ -288,30 +288,36 @@ describe('Härtung der Tastennamen', () => {
 });
 
 describe('Controller-Knöpfe', () => {
-  const lade = (pad: unknown) => ladeBelegung(JSON.stringify({ schema: 1, tasten: {}, pad }));
+  const lade = (pad: unknown, padSchema: unknown = 2) => ladeBelegung(JSON.stringify({ schema: 1, tasten: {}, pad, padSchema }));
   it('ohne Eintrag gilt das Standard-Mapping', () => {
     expect(padBelegung(vorgabeBelegung())).toEqual(PAD_VORGABE);
   });
-  it('speichert und lädt eine Umbelegung', () => {
-    const r = belegePad(vorgabeBelegung(), 'befund', 2);
+  it('speichert und lädt eine Umbelegung (Schema 2)', () => {
+    const r = belegePad(vorgabeBelegung(), 'kontext', 16);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
+    expect(r.belegung.padSchema).toBe(2);
     const zurueck = ladeBelegung(speichereBelegung(r.belegung));
-    expect(padBelegung(zurueck).befund).toBe(2);
+    expect(padBelegung(zurueck).kontext).toBe(16);
     expect(padBelegung(zurueck).zielen).toBe(PAD_VORGABE.zielen);
   });
-  it('belegePad weist einen schon vergebenen Knopf als Konflikt ab', () => {
-    expect(belegePad(vorgabeBelegung(), 'befund', 7)).toEqual({ ok: false, grund: 'konflikt', mit: 'setzen' });
+  it('Umbelegungen des alten Schemas (nur Begehen) werden verworfen', () => {
+    expect(padBelegung(lade({ zielen: 6, setzen: 7, befund: 2 }, null))).toEqual(PAD_VORGABE);
+    expect(padBelegung(lade({ kontext: 2 }, 1))).toEqual(PAD_VORGABE);
   });
-  it('belegePad weist Knöpfe außerhalb 0–16 und Nicht-Ganzzahlen ab', () => {
-    for (const n of [17, -2, 1.5, NaN]) expect(belegePad(vorgabeBelegung(), 'befund', n), String(n)).toEqual({ ok: false, grund: 'ungueltig' });
+  it('belegePad weist einen schon vergebenen Knopf als Konflikt ab', () => {
+    expect(belegePad(vorgabeBelegung(), 'kontext', 7)).toEqual({ ok: false, grund: 'konflikt', mit: 'hoch' });
+  });
+  it('belegePad erlaubt den Touchpad-Klick (17), weist Knöpfe außerhalb 0–17 und Nicht-Ganzzahlen ab', () => {
+    expect(belegePad(vorgabeBelegung(), 'menue', 17).ok).toBe(true);
+    for (const n of [18, -2, 1.5, NaN]) expect(belegePad(vorgabeBelegung(), 'kontext', n), String(n)).toEqual({ ok: false, grund: 'ungueltig' });
   });
   it('belegePad kann eine Aktion abschalten', () => {
-    const r = belegePad(vorgabeBelegung(), 'befund', PAD_NICHT_BELEGT);
-    expect(r.ok && padBelegung(r.belegung).befund).toBe(PAD_NICHT_BELEGT);
+    const r = belegePad(vorgabeBelegung(), 'kontext', PAD_NICHT_BELEGT);
+    expect(r.ok && padBelegung(r.belegung).kontext).toBe(PAD_NICHT_BELEGT);
   });
   it('Laden verwirft ungültige Werte und fällt auf die Vorgabe zurück', () => {
-    const b = padBelegung(lade({ befund: 99, zielen: 'x', setzen: 2.5, karte: null, unbekannt: 3 }));
+    const b = padBelegung(lade({ kontext: 99, zielen: 'x', bestaetigen: 2.5, menue: null, unbekannt: 3 }));
     expect(b).toEqual(PAD_VORGABE);
   });
   it('Laden verträgt ein Nicht-Objekt', () => {
@@ -319,21 +325,20 @@ describe('Controller-Knöpfe', () => {
     expect(padBelegung(lade([1, 2]))).toEqual(PAD_VORGABE);
   });
   it('Laden löst Konflikte auf: die spätere Aktion fällt auf ihre Vorgabe zurück', () => {
-    // befund (3) kommt in PAD_AKTIONEN nach setzen; beide auf 5 → befund zurück auf 3
-    const b = padBelegung(lade({ setzen: 5, 'werkzeug-naechstes': 8, befund: 8 }));
-    expect(b.befund).toBe(3);
-    expect(b['werkzeug-naechstes']).toBe(8);
+    // kontext (3) steht in PAD_AKTIONEN vor menue; beide auf 16 → menue zurück auf 9
+    const b = padBelegung(lade({ kontext: 16, menue: 16 }));
+    expect(b.kontext).toBe(16);
+    expect(b.menue).toBe(9);
   });
   it('Laden schaltet ab, wenn auch die Vorgabe kollidiert', () => {
-    // befund auf 0 (Vorgabe von bestaetigen); bestaetigen auf 3 (Vorgabe von befund): Kreuzkonflikt löst sich ohne Doppelbelegung
-    const b = padBelegung(lade({ befund: 0, bestaetigen: 3, zielen: 3 }));
+    const b = padBelegung(lade({ kontext: 0, bestaetigen: 3, zielen: 3 }));
     expect(padKonflikte({ ...vorgabeBelegung(), pad: b })).toEqual([]);
   });
   it('padKonflikte findet doppelte Knöpfe', () => {
-    expect(padKonflikte({ ...vorgabeBelegung(), pad: { befund: 7 } })).toEqual([{ aktion: 'setzen', mit: 'befund' }]);
+    expect(padKonflikte({ ...vorgabeBelegung(), pad: { kontext: 7 } })).toEqual([{ aktion: 'kontext', mit: 'hoch' }]);
   });
   it('nicht belegte Aktionen kollidieren nicht miteinander', () => {
-    expect(padKonflikte({ ...vorgabeBelegung(), pad: { befund: -1, bestaetigen: -1 } })).toEqual([]);
+    expect(padKonflikte({ ...vorgabeBelegung(), pad: { kontext: -1, bestaetigen: -1 } })).toEqual([]);
   });
 });
 

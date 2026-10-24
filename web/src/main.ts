@@ -1,9 +1,15 @@
 import './spleenStart';
+import { freieSpanne } from './freiraum';
 import { createSplatLayer } from './splatLayer';
 import type { SplatHandle } from './splatLayer';
 import { createMeshLayer } from './meshLayer';
 import type { MeshLayerHandle } from './meshLayer';
 import { datenSparen } from './meshMath';
+import { erstelleSonne } from './sonne';
+import { sonnenOrt } from './sonneOrt';
+import { attachSonnePanel } from './sonnePanel';
+import { attachKontrollpunktePanel } from './kontrollpunktePanel';
+import { kpEntwurfSpeicher } from './kontrollpunktEntwurf';
 // Einstieg: ?p=<paket-url> (Default aus VITE_STANDARDPAKET, sonst /data/beispiel/ — standardpaket.ts) → project.json (Schema 1/2) → Range-Probe → Viewer + UI.
 import { setLazPerfPath } from '@giro3d/giro3d/sources/las/config.js';
 import './styles/tokens.css';
@@ -31,10 +37,10 @@ import type { MeasureList } from './measureList';
 import { createToolbar } from './toolbar';
 import { anschlagMoeglich, oeffneAnschlag, trifftAnschlag } from './anschlag';
 import { erkenneModus, gastFetch, starteDebug, zeigeGastHinweis, zeigeZurueck } from './platform';
-import { debugAn, setzeDebug } from './debug';
+import { debugAn, setzeDebug, viewerVersion } from './debug';
 import { verbindePlattform } from './plattformViewer';
 import { attachShortcuts, PANEL_AKTION } from './keymap';
-import { BELEGUNG_SCHLUESSEL, kuerzelFuer, ladeBelegung, speichereBelegung } from './tastenbelegung';
+import { BELEGUNG_SCHLUESSEL, kuerzelFuer, ladeBelegung, padBelegung, speichereBelegung } from './tastenbelegung';
 import type { AktionId, Belegung } from './tastenbelegung';
 import { bewegungReduziert, EINSTELLUNGEN_SCHLUESSEL, ladeEinstellungen, speichereEinstellungen } from './bedienEinstellungen';
 import type { BedienEinstellungen } from './bedienEinstellungen';
@@ -96,6 +102,8 @@ import type { BefundSteuerung } from './befundSteuerung';
 import { entwurfSchluesselFuer } from './befundEntwurf';
 import { attachEntwurfSteuerung } from './entwurfSteuerung';
 import { attachHinweisAnzeige } from './hinweisAnzeige';
+import { attachPadSteuerung } from './padSteuerung';
+import type { MenueEintrag, PadSteuerung } from './padSteuerung';
 import { hinweisSchluessel } from './hinweise';
 import { attachEmpfang } from './empfang';
 import { attachSprunglinks } from './sprunglinks';
@@ -206,6 +214,8 @@ async function start(): Promise<void> {
     for (const h of meshHandles) h.update([c.x, c.y, c.z], sicht);
   });
   window.addEventListener('pagehide', (ev) => { if (!ev.persisted) meshHandles.forEach((h) => h.dispose()); });
+  // Live-Sonne (S2): nur mit Mesh-Ebenen (Punktwolken/Sichtschichten sind unbeleuchtet und werfen keine Schatten).
+  const sonne = meshHandles.length ? erstelleSonne({ instance: v.instance, ort: sonnenOrt(p.originWorld, p.crs.wkt), meshes: meshHandles }) : null;
   // CRS-Hinweis (I4) bleibt stehen, statt wie die Ladeanzeige gelöscht zu werden.
   msg.dataset.base = v.crsHint ?? '';
   say(msg.dataset.base);
@@ -344,6 +354,8 @@ async function start(): Promise<void> {
   let zp: ZielpunktSteuerung | null = null;
   // Befund (Auswahl, Teilen, Link öffnen): erst nach den POIs angelegt, der Knopf „Teilen“ greift per Getter zu.
   let befundSt: BefundSteuerung | null = null;
+  // Controller: erst nach dem Verteiler angelegt; Vibration beim Setzen davor per Getter.
+  let padSt: PadSteuerung | null = null;
   // Tastenhinweise: nach den POIs angelegt; Zählen davor (Tastenhilfe, Fadenkreuz) per Getter.
   let hinweise: ReturnType<typeof attachHinweisAnzeige> | null = null;
   const austrittsTreffer = (): [number, number, number] | null => zp?.austrittsTreffer() ?? null;
@@ -555,6 +567,8 @@ async function start(): Promise<void> {
   const fotoHost = document.createElement('div');
   // Fotogalerie (Gruppen mit Vorschaubildern) — ersetzt die Foto-Zeilen im Ebenenmenü.
   const galerieHost = document.createElement('div');
+  const sonneHost = document.createElement('div');
+  const kpHost = document.createElement('div');
   const panelSt = (dock: 'left' | 'right', group: number, open: boolean) => ({
     dock, group, open, collapsed: false, float: { x: 240, y: 120, w: 340, h: 320 },
   });
@@ -572,8 +586,27 @@ async function start(): Promise<void> {
         { id: 'fotos', title: 'Fotos', defaults: panelSt('left', 2, false), content: galerieHost },
         { id: 'foto', title: 'Foto', defaults: panelSt('right', 2, false), content: fotoHost },
       ] : []),
+      ...(sonne ? [{ id: 'sonne', title: 'Sonne', defaults: panelSt('right', 3, false), content: sonneHost }] : []),
+      { id: 'kontrollpunkte', title: 'Kontrollpunkte', defaults: panelSt('right', 4, false), content: kpHost },
     ],
   });
+  if (sonne) attachSonnePanel(sonneHost, sonne);
+  // Kontrollpunkte am Modell picken (J3b): eigener Pickmodus für genau einen Klick. Panorama und Begehen entstehen
+  // erst weiter unten — per Getter.
+  const kontrollpunkte = attachKontrollpunktePanel({
+    root: kpHost, frame: p.frame, projectId: p.projectId, sourceLayers: p.layers, version: viewerVersion(),
+    leinwand: v.instance.domElement, picker, inPanorama: () => panoRef?.active ?? false, snapEdges: () => toolbar.snapEdges(),
+    fliegeZu: (ziel) => {
+      begehen?.beenden(null);
+      if (panoRef?.active) panoRef.leave();
+      v.frameAt(ziel, 5);
+    },
+    vorPicken: () => { if (toolbar.tool() !== 'navigate') toolbar.setTool('navigate'); },
+    hiddenCloudMessage, notify, unterPointerLock, frage: frageStill, rueckfrageOffen: () => rueckfrage.offen(), pose: kameraPose,
+    entwurf: kpEntwurfSpeicher(() => window.localStorage),
+  });
+  // Ein anderes Werkzeug nimmt die Klicks: Pickmodus beenden.
+  toolbar.onChange((t) => { if (t !== 'navigate') kontrollpunkte.abbrechen(); });
   const panelMenu = attachPanelMenu(document.getElementById('panel-menu')!, panels);
   // Gemeinsam für Kürzel (run()), lil-gui-Knopf (addPoiControls) und panels.onChange unten:
   // bring-forward eines verdeckten Reiters feuert kein onChange (activateTab), deshalb hier zusätzlich
@@ -731,14 +764,52 @@ async function start(): Promise<void> {
   // Mobil: Höhe des unteren Panel-Blatts als --sv-panel-unten (Hinweise liegen darüber statt darauf, 17.10.).
   const panelHoehe = (): void => {
     const dock = document.querySelector<HTMLElement>("#panels[data-mobile='true']:not([data-quer='true']) .sv-dock[data-dock='bottom']");
-    // Oberkante des höchsten Teils (der Rahmen ragt über den Dock-Container hinaus) bis zum unteren Fensterrand.
-    const oben = dock ? Math.min(...[dock, ...dock.querySelectorAll<HTMLElement>('.sv-frame')].map((e) => e.getBoundingClientRect().top)) : innerHeight;
+    // Oberkante des höchsten Rahmens bis zum unteren Fensterrand.
+    // Ausgeblendete Teile (Blatt tritt hinter das Befundformular zurück) zählen nicht.
+    // Ohne Rahmen zählt das leere Dock nicht (es trägt seine Höhe als Inline-Stil).
+    const sichtbar = dock ? [...dock.querySelectorAll<HTMLElement>('.sv-frame')].map((e) => e.getBoundingClientRect()).filter((r) => r.height > 0) : [];
+    const oben = sichtbar.length ? Math.min(...sichtbar.map((r) => r.top)) : innerHeight;
     document.body.style.setProperty('--sv-panel-unten', `${Math.max(0, innerHeight - oben)}px`);
   };
   new ResizeObserver(panelHoehe).observe(document.getElementById('panels')!);
   new MutationObserver(panelHoehe).observe(document.getElementById('panels')!, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-mobile', 'hidden', 'style'] });
   window.addEventListener('resize', panelHoehe);
   panelHoehe();
+  // Desktop/Tablet: Meldungszeile unter der Werkzeugleiste, Scan-Hinweis unten — je in die breiteste freie Lücke
+  // zwischen Panels und Leisten (neben der Leiste war auf schmalen Fenstern kein Platz, die Meldung lief unter sie).
+  // Auf dem Handy und in der Empfängeransicht gelten die festen Zonen aus dem CSS: Inline-Werte weg.
+  const msgEl = document.getElementById('msg')!;
+  const toolbarEl = document.getElementById('toolbar')!;
+  const freieLage = (): void => {
+    const css = document.body.classList.contains('sv-handy') || document.body.classList.contains('sv-empfang');
+    for (const e of [msgEl, scanHint]) if (css) for (const k of ['top', 'left', 'bottom', 'maxWidth', 'transform'] as const) e.style[k] = '';
+    if (css) return;
+    const sichtbar = (e: Element): DOMRect | null => (e instanceof HTMLElement && !e.hidden && e.checkVisibility() ? e.getBoundingClientRect() : null);
+    const hindernisse = [...document.querySelectorAll('.sv-frame, #panel-menu, .sv-zurueck, .sv-pano-aus, #poi-form, .sv-teilen, .sv-entwurf, .sv-koordinaten')]
+      .map(sichtbar).filter((r): r is DOMRect => r !== null);
+    const breite = document.documentElement.clientWidth;
+    const leiste = toolbarEl.getBoundingClientRect();
+    const oben = leiste.bottom + 8;
+    const m = freieSpanne(breite, oben, oben + Math.max(msgEl.offsetHeight, 32), [...hindernisse, leiste]);
+    Object.assign(msgEl.style, { top: `${oben}px`, left: `${m.left}px`, maxWidth: `${Math.max(0, m.right - m.left)}px` });
+    // Zweimal: schmaler umgebrochen wird der Hinweis höher und kann in ein weiteres Hindernis ragen.
+    for (let i = 0; i < 2; i++) {
+      const s = freieSpanne(breite, scanHint.getBoundingClientRect().top - 8, innerHeight, hindernisse);
+      Object.assign(scanHint.style, { left: `${(s.left + s.right) / 2}px`, maxWidth: `${Math.max(0, s.right - s.left)}px` });
+    }
+    // Die Tastenhinweise weichen dem Scan-Hinweis (hinweisAnzeige.ts) — nach dem Verschieben neu legen.
+    window.dispatchEvent(new Event('sv-hinweise-lage'));
+  };
+  new ResizeObserver(freieLage).observe(toolbarEl);
+  new ResizeObserver(freieLage).observe(document.getElementById('panels')!);
+  new MutationObserver(freieLage).observe(document.getElementById('panels')!, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-mobile', 'hidden', 'style'] });
+  new MutationObserver(freieLage).observe(msgEl, { childList: true, characterData: true, subtree: true });
+  new MutationObserver(freieLage).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  // Befundformular, Befundlink, Entwurf, Panorama-Ausgang (teils später angelegt): ein- und ausgeblendet per hidden.
+  new MutationObserver(freieLage).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
+  window.addEventListener('resize', freieLage);
+  pano.onChange(() => requestAnimationFrame(freieLage));
+  freieLage();
   scanHint.title = 'Tippen zum Ausblenden';
   scanHint.addEventListener('click', () => { scanHintWeg = scanHint.dataset.mode ?? ''; scanHint.hidden = true; });
   // Immer sichtbarer Ausgang aus dem Panorama: auf Touch-Geräten gibt es kein Esc, und der Eintrag im Panel
@@ -861,13 +932,12 @@ async function start(): Promise<void> {
     pose: kameraPose,
     pois: () => currentPois,
     einstellungen: () => einstellungen,
-    belegung: () => belegung,
     kuerzel,
     say,
     ansage,
     cloudVisible,
     hiddenCloudMessage,
-    hinweis: { gesetzt: (befund) => hinweise?.zaehle(befund ? 'befund' : 'setzen'), pad: (a, runter) => hinweise?.pad(a, runter) },
+    hinweis: { gesetzt: (befund) => { hinweise?.zaehle(befund ? 'befund' : 'setzen'); padSt?.vibriere(); } },
   });
   zp = zielpunkt;
 
@@ -919,7 +989,7 @@ async function start(): Promise<void> {
   hinweise = attachHinweisAnzeige({
     schluessel: hinweisSchluessel(modus.art === 'plattform' ? modus.nutzerId : null), lies: safeGet, schreib: safeSet,
     begehen: walk, pano, toolbar, pois, panels, panoramaZiel: () => zielpunkt.panoramaZiel(), empfang: () => empfang.aktiv, einstellungen: () => einstellungen,
-    systemReduziert: () => systemReduziert.matches, belegung: () => belegung, kuerzel,
+    systemReduziert: () => systemReduziert.matches, kuerzel,
   });
   // Zeile zu Maus/Finger: eine Ausführung = eine Orbit-Geste, die die Ansicht bewegt hat (Ziehen, Rad, Zwei Finger;
   // MapControls start → change → end), oder ein gesetzter Drehpunkt (Doppelklick). Gezählt wird die Zeile, die
@@ -1008,7 +1078,7 @@ async function start(): Promise<void> {
   v.instance.domElement.addEventListener('click', (ev) => {
     const moved = down ? Math.hypot(ev.clientX - down.x, ev.clientY - down.y) : 0;
     down = null;
-    if (moved > 4 || toolbar.tool() !== 'navigate' || unterPointerLock() || tool.hitsHandle(ev.clientX, ev.clientY)) return;
+    if (moved > 4 || toolbar.tool() !== 'navigate' || kontrollpunkte.picktBereit() || unterPointerLock() || tool.hitsHandle(ev.clientX, ev.clientY)) return;
     const id = layer.hitTest(ev.clientX, ev.clientY);
     if (id) {
       letzterSprung = performance.now();
@@ -1146,8 +1216,58 @@ async function start(): Promise<void> {
         return;
     }
   };
-  // Gamepad: nur im Begehen (zielpunktSteuerung.ts); erst jetzt, da der Verteiler steht.
-  zielpunkt.verbindePad(run);
+  // Controller in allen Ansichten (padSteuerung.ts); erst jetzt, da der Verteiler steht. Im Begehen liest dessen
+  // Bildschleife über `quelle`.
+  const formularOffen = (): boolean => pois.formularOffen();
+  padSt = attachPadSteuerung({
+    v, pano, begehen: walk, rueckfrage,
+    einstellungen: () => einstellungen,
+    systemReduziert: () => systemReduziert.matches,
+    belegung: () => padBelegung(belegung),
+    say,
+    hinweis: notify,
+    werkzeug: () => toolbar.tool(),
+    zeichnung: () => tool.isDrawing(),
+    ziehen: () => tool.isDragging(),
+    formularOffen,
+    empfang: () => empfang.aktiv,
+    durchKamera: () => durch.active,
+    aktion: {
+      werkzeug: (richtung) => run({ type: 'werkzeug-wechsel', richtung }),
+      standpunkt: (richtung) => run({ type: 'standpunkt', richtung }),
+      fang: () => {
+        run({ type: 'toggle-snap' });
+        say(toolbar.snapEdges() ? 'Fang ein' : 'Fang aus');
+      },
+      allesZeigen: () => run({ type: 'alles-zeigen' }),
+      begehenStarten: () => run({ type: 'begehen-start' }),
+      befund: () => run({ type: 'befund' }),
+      mitteSetzen: () => void zielpunkt.mitteSetzen(),
+      panoSetzen: (gedrueckt) => zielpunkt.panoHalte('begehen.setzen', gedrueckt),
+      abbrechenZiehen: () => run({ type: 'cancel-drag' }),
+      abbrechenZeichnung: () => run({ type: 'cancel-drawing' }),
+      begehenBeenden: () => walk.beenden(austrittsTreffer()),
+      panoramaVerlassen: () => run({ type: 'leave-panorama' }),
+    },
+    // Das Menü bündelt nur, was es auch per Taste oder Knopf gibt.
+    menue: () => [
+      walk.aktiv ? { text: 'Begehen beenden', tue: () => walk.beenden(austrittsTreffer()) }
+        : !pano.active && !empfang.aktiv ? { text: 'Begehen starten', tue: () => run({ type: 'begehen-start' }) } : null,
+      pano.active ? { text: 'Panorama verlassen', tue: () => run({ type: 'leave-panorama' }) } : null,
+      !walk.aktiv && !pano.active ? { text: 'Alles zeigen', tue: () => run({ type: 'alles-zeigen' }) } : null,
+      { text: 'Karte ein/aus', tue: () => run({ type: 'toggle-panel', panel: 'karte' }) },
+      empfang.aktiv ? null : { text: 'Ebenen ein/aus', tue: () => run({ type: 'toggle-panel', panel: 'ebenen' }) },
+      empfang.aktiv ? null : { text: 'Messliste ein/aus', tue: () => run({ type: 'toggle-list' }) },
+      { text: 'Bedienung (Hilfe)', tue: () => run({ type: 'tastenhilfe' }) },
+      empfang.aktiv ? null : { text: 'Einstellungen: Tastatur, Controller und Bewegung', tue: einstellungenOeffnen },
+    ].filter((e): e is MenueEintrag => e !== null),
+    benutztAenderung: (an) => {
+      hinweise?.padAktiv(an);
+      zielpunkt.padKreuz(an);
+    },
+  });
+  const padQuelle = padSt;
+  walk.setzeEingabeQuelle((dt) => padQuelle.quelle(dt));
   attachShortcuts({
     context: () => ({
       drawing: tool.isDrawing(),
@@ -1179,9 +1299,16 @@ async function start(): Promise<void> {
   (window as unknown as { __scanview: unknown }).__scanview = {
     viewer: v,
     get meshes() { return meshHandles.map((h) => ({ id: h.id, stage: h.stage, failure: h.failure, textur: h.textur, bytes: h.bytes,
-      worldBox: h.worldBox, visible: h.visible, clippingPlaneCounts: h.clippingPlaneCounts })); },
+      worldBox: h.worldBox, visible: h.visible, clippingPlaneCounts: h.clippingPlaneCounts,
+      flaeche: h.flaeche, draht: h.draht })); },
     get meshShadingMs() { return meshHandles.flatMap((h) => h.shadingMs); },
+    // Live-Sonne: Zustand (an, zeit, stand) und setzen() — derselbe Weg wie das Panel (E2E, später Ansichtszustand/MCP).
+    sonne: sonne ? { get an() { return sonne.an; }, get zeit() { return sonne.zeit.toISOString(); }, get stand() { return sonne.stand; },
+      get ort() { return sonne.ort; }, get bahn() { return sonne.bahn; }, get spielt() { return sonne.spielt; },
+      setzen: sonne.setzen.bind(sonne), zustand: () => sonne.zustand() } : null,
     zoomStopp,
+    // Kontrollpunkte (J3b): Liste laden, wählen, picken, exportieren — derselbe Weg wie das Panel (E2E).
+    kontrollpunkte,
     fps,
     manifest: p,
     measure: { store, picks: tool.picks, tool, debug: tool.debug },
@@ -1201,6 +1328,7 @@ async function start(): Promise<void> {
     panels: panels!,
     layers: reg!,
     begehen: walk,
+    pad: padSt,
     drehpunkt,
     befund: befundSteuerung,
     empfang,

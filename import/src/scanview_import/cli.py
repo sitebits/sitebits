@@ -14,19 +14,23 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import re
 import resource
+import struct
 import sys
 import time
+import zlib
 from pathlib import Path
 from typing import Any
 
 from . import hoehen, lage
 from .convert import convert
-from .fotos_import import import_fotos
+from .fotos_import import import_fotos, importiere_export
 from .fotos_pruefung import GRENZE_PX, pruefe_fotos_paket
 from .inventory import inventory_to_json, read_inventory
+from .kameras_import import import_kameras
 from .manifest_io import cloud_of, migrate, read_manifest, start_sichtbar, write_manifest
-from .metashape_import import import_metashape
 from .overview import DEFAULT_MAX_PX, DEFAULT_PIXEL_M, build_overview
 from .panos import build_panos
 from .spleen import VersionMitSpleen, waehle_spruch
@@ -107,6 +111,12 @@ def _add_convert_args(sp: argparse.ArgumentParser) -> None:
                     help="Grobe Float32-E57 ausdrücklich zulassen (Warnung im Report)")
     sp.add_argument("--columns", help="Pflicht für XYZ/TXT/CSV, z. B. x,y,z,r,g,b")
     sp.add_argument(
+        "--rgb-8bit",
+        action="store_true",
+        help="LAS/LAZ mit Farbe 0 bis 255 in den 16-bit-Feldern (z. B. OpenDroneMap) auf 16 bit "
+        "skalieren; bricht ab, wenn ein Wert über 255 liegt",
+    )
+    sp.add_argument(
         "--ausduennen",
         type=float,
         metavar="METER",
@@ -156,6 +166,25 @@ def _add_overview_args(sp: argparse.ArgumentParser) -> None:
         type=float,
         default=None,
         help="nur Punkte bis zu dieser Welt-Höhe (Innenräume: Decke ausblenden)",
+    )
+
+
+def _sfm_optionen(sp: argparse.ArgumentParser) -> None:
+    sp.add_argument("pkg", type=Path)
+    sp.add_argument(
+        "--hoehensystem",
+        required=True,
+        help="Höhensystem der Rekonstruktion (z. B. ellipsoidisch, DHHN2016) — wird nicht geraten",
+    )
+    sp.add_argument("--max-kante", default="4096", help="lange Kante in px oder 'voll' (Kacheln)")
+    sp.add_argument("--gruppe", action="append", default=None)
+    sp.add_argument("--rahmen-toleranz", type=float, default=None)
+    sp.add_argument("--prozesse", type=int, default=1)
+    sp.add_argument(
+        "--rueckprojektion-grenze",
+        type=float,
+        default=GRENZE_PX,
+        help="Median je Foto in px (Standard 2, höchstens 10); Fotos über 2 px werden vermerkt",
     )
 
 
@@ -237,6 +266,20 @@ def _build_parser() -> argparse.ArgumentParser:
     s.add_argument("ziel", type=Path)
     s.add_argument("--mobil-dreiecke", type=int, default=400000)
 
+    s = sub.add_parser(
+        "neu-ohne-wolke",
+        help="Neues Paket nur aus Mesh (GLB/PLY ohne Textur) oder Splats, ohne Punktwolke",
+    )
+    s.add_argument("quelle", type=Path)
+    s.add_argument("pkg", type=Path)
+    s.add_argument("--art", choices=("mesh", "splats"), required=True)
+    s.add_argument("--titel")
+    s.add_argument("--crs", help="EPSG:xxxx oder WKT; ohne Angabe lokal (Modellmaß)")
+    s.add_argument("--unit", choices=("m", "cm", "mm", "ft"),
+                   help="nur Mesh-PLY (Standard m); GLB ist immer Meter")
+    s.add_argument("--quell-hoehensystem")
+    s.add_argument("--ziel-hoehensystem")
+
     s = sub.add_parser("add-splats", help="Sichtschicht mit Rahmenbeleg ergänzen")
     s.add_argument("source", type=Path)
     s.add_argument("pkg", type=Path)
@@ -260,13 +303,13 @@ def _build_parser() -> argparse.ArgumentParser:
     s.add_argument("pkg", type=Path)
     s.add_argument("--levels", default="512,1024,2048,4096")
 
-    s = sub.add_parser("panos-metashape", help="Metashape-Kugelpanoramen in vorhandenes Paket")
+    s = sub.add_parser("panos-kameras", help="Kugelpanoramen (kameras.json) in vorhandenes Paket")
     s.add_argument("--kameras", type=Path, required=True)
     s.add_argument("pkg", type=Path)
     s.add_argument("--levels", default="512,1024,2048,4096")
     s.add_argument("--hoehensystem", help="Höhensystem bestätigen, falls im Paket unbekannt")
 
-    s = sub.add_parser("fotos-metashape", help="Metashape-Rahmenkameras als orientierte Fotos")
+    s = sub.add_parser("fotos-kameras", help="Rahmenkameras (kameras.json) als orientierte Fotos")
     s.add_argument("--kameras", type=Path, required=True)
     s.add_argument("pkg", type=Path)
     s.add_argument("--max-kante", default="4096", help="lange Kante in px oder 'voll' (Kacheln)")
@@ -277,8 +320,8 @@ def _build_parser() -> argparse.ArgumentParser:
     s.add_argument(
         "--exif-drehung-ignorieren",
         action="store_true",
-        help="EXIF-Orientation 5 bis 8 übergehen, wenn die Rohpixelmaße Metashapes Kamera "
-        "entsprechen (Metashape rechnet in Sensorpixeln)",
+        help="EXIF-Orientation 5 bis 8 übergehen, wenn die Rohpixelmaße der exportierten Kamera "
+        "entsprechen (die Ausrichtung rechnet in Sensorpixeln)",
     )
     s.add_argument(
         "--rueckprojektion-grenze",
@@ -287,10 +330,26 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Median je Foto in px (Standard 2, höchstens 10); Fotos über 2 px werden vermerkt",
     )
 
+    s = sub.add_parser(
+        "fotos-colmap",
+        help="COLMAP-Modell (schon im Paket-CRS, z. B. per model_aligner) als orientierte Fotos",
+    )
+    s.add_argument("--modell", type=Path, required=True, help="Ordner mit cameras/images/points3D")
+    s.add_argument("--bilder", type=Path, required=True, help="Bildordner (Namen relativ dazu)")
+    s.add_argument("--epsg", type=int, required=True, help="CRS des Modells (wie das Paket)")
+    s.add_argument("--versatz", default="0,0,0", help="E,N,H, addiert zu Modellkoordinaten")
+    _sfm_optionen(s)
+
+    s = sub.add_parser("fotos-odm", help="OpenDroneMap-Lauf (georeferenziert) als Fotos")
+    s.add_argument("--projekt", type=Path, required=True, help="ODM-Projektordner")
+    _sfm_optionen(s)
+
     s = sub.add_parser("genauigkeit", help="Genauigkeitsnachweis (genauigkeit.json) ins Paket")
     s.add_argument("--datei", type=Path, required=True)
     s.add_argument("pkg", type=Path)
-    s.add_argument("--bericht", type=Path, help="Metashape-Bericht (PDF), nur Prüfsumme")
+    s.add_argument(
+        "--bericht", type=Path, help="Bericht der Photogrammetrie-Software (PDF), nur Prüfsumme"
+    )
     s.add_argument("--ebene", action="append", default=None, help="Ebenen-ID, mehrfach")
 
     s = sub.add_parser("fotos-pruefen", help="Fotos-Ebene eines Pakets prüfen (Dateien, Größen)")
@@ -410,6 +469,38 @@ def _mobilstufe(a: argparse.Namespace) -> int:
     return 0
 
 
+_PFAD_RE = re.compile(r"(?<![\w.])/[^\s'\"]+")
+
+
+def _ohne_pfade(text: str) -> str:
+    """Meldung ohne absolute Pfade (geht an Mensch und Agent): jeder Pfad wird zu seinem Namen."""
+    return _PFAD_RE.sub(lambda t: Path(t.group(0)).name or "<pfad>", text).strip()
+
+
+def _neu_ohne_wolke(a: argparse.Namespace) -> int:
+    """Exit 0 = Paket geschrieben; 2 = Eingabe abgelehnt (letzte Zeile = Meldung ohne Pfade)."""
+    from .neu_ohne_wolke import neu_mesh, neu_splats
+
+    hoehe = (a.quell_hoehensystem, a.ziel_hoehensystem)
+    try:
+        if a.art == "mesh":
+            m = neu_mesh(a.quelle, a.pkg, titel=a.titel, crs=a.crs, unit=a.unit, hoehe=hoehe)
+        else:
+            if a.unit is not None:
+                raise ValueError("--unit gilt nur für Meshes")
+            m = neu_splats(a.quelle, a.pkg, titel=a.titel, crs=a.crs, hoehe=hoehe)
+    except (ValueError, KeyError, FileExistsError, FileNotFoundError) as exc:
+        text = exc.args[0] if isinstance(exc, KeyError) and exc.args else exc
+        print(f"Abgelehnt: {_ohne_pfade(str(text))}", file=sys.stderr)
+        return 2
+    except (EOFError, OSError, struct.error, zlib.error):
+        # Abgeschnittene oder kaputte Datei (gzip/SPZ, Binär-PLY): fremde Eingabe, kein Absturz.
+        print("Abgelehnt: Quelldatei beschädigt oder unvollständig", file=sys.stderr)
+        return 2
+    print(json.dumps(m, ensure_ascii=False, indent=2))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     a = _build_parser().parse_args(argv)
 
@@ -430,6 +521,21 @@ def main(argv: list[str] | None = None) -> int:
 
     if a.cmd == "mobilstufe":
         return _mobilstufe(a)
+
+    if a.cmd == "neu-ohne-wolke":
+        return _neu_ohne_wolke(a)
+
+    if a.cmd == "verify":
+        from .neu_ohne_wolke import ist_splat_paket_ohne_wolke, verify_splats
+        if ist_splat_paket_ohne_wolke(a.pkg):
+            try:
+                splat_rep = verify_splats(a.e57, a.pkg)
+            except (OSError, ValueError, KeyError, StopIteration, EOFError, struct.error,
+                    zlib.error) as exc:
+                print(f"Splat-Prüfung abgebrochen: {_ohne_pfade(str(exc))}", file=sys.stderr)
+                return 2
+            print(json.dumps(splat_rep, ensure_ascii=False, indent=2))
+            return 0 if splat_rep["ok"] else 1
 
     if a.cmd in ("convert", "add", "verify"):
         from .mesh_source import is_mesh
@@ -472,10 +578,10 @@ def main(argv: list[str] | None = None) -> int:
         json.dump(inventory_to_json(read_inventory(a.e57)), sys.stdout, indent=2)
         return 0
 
-    if a.cmd == "panos-metashape":
+    if a.cmd == "panos-kameras":
         try:
             levels = tuple(int(x) for x in a.levels.split(","))
-            report = import_metashape(a.kameras, a.pkg, levels, a.hoehensystem)
+            report = import_kameras(a.kameras, a.pkg, levels, a.hoehensystem)
         except (OSError, ValueError, KeyError, TypeError) as exc:
             print(f"Panorama-Import abgebrochen: {exc}", file=sys.stderr)
             return 1
@@ -483,7 +589,7 @@ def main(argv: list[str] | None = None) -> int:
         print()
         return 0
 
-    if a.cmd == "fotos-metashape":
+    if a.cmd == "fotos-kameras":
         try:
             max_kante = None if a.max_kante == "voll" else int(a.max_kante)
             if max_kante is not None and max_kante < 64:
@@ -499,6 +605,48 @@ def main(argv: list[str] | None = None) -> int:
                 prozesse=a.prozesse,
                 height_system=a.hoehensystem,
                 exif_drehung_ignorieren=a.exif_drehung_ignorieren,
+                rueckprojektion_grenze=a.rueckprojektion_grenze,
+            )
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            print(f"Foto-Import abgebrochen: {exc}", file=sys.stderr)
+            return 1
+        json.dump(report, sys.stdout, ensure_ascii=False, indent=2)
+        print()
+        return 0
+
+    if a.cmd in ("fotos-colmap", "fotos-odm"):
+        from .fotos_sfm import read_colmap, read_odm
+
+        try:
+            max_kante = None if a.max_kante == "voll" else int(a.max_kante)
+            if max_kante is not None and max_kante < 64:
+                raise ValueError("--max-kante muss ≥ 64 oder 'voll' sein")
+            if a.prozesse < 1:
+                raise ValueError("--prozesse muss ≥ 1 sein")
+            if a.cmd == "fotos-colmap":
+                versatz = [float(x) for x in a.versatz.split(",")]
+                if len(versatz) != 3 or not all(math.isfinite(x) for x in versatz):
+                    raise ValueError("--versatz braucht drei Zahlen E,N,H")
+                export = read_colmap(
+                    a.modell,
+                    a.bilder,
+                    epsg=a.epsg,
+                    vertical_datum=a.hoehensystem,
+                    versatz=(versatz[0], versatz[1], versatz[2]),
+                )
+                quelle = {"source": "colmap", "model": a.modell.name}
+            else:
+                export = read_odm(a.projekt, vertical_datum=a.hoehensystem)
+                quelle = {"source": "opendronemap"}
+            report = importiere_export(
+                export,
+                a.pkg,
+                quelle=quelle,
+                max_kante=max_kante,
+                gruppen=a.gruppe,
+                rahmen_toleranz=a.rahmen_toleranz,
+                prozesse=a.prozesse,
+                height_system=a.hoehensystem,
                 rueckprojektion_grenze=a.rueckprojektion_grenze,
             )
         except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -562,6 +710,8 @@ def main(argv: list[str] | None = None) -> int:
         extra: dict[str, Any] = {}
         if a.float32_zulassen:
             extra["float32_zulassen"] = True
+        if a.rgb_8bit:
+            extra["rgb_8bit"] = True
         if a.unit is not None:
             extra["unit"] = a.unit
         if a.up is not None and a.up != "z":

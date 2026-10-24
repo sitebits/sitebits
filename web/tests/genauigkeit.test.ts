@@ -13,7 +13,7 @@ const PILOT = {
   points: [],
   distances: [{ name: 'A–B Laser', role: 'control', reference: 53.745, referenceAccuracy: 0.02, estimated: 53.745,
     error: 0, errorPct: 0 }],
-  source: { software: 'Agisoft Metashape', version: '2.1.3', created: '2026-10-11T07:00:00Z',
+  source: { software: 'Photogrammetrie-Werkzeug', version: '2.1.3', created: '2026-10-11T07:00:00Z',
     projectSha256: 'ab'.repeat(32), crs: 'EPSG:25833' },
   report: { filename: 'report.pdf', sha256: 'cd'.repeat(32) },
 };
@@ -38,7 +38,7 @@ describe('Genauigkeitsnachweis (F15)', () => {
     const z = panelZeilen(lies(PILOT));
     expect(z[0]).toBe('Lage nicht unabhängig geprüft (nur Drohnen-GNSS)');
     expect(z[1]).toBe('Maßstab aus 1 Strecke gesetzt (A–B Laser), nicht geprüft');
-    expect(z[2]).toBe('Quelle: Agisoft Metashape 2.1.3, 2026-10-11, Projekt abababab…');
+    expect(z[2]).toBe('Quelle: Photogrammetrie-Werkzeug 2.1.3, 2026-10-11, Projekt abababab…');
     expect(z[3]).toBe('Bericht: report.pdf (SHA-256 cdcdcdcd…)');
     expect(z.join(' ')).not.toMatch(/±|RMSE/);
   });

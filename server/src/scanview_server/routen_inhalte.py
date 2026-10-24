@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import faden, inhalte, konten, lesezugriff
+from .api_modelle import Messung, MessungListe, Poi, PoiListe, antwort
 from .web import KI_PRUEFT_NICHT, SQLITE_GANZZAHL_MAX, csrf, db, kanal, ki, token_name
 from .zugriff import RUECKMELDER, Zugriff, projekt
 
@@ -48,9 +49,12 @@ def _routen(tabelle: inhalte.Tabelle) -> None:
     # Nur die POI-Routen öffnen sich für Rückmelder; Messungen nie.
     rueckmelder = tabelle == "pois"
     wer = "Bearbeiter; Rückmelder nur eigene Rückmeldungen" if rueckmelder else "Bearbeiter"
+    # Nur Beschreibung der Antworten (api_modelle), kein Verhalten.
+    einer = Poi if rueckmelder else Messung
+    liste = PoiListe if rueckmelder else MessungListe
 
     @router.get(f"/{tabelle}", operation_id=f"{tabelle}_lesen",
-                summary=f"{tabelle}: alle nicht gelöschten Einträge")
+                summary=f"{tabelle}: alle nicht gelöschten Einträge", responses=antwort(liste))
     def lesen(pid: str, request: Request,
               vorschlaege: Annotated[bool, Query()] = False,
               conn: sqlite3.Connection = Depends(db)) -> JSONResponse:
@@ -67,7 +71,8 @@ def _routen(tabelle: inhalte.Tabelle) -> None:
         return JSONResponse({tabelle: eintraege})
 
     @router.post(f"/{tabelle}", status_code=201, dependencies=[Depends(csrf)],
-                 operation_id=f"{tabelle}_anlegen", summary=f"{tabelle}: anlegen ({wer})")
+                 operation_id=f"{tabelle}_anlegen", summary=f"{tabelle}: anlegen ({wer})",
+                 responses=antwort(einer, 201))
     def anlegen(pid: str, body: NeuIn, request: Request,
                 conn: sqlite3.Connection = Depends(db)) -> JSONResponse:
         z = projekt(request, conn, pid, mindestens="bearbeiter", rueckmelder=rueckmelder)
@@ -79,7 +84,8 @@ def _routen(tabelle: inhalte.Tabelle) -> None:
 
     @router.patch(f"/{tabelle}/{{eid}}", dependencies=[Depends(csrf)],
                   operation_id=f"{tabelle}_aendern",
-                  summary=f"{tabelle}: ändern ({wer}; version = zuletzt gelesene)")
+                  summary=f"{tabelle}: ändern ({wer}; version = zuletzt gelesene)",
+                  responses=antwort(einer))
     def aendern(pid: str, eid: str, body: AenderungIn, request: Request,
                 conn: sqlite3.Connection = Depends(db)) -> JSONResponse:
         z = projekt(request, conn, pid, mindestens="bearbeiter", rueckmelder=rueckmelder)
@@ -91,7 +97,8 @@ def _routen(tabelle: inhalte.Tabelle) -> None:
     @router.delete(f"/{tabelle}/{{eid}}", status_code=204, dependencies=[Depends(csrf)],
                    operation_id=f"{tabelle}_loeschen",
                    summary=f"{tabelle}: löschen (weich, {wer}; ?version=N; 202 = per"
-                           " KI-Agent nur vorgeschlagen)")
+                           " KI-Agent nur vorgeschlagen)",
+                   responses=antwort(einer, 202))
     def loeschen(pid: str, eid: str, request: Request,
                  version: Annotated[int, Query(ge=1, le=SQLITE_GANZZAHL_MAX)],
                  conn: sqlite3.Connection = Depends(db)) -> Response:
@@ -116,7 +123,8 @@ def _routen(tabelle: inhalte.Tabelle) -> None:
     @router.post(f"/{tabelle}/{{eid}}/annehmen", dependencies=[Depends(csrf)],
                  operation_id=f"{tabelle}_annehmen",
                  summary=f"{tabelle}: KI-Vorschlag annehmen ({wer}; nicht per KI-Agent;"
-                         " 204 = Löschvorschlag ausgeführt)")
+                         " 204 = Löschvorschlag ausgeführt)",
+                 responses=antwort(einer))
     def annehmen(pid: str, eid: str, body: PruefIn, request: Request,
                  conn: sqlite3.Connection = Depends(db)) -> Response:
         return _pruefen("annehmen", pid, eid, body, request, conn)
@@ -124,7 +132,8 @@ def _routen(tabelle: inhalte.Tabelle) -> None:
     @router.post(f"/{tabelle}/{{eid}}/verwerfen", dependencies=[Depends(csrf)],
                  operation_id=f"{tabelle}_verwerfen",
                  summary=f"{tabelle}: KI-Vorschlag verwerfen ({wer}; nicht per KI-Agent;"
-                         " 204 = Vorschlag verworfen)")
+                         " 204 = Vorschlag verworfen)",
+                 responses=antwort(einer))
     def verwerfen(pid: str, eid: str, body: PruefIn, request: Request,
                   conn: sqlite3.Connection = Depends(db)) -> Response:
         return _pruefen("verwerfen", pid, eid, body, request, conn)

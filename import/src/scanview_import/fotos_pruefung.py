@@ -1,11 +1,12 @@
 """Prüfungen für orientierte Fotos.
 
-`rueckprojektion`: Metashapes Tie-Point-Pixel (Originalbild) gegen die in images.json
+`rueckprojektion`: Tie-Point-Pixel der Ausrichtung (Originalbild) gegen die in images.json
 gespeicherte Pose und Lochkamera-Intrinsik. Geprüft werden Pose, Posen-Basis, CRS-Projektion des
-Exports und Verzeichnungsmodell sowie Brennweite und Bildmitte der Lochkamera — gegen Metashapes
-Ausgleich. Nicht geprüft: die Pixel der entzerrten Datei selbst (Zuschnitt und Neuabtastung sichern
-die Tests der Entzerrung). Stichprobe: je Gruppe höchstens 50 Kameras mit je bis zu 200 Projektionen
-(Metashape-Export); Kameras außerhalb der Stichprobe werden nicht einzeln geprüft.
+Exports und Verzeichnungsmodell sowie Brennweite und Bildmitte der Lochkamera — gegen den Ausgleich
+der Photogrammetrie-Software. Nicht geprüft: die Pixel der entzerrten Datei selbst (Zuschnitt und
+Neuabtastung sichern die Tests der Entzerrung). Stichprobe: je Gruppe höchstens 50 Kameras mit je
+bis zu 200 Projektionen (Kameraexport); Kameras außerhalb der Stichprobe werden nicht einzeln
+geprüft.
 Grenze: Median je geprüftem Foto ≤ 2 px (volle entzerrte Auflösung); anhebbar bis 10 px
 (`--rueckprojektion-grenze`), die Fotos über 2 px stehen dann in `aboveDefault`.
 
@@ -23,7 +24,7 @@ from PIL import Image
 from scipy.spatial.transform import Rotation
 
 from .fotos import FOTOS_DIR, IMAGES_FILE, IMAGES_SCHEMA_VERSION, kachel_raster, revision
-from .metashape import FrameExport, TieProjection
+from .kameras import FrameExport, TieProjection
 from .verzeichnung import unverzeichnen
 
 GRENZE_PX = 2.0
@@ -66,12 +67,13 @@ def rueckprojektion(
             f"{MIN_PROJEKTIONEN}) — Export ohne Projektionen oder Gruppen ohne Stichprobe"
         )
     fehler: dict[str, list[float]] = {}
+    rest: list[tuple[float, float]] = []
     for p in passend:
         e = eintraege[p.camera]
         k = export.sensors[kameras[p.camera].sensor_id].kalibrierung
         intr = e["intrinsics"]
-        r_metashape = _paket_rotation(e["pose"]["rotationQuat"]) @ np.diag([1.0, -1.0, -1.0])
-        lokal = r_metashape.T @ (np.array(p.world) - np.array(e["pose"]["translation"]))
+        r_austausch = _paket_rotation(e["pose"]["rotationQuat"]) @ np.diag([1.0, -1.0, -1.0])
+        lokal = r_austausch.T @ (np.array(p.world) - np.array(e["pose"]["translation"]))
         if lokal[2] <= 0:
             fehler.setdefault(e["id"], []).append(float("inf"))
             continue
@@ -81,6 +83,7 @@ def rueckprojektion(
         um = intr["width"] / 2 + float(xm[0]) * intr["focalPx"]
         vm = intr["height"] / 2 + float(ym[0]) * intr["focalPx"]
         fehler.setdefault(e["id"], []).append(float(np.hypot(u - um, v - vm)))
+        rest.append((um - u, vm - v))
     mediane = {i: float(np.median(f)) for i, f in fehler.items()}
     je_bild = [{"id": i, "n": len(fehler[i]), "medianPx": mediane[i]} for i in sorted(fehler)]
     alle = np.concatenate([np.array(f) for f in fehler.values()])
@@ -90,6 +93,9 @@ def rueckprojektion(
         "n": len(alle),
         "medianPx": float(np.median(alle)),
         "p95Px": float(np.percentile(alle, 95)),
+        # Beobachtet minus berechnet, Median je Achse: systematischer Versatz (Pixelkonvention,
+        # Modell). Median statt Mittel: SfM-Beobachtungen enthalten Ausreißer (OpenSfM).
+        "medianResidualPx": [float(x) for x in np.median(rest, axis=0)] if rest else [0.0, 0.0],
         "perImage": je_bild,
         # Mit angehobener Grenze bleibt sichtbar, welche Fotos die Standardgrenze reißen.
         "aboveDefault": [b for b in je_bild if mediane[str(b["id"])] > GRENZE_PX],

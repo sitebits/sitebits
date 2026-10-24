@@ -29,12 +29,13 @@ class Instanz:
                  *, portpflicht: bool = True):
         if name and (
             re.fullmatch(r"[a-z][a-z0-9-]{1,19}", name) is None
-            or name == "scanview"
+            or name in ("scanview", "import", "jobs")
             or name.endswith("-deploy")
         ):
+            # import/jobs: Nutzer scanview-import und Gruppe scanview-jobs des Jobläufers.
             raise ValueError(
                 "Instanzname muss ^[a-z][a-z0-9-]{1,19}$ entsprechen; "
-                "scanview und Namen mit -deploy sind gesperrt."
+                "scanview, import, jobs und Namen mit -deploy sind gesperrt."
             )
         if name and (portpflicht or port is not None):
             if (
@@ -193,6 +194,8 @@ def installer_rendern(quelle: Path, instanz: Instanz) -> str:
         return text
     text = re.sub(r"# INSTANZ_DISPATCH_BEGIN\n.*?# INSTANZ_DISPATCH_END\n", "", text,
                   flags=re.DOTALL)
+    # Der Jobläufer (Nutzer, Gruppe, Units, Drop-ins) gehört nur zur Standardinstanz.
+    text = re.sub(r"[ \t]*# JOBLAEUFER_BEGIN\n.*?# JOBLAEUFER_END\n", "", text, flags=re.DOTALL)
     text = text.replace("scanview-git-export.service scanview-git-export.timer ", "")
     text = "\n".join(line for line in text.split("\n")
                      if not (line.startswith("install ") and "scanview-git-export." in line))

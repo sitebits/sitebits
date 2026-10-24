@@ -5,8 +5,9 @@ Anonymisierungs-Hook geschickt und erst danach in Stufen (lange Kante 512/2048/4
 voller Auflösung zusätzlich in Kacheln zerlegt. Jede Ausgabedatei wird aus Pixeln neu kodiert
 (JPEG q85), Metadaten der Quelle (EXIF, GPS, XMP, ICC) gelangen nie ins Paket.
 
-Posen: Rahmenkameras kommen in Metashape-Basis (X rechts, Y unten, Z vorn); das Paket nutzt
-wie `stations.json` +X rechts, +Y oben, -Z Blick: R_paket = R_metashape @ diag(1, -1, -1).
+Posen: Rahmenkameras kommen in der Kamerabasis des Austauschformats (X rechts, Y unten, Z vorn);
+das Paket nutzt wie `stations.json` +X rechts, +Y oben, -Z Blick:
+R_paket = R_austausch @ diag(1, -1, -1).
 
 Schreiben ist atomar je Lauf: Alles entsteht in `.fotos-neu/`; erst wenn jedes Foto fertig ist,
 wird es gegen `fotos/` getauscht und `images.json` + Manifest geschrieben. Arbeitsordner beginnen
@@ -33,8 +34,8 @@ from numpy.typing import NDArray
 from PIL import Image
 from scipy.spatial.transform import Rotation
 
+from .kameras import FrameCamera, FrameExport
 from .manifest_io import read_manifest, set_images, write_manifest
-from .metashape import FrameCamera, FrameExport
 from .verzeichnung import Kalibrierung, Lochkamera, entzerre_bild, remap_gitter, zielkamera
 
 STUFEN = (512, 2048, 4096)
@@ -123,7 +124,7 @@ def _foto(auftrag: _Auftrag) -> None:
         if orientation != kamera.exif_orientation:
             raise ValueError(
                 f"{kamera.label}: EXIF-Orientation {orientation} — gedrehte Bilder werden nicht "
-                "geraten; Metashape rechnet in Sensorpixeln"
+                "geraten; die Ausrichtung rechnet in Sensorpixeln"
             )
         pixel = np.asarray(quelle.convert("RGB"))
     bild = entzerre_bild(pixel, _gitter(auftrag.kalibrierung, auftrag.ziel))
@@ -202,8 +203,7 @@ def plane_fotos(
         tiles = None
         if mit_kacheln:
             ebenen = 1 + max(
-                z
-                for z, *_ in kachel_raster(ziel.width, ziel.height, kachel, bis_kante=eigene[-1])
+                z for z, *_ in kachel_raster(ziel.width, ziel.height, kachel, bis_kante=eigene[-1])
             )
             tiles = {"size": kachel, "levels": ebenen, "width": ziel.width, "height": ziel.height}
         eintraege.append(
@@ -268,7 +268,12 @@ def write_images(
             {"id": g, "title": g or "ohne Gruppe", "count": c} for g, c in sorted(gruppen.items())
         ],
         "anonymization": {"required": True, "status": "unreviewed"},
-        "provenance": dict(provenance or {}, maxReferenceErrorPx=export.max_referenz_abweichung_px),
+        "provenance": dict(provenance or {})
+        | (
+            {}
+            if export.max_referenz_abweichung_px is None
+            else {"maxReferenceErrorPx": export.max_referenz_abweichung_px}
+        ),
         "images": eintraege,
     }
     alt = pkg / f".{FOTOS_DIR}-alt"

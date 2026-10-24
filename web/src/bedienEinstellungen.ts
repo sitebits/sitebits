@@ -17,6 +17,8 @@ export interface BedienEinstellungen {
   fadenkreuzPx: number;                      // 16–64
   hinweiseImmer: boolean;                    // Tastenhinweise auch nach dreimaliger Ausführung zeigen
   orbitLinks: OrbitLinks;                    // linke Maustaste im Orbit: drehen (Vorgabe) oder verschieben (bis 0.3.0)
+  padEmpfindlichkeit: number;                // Controller: Faktor auf Dreh- und Umsehrate, 0,25–3
+  vibration: boolean;                        // Controller vibriert kurz beim Setzen/Bestätigen (wo der Browser es kann)
 }
 export type OrbitLinks = 'drehen' | 'verschieben';
 export const EINSTELLUNGEN_SCHLUESSEL = 'sv-bedienung';
@@ -27,6 +29,7 @@ export const GRENZEN = {
   sichtfeldGrad: { min: 70, max: 100 },
   tempo: { min: 0.2, max: 50 },
   fadenkreuzPx: { min: 16, max: 64 },
+  padEmpfindlichkeit: { min: 0.25, max: 3 },
 } as const;
 
 export const vorgabeEinstellungen = (): BedienEinstellungen => ({
@@ -45,6 +48,8 @@ export const vorgabeEinstellungen = (): BedienEinstellungen => ({
   fadenkreuzPx: 24,
   hinweiseImmer: false,
   orbitLinks: 'drehen',
+  padEmpfindlichkeit: 1,
+  vibration: true,
 });
 
 const zahl = (x: unknown, g: { min: number; max: number }, vorgabe: number): number =>
@@ -75,6 +80,8 @@ export function ladeEinstellungen(raw: string | null): BedienEinstellungen {
     fadenkreuzPx: zahl(r.fadenkreuzPx, GRENZEN.fadenkreuzPx, v.fadenkreuzPx),
     hinweiseImmer: bool(r.hinweiseImmer, v.hinweiseImmer),
     orbitLinks: wahl(r.orbitLinks, ['drehen', 'verschieben'], v.orbitLinks),
+    padEmpfindlichkeit: zahl(r.padEmpfindlichkeit, GRENZEN.padEmpfindlichkeit, v.padEmpfindlichkeit),
+    vibration: bool(r.vibration, v.vibration),
   };
 }
 

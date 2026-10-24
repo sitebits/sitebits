@@ -12,7 +12,7 @@ deadlines and the support period are in
 
 | Version | Security fixes |
 |---|---|
-| 0.10.x | yes |
+| 0.11.x | yes |
 | older | no, please update to the latest version |
 
 ## Reporting a vulnerability
@@ -91,7 +91,7 @@ and coordinates disclosure need not fear legal action from us.
 
 ## Kurzfassung auf Deutsch
 
-Sicherheitskorrekturen gibt es für die neueste Minor-Version, derzeit **0.10.x**; ältere
+Sicherheitskorrekturen gibt es für die neueste Minor-Version, derzeit **0.11.x**; ältere
 Versionen werden nicht unterstützt. Bitte auf die neueste Version aktualisieren. Einzelheiten
 stehen unter [Support und Patches](docs/public/support-und-patches.md).
 

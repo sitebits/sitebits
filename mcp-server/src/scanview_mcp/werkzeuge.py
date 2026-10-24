@@ -1,4 +1,4 @@
-"""Die vierzehn Werkzeuge als einfache Funktionen über `api.Client` (siehe ADR 0008: von Hand).
+"""Die Werkzeuge als einfache Funktionen über `api.Client` (siehe ADR 0008: von Hand).
 
 Methode und Pfad jedes Werkzeugs stammen aus `endpunkte.json` — dieselbe Tabelle prüft der
 Server-Test `server/tests/test_mcp_vertrag.py` gegen die echte OpenAPI. Jeder erwartbare Fehler
@@ -24,6 +24,11 @@ from .datenschutz import AUSGEBLENDET, ist_platzhalter
 PROJEKT_ID_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")
 ID_RE = re.compile(r"[A-Za-z0-9_-]{1,64}")
 STATION_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,32}")
+# Wie server/src/scanview_server/auftraege.py (AUFTRAG_ID_RE, UPLOAD_ID_RE, IMPORTE).
+AUSWERTUNG_ID_RE = re.compile(r"[0-9a-f]{16}")
+UPLOAD_ID_RE = re.compile(r"[0-9a-f]{32}")
+IMPORTTYPEN = ("neu_mesh", "neu_splats")
+IMPORT_OPTIONEN = ("projekt", "titel", "crs", "quellHoehe", "zielHoehe")
 
 Messart = Literal["distance", "polyline", "area", "height"]
 Status = Literal["offen", "in_arbeit", "erledigt", "abgeschlossen", "abgelehnt"]
@@ -66,6 +71,9 @@ def _pfad(werkzeug: str, projekt_id: str | None = None, eintrag_id: str | None =
         vorlage = vorlage.replace("{pid}", _id(projekt_id or "", PROJEKT_ID_RE, "Projekt-ID"))
     if "{eid}" in vorlage:
         vorlage = vorlage.replace("{eid}", _id(eintrag_id or "", ID_RE, "Eintrags-ID"))
+    if "{aid}" in vorlage:
+        vorlage = vorlage.replace("{aid}", _id(eintrag_id or "", AUSWERTUNG_ID_RE,
+                                              "Auswertungs-ID"))
     return vorlage
 
 
@@ -315,6 +323,85 @@ def gewerke_lesen(c: Client, projekt_id: str) -> Any:
     return _aufruf(c, "gewerke_lesen", _pfad("gewerke_lesen", projekt_id))
 
 
+def auswertung_starten(c: Client, projekt_id: str, typ: str,
+                       optionen: dict[str, Any] | None = None) -> Any:
+    """Reiht eine Auswertung ein; Typ und Optionen prüft der Server gegen seine feste Liste."""
+    pfad = _pfad("auswertung_starten", projekt_id)
+    if not isinstance(typ, str) or not re.fullmatch(r"[a-z_]{1,40}", typ):
+        raise ToolError(f"Auswertungstyp ungültig: {typ!r}.")
+    if optionen is not None and not isinstance(optionen, dict):
+        raise ToolError("optionen muss ein Objekt sein, z. B. {'profil': 'bestandserfassung'}.")
+    return _aufruf(c, "auswertung_starten", pfad,
+                   json_koerper={"typ": typ, "optionen": optionen or {}})
+
+
+def auswertung_status(c: Client, projekt_id: str, auswertung_id: str | None = None) -> Any:
+    """Alle sichtbaren Auswertungen des Projekts, oder nur die eine (aus derselben Liste)."""
+    pfad = _pfad("auswertung_status", projekt_id)
+    if auswertung_id is not None:
+        _id(auswertung_id, AUSWERTUNG_ID_RE, "Auswertungs-ID")
+    antwort = _aufruf(c, "auswertung_status", pfad)
+    if auswertung_id is None or not isinstance(antwort, dict):
+        return antwort
+    treffer = [a for a in antwort.get("auswertungen", [])
+               if isinstance(a, dict) and a.get("id") == auswertung_id]
+    if not treffer:
+        raise ToolError("Nicht gefunden (404): Auswertung gibt es nicht, oder kein Zugriff "
+                        "darauf.")
+    return {**treffer[0], "worker": antwort.get("worker")}
+
+
+# Aus ergebnis.json nur das Urteil je Anforderung — keine Prüfsummenlisten der Eingänge, keine
+# Messwerttabellen, keine Karten (nie Rohdaten).
+_ZEILE = ("id", "anforderung", "pruefart", "parameter", "urteil", "grund", "belege")
+
+
+def auswertung_lesen(c: Client, projekt_id: str, auswertung_id: str) -> Any:
+    pfad = _pfad("auswertung_lesen", projekt_id, auswertung_id)
+    e = _aufruf(c, "auswertung_lesen", pfad)
+    if not isinstance(e, dict):
+        raise ToolError("Unerwartete Antwort vom Server (kein JSON-Objekt).")
+    roh_zeilen, roh_katalog = e.get("zeilen"), e.get("katalog")
+    zeilen: list[Any] = roh_zeilen if isinstance(roh_zeilen, list) else []
+    katalog: dict[str, Any] = roh_katalog if isinstance(roh_katalog, dict) else {}
+    return {
+        "katalog": {k: katalog.get(k) for k in ("titel", "sha256")},
+        "gesamt": e.get("gesamt"),
+        "zeilen": [{k: z.get(k) for k in _ZEILE} for z in zeilen if isinstance(z, dict)],
+    }
+
+
+def import_starten(c: Client, upload_id: str, auftragstyp: str,
+                   optionen: dict[str, Any]) -> Any:
+    """Neues Projekt aus einem fertig hochgeladenen Upload. Hochladen selbst geht nicht über das
+    Sprachmodell (große Dateien): das tut ein Mensch im Portal oder ein Skript über die API."""
+    _id(upload_id, UPLOAD_ID_RE, "Upload-ID")
+    if auftragstyp not in IMPORTTYPEN:
+        raise ToolError(f"Importtyp ungültig: {auftragstyp!r}. Erlaubt: "
+                        f"{', '.join(IMPORTTYPEN)}.")
+    if not isinstance(optionen, dict) or set(optionen) - set(IMPORT_OPTIONEN) or not all(
+            isinstance(v, str) for v in optionen.values()):
+        raise ToolError("optionen: nur Texte für " + ", ".join(IMPORT_OPTIONEN) + "; "
+                        "projekt ist Pflicht.")
+    if "projekt" not in optionen:
+        raise ToolError("optionen.projekt fehlt (ID des neuen Projekts).")
+    _id(optionen["projekt"], PROJEKT_ID_RE, "Projekt-ID")
+    return _aufruf(c, "import_starten", _pfad("import_starten"),
+                   json_koerper={"upload": upload_id, "typ": auftragstyp, "optionen": optionen})
+
+
+def import_status(c: Client, projekt_id: str | None = None) -> Any:
+    """Alle Importe der Instanz, oder nur die für ein (neues) Projekt."""
+    if projekt_id is not None:
+        _id(projekt_id, PROJEKT_ID_RE, "Projekt-ID")
+    antwort = _aufruf(c, "import_status", _pfad("import_status"))
+    if projekt_id is None or not isinstance(antwort, dict):
+        return antwort
+    return {"importe": [a for a in antwort.get("importe", [])
+                        if isinstance(a, dict) and a.get("projekt") == projekt_id],
+            "worker": antwort.get("worker")}
+
+
 WERKZEUGE: dict[str, Callable[..., Any]] = {
     "projekte_auflisten": projekte_auflisten,
     "projekt_lesen": projekt_lesen,
@@ -337,4 +424,9 @@ WERKZEUGE: dict[str, Callable[..., Any]] = {
     "paket_lesen": paket_lesen,
     "kommentar_anlegen": kommentar_anlegen,
     "status_setzen": status_setzen,
+    "auswertung_starten": auswertung_starten,
+    "auswertung_status": auswertung_status,
+    "auswertung_lesen": auswertung_lesen,
+    "import_starten": import_starten,
+    "import_status": import_status,
 }

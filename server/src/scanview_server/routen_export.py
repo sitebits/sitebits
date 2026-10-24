@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import export, faden, inhalte, lesezugriff, maengelliste, projektverwaltung, protokoll
+from .api_modelle import FEHLER_ALS_JSON
 from .katalog import PROJECT_ID_RE, Karte
 from .routen_api import karte_json
 from .routen_faden import sicht as _sicht
@@ -67,7 +68,7 @@ def _genauigkeit_kurz(k: Karte) -> str:
 
 
 @router.get("/projekte/{pid}/export.csv", summary="POIs und Messungen als CSV (Bearbeiter)",
-            response_class=CsvAntwort)
+            response_class=CsvAntwort, responses=FEHLER_ALS_JSON)
 def export_csv(pid: str, request: Request, conn: sqlite3.Connection = Depends(db)) -> Response:
     z = projekt(request, conn, pid, mindestens="bearbeiter", text=NUR_EXPORT)
     _export_erlaubt(conn, z)
@@ -95,7 +96,7 @@ def export_json(pid: str, request: Request, conn: sqlite3.Connection = Depends(d
 
 
 @router.get("/projekte/{pid}/maengelliste.xlsx", summary="Befundliste als XLSX (Bearbeiter)",
-            response_class=XlsxAntwort)
+            response_class=XlsxAntwort, responses=FEHLER_ALS_JSON)
 def maengelliste_xlsx(pid: str, request: Request,
                       conn: sqlite3.Connection = Depends(db)) -> Response:
     z = projekt(request, conn, pid, mindestens="bearbeiter", text=NUR_EXPORT)
@@ -176,7 +177,7 @@ def projekt_protokoll(pid: str, request: Request, vor: Vor = None, limit: Limit 
 
 
 @router.get("/projekte/{pid}/protokoll.jsonl", summary="Verlauf eines Projekts als JSON Lines",
-            response_class=JsonLinesAntwort)
+            response_class=JsonLinesAntwort, responses=FEHLER_ALS_JSON)
 def projekt_protokoll_jsonl(pid: str, request: Request,
                             conn: sqlite3.Connection = Depends(db)) -> Response:
     z = projekt(request, conn, pid, mindestens="bearbeiter", text=NUR_VERLAUF)
@@ -203,7 +204,7 @@ def protokoll_alles(request: Request, vor: Vor = None, limit: Limit = 50,
 
 
 @router.get("/protokoll.jsonl", summary="Gesamtes Protokoll als JSON Lines (Admin)",
-            response_class=JsonLinesAntwort)
+            response_class=JsonLinesAntwort, responses=FEHLER_ALS_JSON)
 def protokoll_alles_jsonl(request: Request,
                           projekt_id: Annotated[str | None, Query(alias="projekt")] = None,
                           conn: sqlite3.Connection = Depends(db)) -> Response:

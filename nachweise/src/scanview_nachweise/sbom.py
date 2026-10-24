@@ -4,8 +4,10 @@ Ablauf je Artefakt (aus `artefakte.baue_artefakte`):
 
 1. `erzeuge_roh` — Generator laut Werkzeug-Probe (`docs/compliance/werkzeuge.md`): Web
    `cyclonedx-npm --package-lock-only`, Python `cyclonedx-py environment` über eine im gepinnten
-   uv-Image gebaute venv, beim Import zusätzlich `syft` über die beiden Container-Images (PDAL,
-   untwine). Belegte Anreicherung: SHA-512 der Python-Wheels (Download gegen `uv.lock`, SHA-256
+   uv-Image gebaute venv. Die Container-Images des Imports (PDAL, untwine) beschreibt `syft` in
+   einem eigenen, nicht ausgelieferten SBOM (`erzeuge_bilder`, Name `BILDER`): sie laufen nur
+   beim Datenaufbereiter und kommen nicht mit dem Import-Archiv auf den Host. Belegte
+   Anreicherung: SHA-512 der Python-Wheels (Download gegen `uv.lock`, SHA-256
    geprüft), npm-Hashes gegen `package-lock.json` abgeglichen, Ersteller aus den Paketmetadaten.
 2. `nachbearbeiten` — Pflichtfelder nach TR §5.2 und Anhang 8.2 (CycloneDX 1.6): Ersteller,
    Zeitstempel, SBOM-URI (= `serialNumber`, TR Tabelle 10), BSI-Taxonomie, SHA-512 in
@@ -1488,13 +1490,16 @@ def _roh_python(artefakt: Artefakt, worktree: Path, werkzeuge: dict[str, Werkzeu
     for ns in nur_sdist:
         if not (worktree / ns.lizenzbeleg).is_file():
             raise NachweisFehler("sbom-nur-sdist", f"{ns.name}: Lizenzbeleg {ns.lizenzbeleg} fehlt")
-    sync = ["uv", "sync", "--locked", "--no-dev", "--no-editable",
+    # Extras gehören zum Lieferumfang (import: `[sonne]` mit pvlib/embreex): Sync und Export
+    # beide mit `--all-extras`, sonst fehlten sie in der SBOM und der Abgleich sähe es nicht.
+    sync = ["uv", "sync", "--locked", "--no-dev", "--no-editable", "--all-extras",
             *[x for ns in nur_sdist for x in ("--no-install-package", ns.name)]]
     schritte = [Netzschritt(sync, ordnername, _jetzt())]
     ausfuehren(docker_befehl(w, [*sync, "--directory", "/quelle"], {quelle: "/quelle"},
                              {venv: "/venv"}, netz=True, umgebung=umgebung), "sbom-generator")
     ausfuehren(docker_befehl(
-        w, ["uv", "export", "--locked", "--no-dev", "--no-editable", "--no-emit-project",
+        w, ["uv", "export", "--locked", "--no-dev", "--no-editable", "--all-extras",
+            "--no-emit-project",
             "--no-hashes", "--format", "requirements-txt", "--directory", "/quelle", "-o",
             "/aus/erwartet.txt"],
         {quelle: "/quelle"}, {aus: "/aus"}, umgebung={**umgebung, "UV_OFFLINE": "1"}),
@@ -1649,6 +1654,56 @@ def _roh_images(bom: dict[str, Any], worktree: Path, werkzeuge: dict[str, Werkze
     return luecken
 
 
+#: Name des Nachweis-SBOMs der Container-Images des Imports (`scanview-<BILDER>-<v>.cdx.json`).
+#: Kein Artefakt, nie ausgeliefert; ohne Bindestrich, weil Dateinamen an „-“ geteilt werden.
+BILDER = "importbilder"
+_BILDER_REF = "scanview-importbilder"
+
+
+def erzeuge_bilder(worktree: Path, werkzeuge: dict[str, Werkzeug], *, version: str,
+                   ersteller: str, arbeitsordner: Path,
+                   jetzt: datetime | None = None) -> dict[str, Any]:
+    """Nachweis-SBOM der Container-Images des Import-Werkzeugs (syft über `docker save`, ohne
+    Netz). Eigene Hauptkomponente `scanview-importbilder`, weil es kein Artefakt dazu gibt: kein
+    Dateiname, keine Artefakt-Hashes. `serialNumber` aus Version und Image-IDs. Der ganze Inhalt
+    ist `incomplete` (kein SHA-512 der Paketform, conda ohne Lock) — ehrlich ausgewiesen, aber
+    kein Teil eines ausgelieferten SBOMs."""
+    arbeit = arbeitsordner / BILDER
+    try:
+        arbeit.mkdir(parents=True)
+    except FileExistsError:
+        raise NachweisFehler("sbom-generator", f"{arbeit}: existiert schon") from None
+    b: dict[str, Any] = {
+        "$schema": _SCHEMA, "bomFormat": "CycloneDX", "specVersion": "1.6", "version": 1,
+        "metadata": {"component": {
+            "type": "application", "bom-ref": _BILDER_REF, "name": _BILDER_REF,
+            "version": version,
+            "description": "Container-Images des Import-Werkzeugs (PDAL, untwine) — laufen nur "
+                           "beim Datenaufbereiter, nicht ausgeliefert"}},
+        "components": [], "dependencies": [{"ref": _BILDER_REF, "dependsOn": []}],
+    }
+    luecken = _roh_images(b, worktree, werkzeuge, arbeit)
+    ids = sorted(p["value"] for k in b["components"] if k.get("type") == "container"
+                 for p in k.get("properties", []) if p.get("name") == "scanview:image-id")
+    b["serialNumber"] = "urn:uuid:" + str(uuid.uuid5(
+        _NAMENSRAUM, f"{BILDER}:{','.join(ids)}:{version}"))
+    meta = b["metadata"]
+    meta["timestamp"] = _zeitstempel(jetzt)
+    meta["manufacturer"] = _hersteller(ersteller)
+    meta["authors"] = [{"name": HERSTELLER_NAME, "email": ersteller}]
+    refs = [k["bom-ref"] for k in alle_komponenten(b["components"])]
+    vorhanden = {d.get("ref") for d in b["dependencies"]}
+    b["dependencies"] += [{"ref": r, "dependsOn": []} for r in refs if r not in vorhanden]
+    b["compositions"] = _kompositionen([_BILDER_REF, *refs], {_BILDER_REF, *luecken})
+    zaehler = Counter(luecken.values())
+    meta["properties"] = [
+        {"name": "scanview:sbom-uri", "value": f"urn:scanview:sbom:{BILDER}:{version}"},
+        {"name": "scanview:ausgeliefert", "value": "nein"},
+        *({"name": "scanview:unvollstaendig", "value": f"{g}: {n} Komponente(n)"}
+          for g, n in sorted(zaehler.items()))]
+    return b
+
+
 def erzeuge_roh(artefakt: Artefakt, worktree: Path, werkzeuge: dict[str, Werkzeug], *,
                 nachweise: Path, arbeitsordner: Path) -> Rohergebnis:
     """Generator-SBOM eines Artefakts. `worktree` ist der
@@ -1664,10 +1719,7 @@ def erzeuge_roh(artefakt: Artefakt, worktree: Path, werkzeuge: dict[str, Werkzeu
         return _roh_web(worktree, werkzeuge, nachweise, arbeit)
     if artefakt.name not in _PYTHON_WURZELN:
         raise NachweisFehler("sbom-generator", f"unbekanntes Artefakt {artefakt.name}")
-    roh = _roh_python(artefakt, worktree, werkzeuge, nachweise, arbeit)
-    if artefakt.name == "import":
-        roh.unvollstaendig.update(_roh_images(roh.bom, worktree, werkzeuge, arbeit))
-    return roh
+    return _roh_python(artefakt, worktree, werkzeuge, nachweise, arbeit)
 
 
 # --- Gesamtablauf (CLI `sbom erzeugen`) --------------------------------------------------------
@@ -1728,8 +1780,13 @@ def erzeuge_alle(wurzel: Path, worktree: Path, version: str, ziel: Path, *,
             boms[f"scanview-{a.name}-{version}.cdx.json"] = nachbearbeiten(
                 roh.bom, a, ersteller, f"urn:scanview:sbom:{a.name}:{version}", version=version,
                 belege=roh.belege, unvollstaendig=roh.unvollstaendig, jetzt=zeit)
-    boms[f"scanview-{version}.cdx.json"] = zusammenfuehren(list(boms.values()), version,
-                                                           ersteller=ersteller, jetzt=zeit)
+        # Gesamt-SBOM = Produkt: nur die Artefakt-SBOMs, nicht die Werkzeug-Images.
+        gesamt = zusammenfuehren(list(boms.values()), version, ersteller=ersteller, jetzt=zeit)
+        if any(a.name == "import" for a in bau.artefakte):
+            boms[f"scanview-{BILDER}-{version}.cdx.json"] = erzeuge_bilder(
+                worktree, werkzeuge, version=version, ersteller=ersteller,
+                arbeitsordner=arbeit, jetzt=zeit)
+    boms[f"scanview-{version}.cdx.json"] = gesamt
     ausgabe.mkdir(parents=True)
     befunde: dict[str, Any] = {}
     zeilen: list[str] = []
@@ -1745,9 +1802,11 @@ def erzeuge_alle(wurzel: Path, worktree: Path, version: str, ziel: Path, *,
     _schreibe_json(ausgabe / "werkzeugbefunde.json", befunde)
     _schreibe_json(ausgabe / "netzschritte.json",
                    [{"befehl": s.befehl, "cwd": s.cwd, "zeit": s.zeit} for s in netz])
+    namen = [a.name for a in bau.artefakte]
+    if "import" in namen:
+        namen.append(BILDER)
     return SbomErgebnis(
-        bau=bau, sboms={a.name: ausgabe / f"scanview-{a.name}-{version}.cdx.json"
-                        for a in bau.artefakte},
+        bau=bau, sboms={n: ausgabe / f"scanview-{n}-{version}.cdx.json" for n in namen},
         gesamt=ausgabe / f"scanview-{version}.cdx.json",
         werkzeugbefunde=ausgabe / "werkzeugbefunde.json", netzschritte=netz, zeilen=zeilen)
 

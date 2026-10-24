@@ -43,6 +43,18 @@ class Settings:
     # Links zu Impressum und Datenschutzhinweisen (den Rechtstext stellt der Betreiber),
     # geprüft beim Start.
     rechtliches: Rechtliches = field(default_factory=Rechtliches)
+    # Auswertungsjobs: eigene Auftragsdatenbank (nie scanview.db) und Ablage der
+    # Berichte, die der Import-Worker schreibt. Beide None = Auswertungen aus (Routen 404).
+    jobs_db: Path | None = None
+    berichte_dir: Path | None = None
+    # Hochladen und neue Projekte aus Uploads: aus, bis SCANVIEW_IMPORT=1 (dann Routen 404 aus).
+    # Braucht den Jobläufer (jobs_db), den Upload-Ordner außerhalb der Paketwurzel und eine
+    # Quote ohne Standardwert (der Betreiber legt sie fest).
+    import_enabled: bool = False
+    uploads_dir: Path | None = None
+    upload_quote_bytes: int = 0
+    # Freier Platz, der nach einem angekündigten Upload im Upload-Ordner bleiben muss.
+    upload_reserve_bytes: int = 10 * 1024**3
 
     @property
     def db_path(self) -> Path:
@@ -82,7 +94,31 @@ class Settings:
         if quelltext_url is not None and not _HTTPS_URL.fullmatch(quelltext_url):
             raise SystemExit("SCANVIEW_QUELLTEXT_URL muss eine https://-Adresse ohne "
                              "Leerzeichen sein.")
+        jobs_db = os.environ.get("SCANVIEW_JOBS_DB", "").strip()
+        berichte = os.environ.get("SCANVIEW_BERICHTE", "").strip()
+        if bool(jobs_db) != bool(berichte) or not all(
+                Path(p).is_absolute() for p in (jobs_db, berichte) if p):
+            raise SystemExit("SCANVIEW_JOBS_DB und SCANVIEW_BERICHTE nur gemeinsam und als "
+                             "absolute Pfade setzen.")
+        import_an = os.environ.get("SCANVIEW_IMPORT", "0").strip() == "1"
+        uploads = os.environ.get("SCANVIEW_UPLOADS", "").strip()
+        roh_quote = os.environ.get("SCANVIEW_UPLOAD_QUOTE_GB", "").strip()
+        if import_an:
+            if not jobs_db:
+                raise SystemExit("SCANVIEW_IMPORT=1 braucht den Jobläufer (SCANVIEW_JOBS_DB).")
+            if not uploads or not Path(uploads).is_absolute():
+                raise SystemExit("SCANVIEW_IMPORT=1 braucht SCANVIEW_UPLOADS als absoluten Pfad.")
+            if not (roh_quote.isascii() and roh_quote.isdigit() and 0 < int(roh_quote) <= 100000):
+                raise SystemExit("SCANVIEW_IMPORT=1 braucht SCANVIEW_UPLOAD_QUOTE_GB als ganze "
+                                 "Zahl von 1 bis 100000 (kein Standardwert).")
+            if Path(uploads).resolve().is_relative_to(Path(need("SCANVIEW_DATA")).resolve()):
+                raise SystemExit("SCANVIEW_UPLOADS darf nicht unter SCANVIEW_DATA liegen.")
         return Settings(
+            import_enabled=import_an,
+            uploads_dir=Path(uploads) if import_an else None,
+            upload_quote_bytes=int(roh_quote) * 1024**3 if import_an else 0,
+            jobs_db=Path(jobs_db) if jobs_db else None,
+            berichte_dir=Path(berichte) if berichte else None,
             data_dir=Path(need("SCANVIEW_DATA")),
             state_dir=Path(need("SCANVIEW_STATE")),
             origin=origin,

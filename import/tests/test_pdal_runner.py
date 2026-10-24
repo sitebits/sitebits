@@ -113,6 +113,11 @@ def test_docker_args_limit_memory_and_run_as_user(tmp_path):
         "pdal/pdal:latest", ["pdal", "pipeline", "/work/p.json"], {Path("/data"): "/src"}, tmp_path
     )
     assert args[:3] == ["docker", "run", "--rm"]
+    # Härtung (R-E-F-3): kein Netz, keine Capabilities, keine Rechteausweitung, Wurzel nur lesend
+    assert args[args.index("--network") + 1] == "none"
+    assert args[args.index("--cap-drop") + 1] == "ALL"
+    assert args[args.index("--security-opt") + 1] == "no-new-privileges"
+    assert "--read-only" in args and args.index("--network") < args.index("pdal/pdal:latest")
     assert f"--memory={MEMORY_LIMIT}" in args and f"--memory-swap={MEMORY_LIMIT}" in args
     assert MEMORY_LIMIT == "40g"
     assert not any(arg.startswith("--cpus") for arg in args)

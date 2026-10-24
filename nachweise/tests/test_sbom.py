@@ -1488,3 +1488,71 @@ def test_roh_web_fuegt_mediapipe_modell_ein(
     modell = next(k for k in roh.bom['components'] if k['type'] == 'machine-learning-model')
     assert sbom.abdeckung(roh.bom, _artefakt('web', MEDIAPIPE_DATEIEN[-1:])) == []
     assert modell['manufacturer']['name'] == 'Google LLC'
+
+
+# --- Nachweis-SBOM der Werkzeug-Images (nicht ausgeliefert) -------------------------------------
+
+def _falsche_bilder(bom: dict[str, Any], worktree: Path, werkzeuge: object,
+                    arbeit: Path) -> dict[str, str]:
+    """Wie `_roh_images`, ohne Docker: zwei Container mit je einem Paket, alles lückenhaft."""
+    luecken: dict[str, str] = {}
+    for kennung, bild_id in (("pdal", "sha256:" + "a" * 64), ("untwine", "sha256:" + "b" * 64)):
+        cref = f"image:{kennung}"
+        bom["components"] += [
+            {"type": "container", "bom-ref": cref, "name": kennung, "version": "1",
+             "properties": [{"name": "scanview:image-id", "value": bild_id}]},
+            {"type": "library", "bom-ref": f"{kennung}|p", "name": "gdal", "version": "3"}]
+        bom["dependencies"].append({"ref": cref, "dependsOn": [f"{kennung}|p"]})
+        luecken[cref] = luecken[f"{kennung}|p"] = f"Image {kennung}"
+    for d in bom["dependencies"]:
+        if d["ref"] == sbom._haupt(bom)["bom-ref"]:
+            d["dependsOn"] += ["image:pdal", "image:untwine"]
+    return luecken
+
+
+def test_bilder_sbom_eigene_hauptkomponente_ohne_artefakt(monkeypatch: pytest.MonkeyPatch,
+                                                         tmp_path: Path) -> None:
+    monkeypatch.setattr(sbom, "_roh_images", _falsche_bilder)
+    jetzt = datetime(2026, 10, 22, tzinfo=UTC)
+    b = sbom.erzeuge_bilder(tmp_path, {}, version="0.10.3", ersteller=sbom.ERSTELLER,
+                            arbeitsordner=tmp_path / "a", jetzt=jetzt)
+    haupt = b["metadata"]["component"]
+    assert haupt["name"] == "scanview-importbilder" and haupt["version"] == "0.10.3"
+    assert "hashes" not in haupt  # kein Artefakt, also keine erfundenen Hashes oder Dateinamen
+    assert {"name": "scanview:ausgeliefert", "value": "nein"} in b["metadata"]["properties"]
+    # Alles lückenhaft und so ausgewiesen.
+    assert [c["aggregate"] for c in b["compositions"]] == ["incomplete"]
+    refs = {d["ref"] for d in b["dependencies"]}
+    assert {"image:pdal", "pdal|p", "image:untwine", "untwine|p", haupt["bom-ref"]} <= refs
+    # serialNumber deterministisch aus Version und Image-IDs, anders als die eines Artefakts.
+    nochmal = sbom.erzeuge_bilder(tmp_path, {}, version="0.10.3", ersteller=sbom.ERSTELLER,
+                                  arbeitsordner=tmp_path / "b", jetzt=jetzt)
+    assert b["serialNumber"] == nochmal["serialNumber"]
+    andere = sbom.erzeuge_bilder(tmp_path, {}, version="0.10.4", ersteller=sbom.ERSTELLER,
+                                 arbeitsordner=tmp_path / "c", jetzt=jetzt)
+    assert b["serialNumber"] != andere["serialNumber"]
+
+
+def test_erzeuge_alle_import_ohne_images_bilder_getrennt(monkeypatch: pytest.MonkeyPatch,
+                                                        tmp_path: Path) -> None:
+    """B-SBOM-IMAGES: das ausgelieferte Import-SBOM enthält keinen Image-Inhalt; der steht im
+    eigenen Nachweis-SBOM `importbilder`, das nicht ins Gesamt-SBOM (Produkt) eingeht."""
+    wurzel, geschrieben = _cli_vorbereiten(monkeypatch, tmp_path, WEB_DATEIEN)
+    imp = _artefakt("web", WEB_DATEIEN)
+    imp = Artefakt("import", imp.pfad.with_name("scanview-import-0.1.0.tar.gz"), imp.sha256[::-1],
+                   imp.sha512, [])
+    monkeypatch.setattr(sbom, "baue_artefakte", lambda wt, v, z, **kw: Bauergebnis([imp], []))
+    monkeypatch.setattr(sbom, "pruefe_abdeckung", lambda bom, a, aus: None)
+    monkeypatch.setattr(sbom, "_roh_images", _falsche_bilder)
+    ziel = tmp_path / "ziel"
+    e = sbom.erzeuge_alle(wurzel, tmp_path, "0.1.0", ziel)
+    assert set(e.sboms) == {"import", "importbilder"}
+    assert geschrieben == ["scanview-import-0.1.0.cdx.json", "scanview-importbilder-0.1.0.cdx.json",
+                           "scanview-0.1.0.cdx.json"]
+    imp_bom = json.loads(e.sboms["import"].read_text("utf-8"))
+    alle = [k["bom-ref"] for k in sbom.alle_komponenten(imp_bom["components"])]
+    assert not any(r.startswith(("image:", "pdal|", "untwine|")) for r in alle)
+    bilder = json.loads(e.sboms["importbilder"].read_text("utf-8"))
+    assert {k["bom-ref"] for k in bilder["components"]} >= {"image:pdal", "image:untwine"}
+    gesamt = json.loads(e.gesamt.read_text("utf-8"))
+    assert "scanview-importbilder" not in json.dumps(gesamt)

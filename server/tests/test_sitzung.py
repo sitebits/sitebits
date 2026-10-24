@@ -27,6 +27,7 @@ def test_sitzung_mit_cookie(client: TestClient) -> None:
     assert r.json() == {
         "dienst": "scanview",
         "nutzer": {"id": n.id, "name": "N", "email": "n@b.de", "admin": False},
+        "import": False,
         "quelltext_url": None,
     }
 

@@ -86,7 +86,7 @@ Entwurfsangebot, Empfängeransicht am Desktop und mobil).
 
 ### 3D-Ansicht: Tastatur und Einstellungen
 
-Die 3D-Ansicht lässt sich ohne Maus bedienen, soweit die Bedienung auf Tastatur oder Gamepad beruht:
+Die 3D-Ansicht lässt sich ohne Maus bedienen, mit der Tastatur oder einem Controller (Gamepad):
 
 - **Fokus:** Die Leinwand ist per Tab erreichbar und mit Umschalt+Tab wieder verlassbar; Fokus allein
   startet nichts. Esc führt aus jedem Zustand heraus (Dialog, Menü, Begehen).
@@ -94,7 +94,11 @@ Die 3D-Ansicht lässt sich ohne Maus bedienen, soweit die Bedienung auf Tastatur
   Taste `?` oder der Knopf „Bedienung“ öffnet den Dialog „Bedienung“: oben Maus und Finger je
   Ansicht, die aktive zuerst, darunter die Tasten mit der aktuellen Belegung). Sie wirken nicht in Textfeldern und
   Dialogen. Belegung und Bedien-Einstellungen gelten je Browser und werden dort lokal gespeichert.
-- **Begehen:** Bewegen, Drehen und Neigen per Tastatur oder Gamepad, wahlweise Drehen in festen
+- **Controller:** Ein Schema für Übersicht, Begehen, Panorama und Dialoge nach Spielkonvention, mit Symbolen
+  passend zum Controller (PlayStation, Xbox, sonst neutral), einer Kontextleiste, einer abrufbaren
+  Belegungsübersicht und einstellbarer Empfindlichkeit und Vibration. Jede Controller-Funktion gibt es auch per Taste
+  oder Maus; die Belegung steht im Dialog „Bedienung“. Einzelheiten: [Controller-Steuerung](controller.md).
+- **Begehen:** Bewegen, Drehen und Neigen per Tastatur oder Controller, wahlweise Drehen in festen
   Schritten, einstellbares Sichtfeld und Tempo; Bewegungsreduktion des Systems wird beachtet. Das
   Mausrad ändert das Tempo, auch nachdem Esc nur die Zeigersperre gelöst hat; das neue Tempo wird
   angesagt.
@@ -107,7 +111,7 @@ Die 3D-Ansicht lässt sich ohne Maus bedienen, soweit die Bedienung auf Tastatur
 - **Fadenkreuz:** Der Messwert wird als Text angezeigt und nach kurzer Ruhe angesagt (Live-Region);
   Setzen, Abbrechen und Rückfragen sind per Tastatur möglich. Im Panorama gibt es das Fadenkreuz
   ebenfalls, dort ohne laufenden Messwert.
-- **Befund setzen und teilen:** `F` (Gamepad: Y) setzt im Begehen und am Fadenkreuz im Panorama
+- **Befund setzen und teilen:** `F` (Controller: △/Y) setzt im Begehen und am Fadenkreuz im Panorama
   einen Befund am Zielpunkt, sonst der Knopf „Markieren“. Das Formular öffnet sich rechts als
   Inspektor; Esc schließt es und gibt den Fokus zurück. `t` oder der Knopf „Teilen“ erzeugt einen
   Befundlink zum ausgewählten Befund. Ein angefangener Befund bleibt nach einem Verbindungsabbruch
@@ -126,7 +130,8 @@ Die 3D-Ansicht lässt sich ohne Maus bedienen, soweit die Bedienung auf Tastatur
 - **Tastenhinweise:** Eine Leiste nennt die Tasten zum aktuellen Zustand mit der aktuellen
   Belegung und verschwindet für eine Aktion, nachdem sie dreimal ausgeführt wurde. Im Orbit nennt
   eine Zeile davor die Bedienung mit der Maus bzw. auf reinen Touch-Geräten mit dem Finger. Im
-  Einstellungsdialog lassen sich die Hinweise immer zeigen oder zurücksetzen.
+  Einstellungsdialog lassen sich die Hinweise immer zeigen oder zurücksetzen. Wird ein Controller benutzt, tritt die
+  Leiste zurück und eine Controller-Leiste unten mittig nennt die Knöpfe. Ein Tastendruck oder Mausklick stellt zurück.
 - **Bewegungsreduktion:** Ist sie eingeschaltet (System oder Einstellung), ist auch der Wechsel
   zwischen Panoramen ein Schnitt ohne Fahrt.
 - **Ansichtswechsel und Anzeige:** Der Wechsel zwischen Punktwolke und Panorama wird mit einem
@@ -166,13 +171,13 @@ Prüfung nicht als solcher gemeldet werden:
   geöffneten Panels aus; liegt rechts unten kein Panel, steht sie dort. Auf reinen Touch-Geräten erscheint
   sie erst nach dem ersten Tastendruck, in der mobilen Empfängeransicht oben rechts.
 - **Drehen am Fadenkreuz im Panorama** geschieht immer in Schritten (Schrittweite aus dem
-  Einstellungsdialog), auch wenn „Drehen in Schritten“ sonst ausgeschaltet ist. Ein Gamepad
-  steuert das Panorama-Fadenkreuz nicht.
+  Einstellungsdialog), auch wenn „Drehen in Schritten“ sonst ausgeschaltet ist. Der rechte Stick eines
+  Controllers dreht dort stetig, außer wenn „Drehen in Schritten“ gilt.
 - **Befund im Panorama bricht ab, wenn sich die Ansicht ändert.** Dreht die Ansicht oder wechselt
   der Standpunkt, während der Zielpunkt gesucht wird, öffnet sich kein Formular; es kommt eine
   Meldung.
-- **Offenes Formular im Begehen.** Solange es offen ist, steht die Kamera, und die Knöpfe des
-  Gamepads ruhen. Am Panorama-Fadenkreuz drehen die Pfeiltasten nicht, solange es offen ist; mit
+- **Offenes Formular im Begehen.** Solange es offen ist, steht die Kamera, und der Controller
+  ruht (außer der Belegungsübersicht). Am Panorama-Fadenkreuz drehen die Pfeiltasten nicht, solange es offen ist; mit
   der Maus lässt sich das Panorama weiter ziehen. Im Orbit bleibt die Ansicht bedienbar. Der Punkt
   ist in allen Fällen beim Öffnen fest erfasst.
 - **Trenner nur mobil und bei ausgeklappter Karte.** Eingeklappt bleibt die Befundkarte eine

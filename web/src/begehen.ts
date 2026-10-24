@@ -12,7 +12,7 @@ import type { AktionId, HalteAktion } from './tastenbelegung';
 import type { Viewer } from './viewer';
 import { FORMULAR_OFFEN } from './zielpunkt';
 import {
-  blick, drehSchritt, drehe, Haltezustand, SetzZaehler, mausBlick, neigSchritt, PITCH_MAX, schritt, tempoAusRad, tempoText, vignette, yawPitch, zielBeimAustritt,
+  blick, drehSchritt, drehe, dreheUm, Haltezustand, SetzZaehler, mausBlick, neigSchritt, PITCH_MAX, schritt, tempoAusRad, tempoText, vignette, yawPitch, zielBeimAustritt,
 } from './walkControls';
 import type { V3, WalkEingabe, WalkParameter, WalkZustand } from './walkControls';
 
@@ -39,6 +39,9 @@ export interface EingabeQuelle {
   dreh: number;
   neig: number;
   schritte: { dreh: -1 | 0 | 1; neig: -1 | 0 | 1 };
+  /** Fertige Winkeländerung dieses Bilds [rad] (Controller mit eigener Kurve und Beschleunigung, padGefuehl.ts);
+   *  kommt zu `dreh`/`neig` hinzu und gilt nur beim stetigen Drehen. */
+  blick?: { yaw: number; pitch: number };
 }
 
 export interface Begehen {
@@ -66,6 +69,10 @@ export interface Begehen {
   /** Pointer-Lock freigeben und alles Gehaltene loslassen, ohne das Begehen zu beenden (z. B. vor einem
    *  Formular, das Tasten braucht). */
   zeigerFreigeben(): void;
+  /** Tempo eine Raste schneller (+1) oder langsamer (−1), wie das Mausrad; wird nach kurzer Ruhe angesagt. */
+  tempoAendern(richtung: 1 | -1): void;
+  /** Blick waagerecht ausrichten (Neigung 0). */
+  blickWaagerecht(): void;
   /** Befund setzen am Fadenkreuz: dieselbe Warteschlange wie das Setzen (Kamera steht, Eingabereihenfolge
    *  bleibt), aber unabhängig vom Werkzeug. Außerhalb des Begehens wirkungslos. */
   befund(): Promise<void>;
@@ -238,6 +245,7 @@ export function attachBegehen(o: {
       const dreh = klemme1(g('begehen.drehen-links') - g('begehen.drehen-rechts') + (q?.dreh ?? 0));
       const neig = klemme1(g('begehen.neigen-hoch') - g('begehen.neigen-runter') + (q?.neig ?? 0));
       if (dreh !== 0 || neig !== 0) z = { ...z, ...drehe(z.yaw, z.pitch, dreh, neig, DREHRATE_RAD_S, dt) };
+      if (q?.blick && (q.blick.yaw !== 0 || q.blick.pitch !== 0)) z = { ...z, ...dreheUm(z.yaw, z.pitch, q.blick.yaw, q.blick.pitch) };
     }
     const p: WalkParameter = {
       tempo, schnellFaktor: SCHNELL_FAKTOR, zeitkonstante: ZEITKONSTANTE_S, hoeheHalten: e.hoeheHalten, reduziert: reduziert(),
@@ -406,6 +414,16 @@ export function attachBegehen(o: {
   // und das Begehen läuft weiter, die Orbit-Steuerung bleibt gesperrt. Ohne diesen Zweig war das Rad dann tot
   // (Handtest 0.3.0). Das neue Tempo wird nach kurzer Ruhe angesagt, sonst bliebe die Änderung im Stand unsichtbar.
   let tempoAnsage: number | null = null;
+  const aendereTempo = (deltaY: number): void => {
+    const neu = tempoAusRad(tempo, deltaY);
+    if (neu === tempo) return;
+    tempo = neu;
+    if (tempoAnsage !== null) window.clearTimeout(tempoAnsage);
+    tempoAnsage = window.setTimeout(() => {
+      tempoAnsage = null;
+      if (aktiv) o.melde(tempoText(tempo));
+    }, TEMPO_ANSAGE_MS);
+  };
   canvas.addEventListener(
     'wheel',
     (ev) => {
@@ -415,14 +433,7 @@ export function attachBegehen(o: {
         if (ev.deltaY !== 0) o.rueckfrage?.wechsle();
         return;
       }
-      const neu = tempoAusRad(tempo, ev.deltaY);
-      if (neu === tempo) return;
-      tempo = neu;
-      if (tempoAnsage !== null) window.clearTimeout(tempoAnsage);
-      tempoAnsage = window.setTimeout(() => {
-        tempoAnsage = null;
-        if (aktiv) o.melde(tempoText(tempo));
-      }, TEMPO_ANSAGE_MS);
+      aendereTempo(ev.deltaY);
     },
     { passive: false },
   );
@@ -524,6 +535,14 @@ export function attachBegehen(o: {
     },
     zielt,
     zeigerFreigeben,
+    tempoAendern: (r) => {
+      if (aktiv) aendereTempo(-r);
+    },
+    blickWaagerecht: () => {
+      if (!aktiv || angehalten()) return;
+      z = { ...z, pitch: 0 };
+      setzeKamera();
+    },
     befund: () => {
       if (!aktiv) return Promise.resolve();
       if (rueckfrageOffen()) {

@@ -5,7 +5,7 @@
 /* Innen, weil die Leinwand vollflächig ist. */
 #view canvas:focus-visible { outline: 3px solid var(--sv-accent); outline-offset: -3px; }
 
-dialog.sv-dialog { box-sizing: border-box; width: min(44rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); padding: 1rem 1.25rem;
+dialog.sv-dialog { box-sizing: border-box; width: min(44rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); max-height: calc(100dvh - 2rem - var(--sv-sa-oben) - var(--sv-sa-unten)); padding: 1rem 1.25rem;
   background: #1b1d21; color: var(--sv-fg); border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius);
   font: 0.9375rem/1.4 system-ui, sans-serif; overflow: auto; }
 dialog.sv-dialog::backdrop { background: #000a; }
@@ -34,12 +34,53 @@ dialog.sv-dialog .sv-status { color: var(--sv-fg-muted); min-height: 1.4em; }
 
 /* Tastenhinweise (hinweisAnzeige.ts): Platte wie der Live-Wert, unten rechts über der 3D-Ansicht; rückt nach links,
    wenn sie das fokussierte Element verdeckt. Klicks gehen hindurch (darunter kann die Minikarte liegen). */
-.sv-hinweise { position: absolute; right: 8px; bottom: 8px; z-index: 5; display: flex; flex-direction: column; gap: 2px;
+.sv-hinweise { position: absolute; right: calc(var(--sv-sa-rechts) + 8px); bottom: calc(var(--sv-sa-unten) + 8px); z-index: 5; display: flex; flex-direction: column; gap: 2px;
   padding: 6px 10px; background: rgba(0, 0, 0, 0.75); color: #fff; border-radius: var(--sv-radius);
   font: 0.875rem/1.35 system-ui, sans-serif; pointer-events: none; transition: opacity 0.2s, visibility 0.2s; }
-.sv-hinweise.sv-links { right: auto; left: 8px; }
-.sv-hinweise.sv-leer { opacity: 0; visibility: hidden; }
+.sv-hinweise.sv-links { right: auto; left: calc(var(--sv-sa-links) + 8px); }
+/* Liegt die Leiste auf beiden Seiten auf einem Panel (hinweisAnzeige.ts), tritt sie zurück: die Angaben stehen auch im
+   Dialog „Bedienung“. */
+.sv-hinweise.sv-verdraengt { display: none; }
+/* Leer sofort weg: der Text ist dann schon entfernt, ein Ausblenden zeigte nur die leere Platte (im Panorama bei
+   langsamen Bildern bis zu einer Sekunde, über anderen Hinweisen). Eingeblendet wird weich (@starting-style). */
+.sv-hinweise.sv-leer { display: none; }
+@starting-style { .sv-hinweise { opacity: 0; } }
 .sv-hinweise.sv-ruhig { transition: none; }
 @media (prefers-reduced-motion: reduce) { .sv-hinweise { transition: none; } }
 /* Nur Touch (kein Mauszeiger): Tastenhinweise erst, wenn eine Taste benutzt wurde — das entscheidet hinweisAnzeige.ts
    je Zeile (die Zeile zu den Fingern steht auch ohne Tastatur). */
+
+/* Schmale Fenster (Handy hoch): Dialog fast randlos, Tabellen kleiner und mit Silbentrennung statt gequetschter
+   Spalten (Tabellen bleiben Tabellen — display-Änderungen an Zeilen nähmen Safari die Tabellensemantik). Tippziele 44 px. */
+@media (max-width: 559px) {
+  dialog.sv-dialog { width: calc(100vw - 1rem - var(--sv-sa-links) - var(--sv-sa-rechts)); padding: 0.75rem 0.875rem; }
+  dialog.sv-dialog table { font-size: 0.875em; hyphens: auto; -webkit-hyphens: auto; }
+  dialog.sv-dialog th, dialog.sv-dialog td { padding: 0.3em 0.3em; }
+  dialog.sv-dialog button, dialog.sv-dialog select { min-height: 44px; }
+}
+
+/* Controller (padSteuerung.ts): Kontextleiste unten mittig wie in Spielen und Belegungsübersicht (Create/Ansicht bzw.
+   Touchpad), die padSteuerung.ts in die freie Fläche legt. Klicks gehen durch die Leiste hindurch; die Übersicht ist
+   ein nicht-modaler Bereich (ein offener <dialog> hielte das Begehen an). */
+.sv-pad-leiste { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--sv-sa-unten) + 12px); z-index: 6;
+  display: flex; gap: 0.25em 1.1em; flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 2rem);
+  padding: 6px 14px; background: rgba(0, 0, 0, 0.75); color: #fff; border-radius: 999px;
+  font: 0.9rem/1.35 system-ui, sans-serif; pointer-events: none; }
+.sv-pad-leiste b { display: inline-block; min-width: 1.4em; padding: 0 0.35em; margin-right: 0.1em; text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.55); border-radius: 0.6em; font-weight: 600; }
+.sv-pad-leiste[hidden], .sv-pad-belegung[hidden], .sv-pad-leiste.sv-verdraengt { display: none; }
+/* Handy/Tablet mit Controller: über der unteren Zone und neben dem Blatt (wie die Tastenhinweise, toolbar.css). */
+body.sv-handy:not(.sv-empfang) .sv-pad-leiste { bottom: calc(var(--sv-zone-unten) + 8px);
+  left: calc((100vw + var(--sv-sa-links) - var(--sv-blatt-rechts)) / 2); max-width: calc(100vw - var(--sv-sa-links) - var(--sv-blatt-rechts) - 16px); }
+.sv-pad-belegung { position: fixed; left: 8px; top: 8px; z-index: 7; box-sizing: border-box;
+  width: min(30rem, calc(100vw - 2rem)); max-height: calc(100vh - 6rem); overflow: auto; padding: 0.75rem 1rem;
+  background: var(--sv-surface); color: var(--sv-fg); border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius);
+  font: 0.9rem/1.35 system-ui, sans-serif; }
+.sv-pad-belegung h2 { font-size: 1rem; margin: 0 0 0.25em; }
+.sv-pad-belegung .sv-pad-id { color: var(--sv-fg-muted); font-size: 0.8rem; margin: 0 0 0.5em; overflow-wrap: anywhere; }
+.sv-pad-belegung table { border-collapse: collapse; width: 100%; }
+.sv-pad-belegung th { text-align: left; white-space: nowrap; padding: 0.2em 0.8em 0.2em 0; color: var(--sv-accent); font-weight: 600; }
+.sv-pad-belegung td { padding: 0.2em 0; }
+.sv-pad-belegung p:last-child { color: var(--sv-fg-muted); margin: 0.5em 0 0; }
+dialog.sv-pad-menue .sv-pad-menue-liste { display: flex; flex-direction: column; gap: 0.4em; min-width: 16rem; }
+dialog.sv-pad-menue .sv-pad-menue-liste button { text-align: left; min-height: var(--sv-tippziel); }

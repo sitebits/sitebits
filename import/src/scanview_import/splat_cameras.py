@@ -82,12 +82,12 @@ def world_centers(path: Path) -> dict[str, np.ndarray]:
         root = ET.parse(path).getroot()
         chunks = root.findall(".//chunk")
         if len(chunks) != 1:
-            raise ValueError("Metashape: genau ein Chunk erforderlich")
+            raise ValueError("Kamera-XML: genau ein Chunk erforderlich")
         chunk = chunks[0]
         # Geozentrische/projected CRS-Umrechnung darf nicht still geraten werden.
         if chunk.find("reference") is not None and (chunk.findtext("reference") or "").strip():
             raise ValueError(
-                "Metashape: georeferenziertes XML bitte als label,E,N,H im Paketrahmen exportieren"
+                "Kamera-XML: georeferenziertes XML bitte als label,E,N,H im Paketrahmen exportieren"
             )
         rtext = chunk.findtext("transform/rotation")
         ttext = chunk.findtext("transform/translation")
@@ -95,7 +95,7 @@ def world_centers(path: Path) -> dict[str, np.ndarray]:
         r = np.eye(3) if rtext is None else np.fromstring(rtext, sep=" ").reshape(3, 3)
         t = np.zeros(3) if ttext is None else np.fromstring(ttext, sep=" ")
         if not np.isfinite(scale) or scale <= 0 or not np.allclose(r.T @ r, np.eye(3)):
-            raise ValueError("Metashape: Chunk-Transformation ungültig")
+            raise ValueError("Kamera-XML: Chunk-Transformation ungültig")
         for camera in chunk.findall(".//camera"):
             text = camera.findtext("transform")
             if text is None:

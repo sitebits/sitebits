@@ -1,3 +1,7 @@
 """scanview Import-Werkzeug."""
 
-__version__ = "0.1.0"
+from importlib.metadata import version
+
+# Aus den Paket-Metadaten (import/pyproject.toml), die die Release-Kette mit allen anderen
+# ausgelieferten Teilprojekten abgleicht (nachweise/versionen.py) — keine zweite Stelle.
+__version__ = version("scanview-import")

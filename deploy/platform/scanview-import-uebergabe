@@ -1,0 +1,92 @@
+#!/bin/bash
+# Schaltet fertige Import-Pakete aus der Übergabe frei — gestartet von
+# scanview-import-uebergabe.service (Timer, alle 15 s), als root.
+#
+# Der Import-Worker legt ein mit verify geprüftes Paket als /srv/scanview/uebergabe/<projectId>/
+# ab und wartet auf eine Antwort in /srv/scanview/uebergabe-meldungen/<projectId> (ein Wort). Je
+# Paket ohne Antwort:
+#   1. scanview-paket-freischalten pruefen <id> — alles außer OK wird als Antwort gemeldet;
+#   2. als Nutzer scanview-uebergabe in den Eingang kopieren (neue Inodes, nur Ordner und reguläre
+#      Dateien) — Fehler → KOPIE;
+#   3. das unveränderte Freischalt-Skript als root aufrufen → OK, sonst FREISCHALTEN.
+# Dieses Skript liest keine Dateiinhalte aus der Übergabe, nur Ordnernamen; jeder Name muss die
+# Form einer projectId haben (wie im Freischalt-Skript), sonst bleibt er unbeachtet. Namen mit
+# Punkt (Arbeitsordner der Aufträge) sieht es nicht. Kopieren, Melden und Aufräumen läuft als
+# scanview-uebergabe (runuser), nie als root.
+#
+# Keine Umgebung, keine Optionen, feste Pfade. Exit 2 = falscher Aufruf, 1 = Abbruch, 0 = Lauf
+# beendet (auch wenn einzelne Pakete abgelehnt wurden — die Antwort steht in den Meldungen).
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+export LC_ALL=C
+umask 0077
+cd /
+shopt -s nullglob
+
+NAME=scanview-import-uebergabe
+UEBERGABE=/srv/scanview/uebergabe
+MELDUNGEN=/srv/scanview/uebergabe-meldungen
+FREISCHALTEN=/usr/local/sbin/scanview-paket-freischalten
+KOPIERER=/opt/scanview/server/.venv/bin/scanview-uebergabe
+NUTZER=scanview-uebergabe
+ID_MUSTER='^[a-z0-9][a-z0-9-]{0,63}$'
+WORT_MUSTER='^[A-Z_]{2,32}$'
+
+fehler() {
+	echo "$NAME: Fehler: $*" >&2
+	exit 1
+}
+
+[[ $# -eq 0 ]] || {
+	echo "$NAME: Aufruf ohne Argumente" >&2
+	exit 2
+}
+[[ $EUID -eq 0 ]] || fehler "muss als root laufen."
+for d in "$UEBERGABE" "$MELDUNGEN"; do
+	[[ -d $d && ! -L $d ]] || fehler "$d fehlt oder ist ein Symlink (einrichten.sh legt ihn an)."
+done
+[[ -x $FREISCHALTEN && ! -L $FREISCHALTEN ]] || fehler "$FREISCHALTEN fehlt."
+[[ -x $KOPIERER ]] || fehler "$KOPIERER fehlt (Server-Umgebung)."
+
+als_uebergabe() {
+	runuser -u "$NUTZER" -- "$KOPIERER" "$@"
+}
+
+melden() {
+	als_uebergabe melden "$1" "$2" || echo "$NAME: Meldung $2 für $1 nicht geschrieben." >&2
+}
+
+# Meldungen ohne Paket (der Worker hat es abgeholt) und eigene Reste im Eingang wegräumen.
+als_uebergabe aufraeumen || echo "$NAME: Aufräumen gescheitert." >&2
+
+for eintrag in "$UEBERGABE"/*; do
+	id=${eintrag##*/}
+	if [[ ! $id =~ $ID_MUSTER ]]; then
+		echo "$NAME: Eintrag ohne gültige projectId übersprungen." >&2
+		continue
+	fi
+	if [[ -L $eintrag || ! -d $eintrag ]]; then
+		echo "$NAME: $id ist kein Ordner (Symlink?) — übersprungen." >&2
+		continue
+	fi
+	[[ ! -e $MELDUNGEN/$id && ! -L $MELDUNGEN/$id ]] || continue
+
+	wort=$("$FREISCHALTEN" pruefen "$id" 2>/dev/null) || wort=PRUEFEN
+	[[ $wort =~ $WORT_MUSTER ]] || wort=PRUEFEN
+	if [[ $wort != OK ]]; then
+		echo "$NAME: $id nicht freischaltbar ($wort)." >&2
+		melden "$id" "$wort"
+		continue
+	fi
+	if ! als_uebergabe kopieren "$id"; then
+		echo "$NAME: $id nicht in den Eingang kopiert." >&2
+		melden "$id" KOPIE
+		continue
+	fi
+	if "$FREISCHALTEN" "$id"; then
+		melden "$id" OK
+	else
+		echo "$NAME: Freischalten von $id gescheitert." >&2
+		melden "$id" FREISCHALTEN
+	fi
+done

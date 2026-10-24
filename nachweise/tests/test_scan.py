@@ -7,6 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+import tomllib
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -150,15 +151,24 @@ def test_abdeckung_nach_bom_ref():
     d = fixture()
     d["Results"].append({"Type": "ubuntu", "Packages": [
         {"Identifier": {"PURL": "pkg:deb/ubuntu/zlib1g@1.3", "BOMRef": "pdal|deb-1"}}]})
-    a = abdeckung(bom, d, "import")
+    a = abdeckung(bom, d, "importbilder")
     assert a["komponenten"] == 6                 # ohne type=file
     assert a["gescannt"] == 4        # untwine|deb-1 über dieselbe PURL mit abgedeckt
     assert a["ungescannt"] == {"ohne PURL": 2}   # Dateikomponenten zählen nicht mit
     assert a["nach_typ"] == {"cargo": 1, "node-pkg": 1, "python-pkg": 0, "ubuntu": 1}
-    # Nur beim Import ist der Image-Inhalt ausgenommen; der Rest muss gescannt sein.
+    # Nur im Nachweis-SBOM der Werkzeug-Images ist der Image-Inhalt ausgenommen.
     assert a["ungescannt_pflicht"] == ["wurzel"]
-    # In web/server/mcp gibt es keinen Image-Inhalt: jede ungescannte Komponente zählt.
-    assert abdeckung(bom, d, "web")["ungescannt_pflicht"] == ["pdal|conda-1", "wurzel"]
+    # In jedem Artefakt-SBOM — auch im ausgelieferten Import — zählt jede ungescannte Komponente,
+    # ein Image-Präfix ist dort keine Ausnahme.
+    for artefakt in ("web", "server", "mcp", "import"):
+        assert abdeckung(bom, d, artefakt)["ungescannt_pflicht"] == ["pdal|conda-1", "wurzel"]
+
+
+def test_bilder_name_wie_sbom():
+    from scanview_nachweise import register, sbom, scan
+    assert scan.BILDER == sbom.BILDER == "importbilder"
+    assert "-" not in sbom.BILDER  # Dateinamen werden an „-“ geteilt, Glob scanview-import-*
+    assert sbom.BILDER in register.ARTEFAKTE
 
 
 def test_je_komponente_ordnet_gleiche_purl_allen_images_zu():
@@ -498,10 +508,10 @@ def _repo(tmp_path: Path, vex_statements: list[Any] | None = None) -> Path:
 def _sbom_ordner(tmp_path: Path) -> Path:
     ordner = tmp_path / "ziel" / "sbom"
     ordner.mkdir(parents=True)
-    for name in ("web", "server", "mcp", "import"):
+    for name in ("web", "server", "mcp", "import", "importbilder"):
         komponenten = [{"bom-ref": f"{name}-a", "type": "library",
                         "purl": f"pkg:npm/{name}-a@1"}]
-        if name == "import":       # ungescannter Image-Inhalt ist nur hier ausgenommen
+        if name == "importbilder":  # ungescannter Image-Inhalt ist nur hier ausgenommen
             komponenten.append({"bom-ref": "pdal|conda-x", "type": "library", "name": "gdal"})
         (ordner / f"scanview-{name}-0.1.0.cdx.json").write_text(json.dumps(
             {"components": komponenten}))
@@ -544,6 +554,7 @@ def test_cli_scan_gruen(cli_umgebung, capsys):
     args, ordner, gescannt, _ = cli_umgebung
     assert cli.main(args) == 0
     assert sorted(gescannt) == [("scanview-import-0.1.0.cdx.json", "import"),
+                                ("scanview-importbilder-0.1.0.cdx.json", "importbilder"),
                                 ("scanview-mcp-0.1.0.cdx.json", "mcp"),
                                 ("scanview-server-0.1.0.cdx.json", "server"),
                                 ("scanview-web-0.1.0.cdx.json", "web")]
@@ -659,3 +670,41 @@ def test_cli_db_aktualisieren(tmp_path, monkeypatch, capsys):
 
 def test_standard_cache_ausserhalb_des_repos():
     assert scan.STANDARD_CACHE == Path.home() / ".cache" / "scanview-nachweise" / "trivy"
+
+
+def test_cli_scan_ohne_bilder_sbom_und_image_inhalt_im_import_bricht_ab(cli_umgebung):
+    """Ohne Nachweis-SBOM der Images scannt die CLI nur die Artefakte; steckt Image-Inhalt im
+    ausgelieferten Import-SBOM, ist er dort nicht ausgenommen → scan-abdeckung."""
+    args, ordner, gescannt, _ = cli_umgebung
+    (ordner / "scanview-importbilder-0.1.0.cdx.json").unlink()
+    assert cli.main(args) == 0
+    assert ("scanview-importbilder-0.1.0.cdx.json", "importbilder") not in gescannt
+    (ordner / "scan-ergebnis.json").unlink()
+    (ordner / "scanview-import-0.1.0.cdx.json").write_text(json.dumps({"components": [
+        {"bom-ref": "import-a", "type": "library", "purl": "pkg:npm/import-a@1"},
+        {"bom-ref": "pdal|conda-x", "type": "library", "name": "gdal"}]}))
+    assert cli.main(args) == 2
+
+
+def _lock_versionen(teil: str) -> dict[str, list[str]]:
+    lock = tomllib.loads((Path(__file__).resolve().parents[2] / teil / "uv.lock")
+                         .read_text("utf-8"))
+    versionen: dict[str, list[str]] = {}
+    for p in lock["package"]:
+        versionen.setdefault(p["name"], []).append(p["version"])
+    return versionen
+
+
+def _version(text: str) -> tuple[int, ...]:
+    return tuple(int(x) for x in text.split("."))
+
+
+def test_repo_locks_certifi_und_pillow_mit_korrektur():
+    # B-SCAN-IMPORT-LOCK: GHSA-6q48-6c7w-9gw2 betrifft certifi < 2026.10.19 (mcp-server, import),
+    # die 29 Pillow-CVEs aus dem Scan vom 22.10.2026 betreffen Pillow < 13.0.0 (import). Je Lock
+    # genau eine Version (keine Auflösungsgabel mit Altversion), und sie liegt hinter der Korrektur.
+    for teil in ("mcp-server", "import"):
+        (certifi,) = _lock_versionen(teil)["certifi"]
+        assert _version(certifi) >= (2026, 10, 19), teil
+    (pillow,) = _lock_versionen("import")["pillow"]
+    assert _version(pillow) >= (13, 0, 0)

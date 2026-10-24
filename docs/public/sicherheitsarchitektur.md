@@ -19,7 +19,9 @@ ihr Inhalt ohnehin öffentlich dokumentiert ist oder sie nicht ausgelieferte Tei
 | **Plattform-Server** (`server/`) | Konten, Anmeldung, Sitzungen, Rechte je Projekt, REST-API v1, Bearbeitungsprotokoll, Zugriffsentscheidung für Paketdateien | auf dem Host, eigener Systemnutzer, nur Loopback | ja |
 | **Caddy** mit `forward_auth` (`deploy/platform/`) | TLS, Sicherheits-Header, Weiterleitung an den Server, Auslieferung von Web-Bundle und Paketdateien nach bestandener Zugriffsprüfung | auf dem Host | Konfiguration ja, Caddy selbst vom Betreiber |
 | **MCP-Server** (`mcp-server/`) | Werkzeuge für KI-Assistenten über die API v1 mit einem persönlichen API-Token | beim Nutzer (stdio) | ja |
-| **Import-Werkzeug** (`import/`) | erzeugt Projektpakete aus Scandaten (Punktwolken, Panoramen, Standpunkte) | beim Hersteller bzw. Datenaufbereiter, ohne Netz | nein (internes Werkzeug) |
+| **Import-Worker** (`server/`, Konsole `scanview-import-worker`) | rechnet Aufträge aus der Auftragsdatenbank `jobs.db` (Prüfbericht; neue Projekte aus hochgeladenen Meshes oder Splats), je Auftrag in einer eigenen, isolierten systemd-Unit | auf dem Host, eigener Dienst und Systemnutzer, kein Netz | ja (zuerst nur auf freigegebenen Hosts) |
+| **Übergabe** (`server/`, Konsole `scanview-uebergabe`, root-Skript `scanview-import-uebergabe`) | legt ein fertiges, geprüftes Importpaket in den Eingang und startet das unveränderte Freischalt-Skript | auf dem Host, eigener Systemnutzer ohne Anmeldung, per Timer | ja (nur mit eingeschaltetem Import) |
+| **Import-Werkzeug** (`import/`) | erzeugt Projektpakete aus Scandaten (Punktwolken, Panoramen, Standpunkte, Meshes, Splats) | beim Datenaufbereiter ohne Netz; auf dem Host nur innerhalb der isolierten Aufträge des Workers | auf Hosts mit Jobläufer (Import-Umgebung) |
 | **Projektpaket** | `project.json` (Schema 2), COPC-Punktwolken, Panoramen, Draufsicht | als Dateien unter der Paketwurzel des Hosts | Daten, kein Code |
 
 ## Datenflüsse
@@ -38,6 +40,16 @@ Plattform-Server ── SQLite-Datenbank (Zustand, nur Dienstnutzer)
                     (aggregiert je 15 Minuten, befristet; nur Admins lesen sie aus)
 MCP-Server (beim Nutzer) ──HTTPS + API-Token──> /api/v1/* (wie ein Browser, gleiche Rechte)
 Import-Werkzeug ── erzeugt Pakete offline ── Betreiber stellt sie auf dem Host bereit
+Plattform-Server ── schreibt Aufträge in jobs.db, liest Stand und Berichte (nur lesend)
+Import-Worker ── holt Aufträge aus jobs.db ── startet je Auftrag eine Unit (kein Netz, Paket nur
+                 lesend, ein Arbeitsordner beschreibbar) ── übernimmt geprüfte Dateien nach
+                 <berichte>/<projekt>/<auftrag>/
+Browser/Skript ──HTTPS, Stücke à 64 MiB──> Plattform-Server ── schreibt nach <uploads>/<id>/
+                 (außerhalb der Paketwurzel, nie ausgeliefert; liest davon nur Kopfbytes)
+Import-Worker ── neues Projekt: Unit mit dem eigenen Upload nur lesend ── neu-ohne-wolke, verify
+                 ── Paketbaum geprüft ── <übergabe>/<projekt>/
+Timer (root) ── scanview-uebergabe (eigener Nutzer) kopiert in den Eingang ── Freischalt-Skript
+                 (unverändert) ── Meldung (ein Wort) ── Import-Worker
 ```
 
 - Der Viewer lädt ausschließlich von der eigenen Origin (Content-Security-Policy
@@ -52,12 +64,16 @@ Import-Werkzeug ── erzeugt Pakete offline ── Betreiber stellt sie auf de
 
 | Grenze | Schutzmaßnahme |
 |---|---|
-| Internet ↔ Caddy | TLS mit HSTS; Sicherheits-Header auch auf Fehlerantworten; Körpergrößen begrenzt (`/auth/*` 64 KB, `/api/*` 1 MB); `noindex` |
+| Internet ↔ Caddy | TLS mit HSTS; Sicherheits-Header auch auf Fehlerantworten; Körpergrößen begrenzt (`/auth/*` 64 KB, `/api/*` 1 MB, nur Upload-Stücke `PUT /api/v1/uploads/*/dateien/*` 65 MiB und die Upload-Ankündigung `POST /api/v1/uploads` 13 MiB); `noindex` |
 | Caddy ↔ Plattform-Server | nur über Loopback; der Dienst ist von außen nicht erreichbar; die interne Zugriffsprüfung `/api/authz` ist von außen gesperrt |
 | Browser ↔ Plattform-Server (Sitzung) | Cookie `__Host-` mit `Secure`, `HttpOnly`, `SameSite=Lax`, ohne Domain; ändernde Anfragen nur mit eigener `Origin` und Header `X-Scanview` |
 | Werkzeug/KI ↔ API (Token) | persönliches Token nur für `/api/v1/*`, nie für Paketdateien, Verwaltung, Statistik oder Konto; Umfang lesen bzw. lesen+schreiben; Rechte nie über das Konto hinaus; gedrosselt; widerrufbar |
 | Nutzer ↔ Projekt | Rolle je Projekt (Betrachter, Rückmelder, Bearbeiter, Projektleitung), serverseitig bei jeder Anfrage geprüft; fremde Projekte verhalten sich wie nicht vorhandene (404) |
 | Projektpaket ↔ Plattform | Paket nur lesend eingebunden; Pfade streng geprüft; Paketdateien als Daten ausgeliefert (`sandbox`-CSP, `nosniff`, `Cross-Origin-Resource-Policy`) |
+| Plattform-Server ↔ Import-Worker | nur über die eigene SQLite-Datei `jobs.db` (keine Konten, Sitzungen, Geheimnisse) und die Berichtsablage; der Webdienst startet keine Prozesse (statischer Test), der Worker lädt vom Server nur das Auftragsmodul (Importtest). Auftragstypen und Optionen sind feste Aufzählungen, die Argumentliste des Prüfers enthält nur geprüfte IDs und Profilnamen; der Worker prüft eingetragene Aufträge erneut. Was der Worker zurückschreibt, liest der Webdienst als fremde Eingabe (Urteil, Zählung, Dateien ohne Symlinks, Größe begrenzt). Die Freigabe eines Berichts für Bearbeiter liegt in `scanview.db`, außer Reichweite des Workers |
+| Uploader (Admin, Browser oder Skript) ↔ Plattform-Server | nur Admins der Instanz, nur mit `SCANVIEW_IMPORT=1` (sonst 404); Quote ohne Standardwert vor jeder Annahme, Plattenreserve; Pfade bis Tiefe 6 nach Positivliste, ohne `.`/`..`, ohne Groß/Klein-Dubletten, höchstens 10 000 Dateien; angelegt Segment für Segment über Ordner-Deskriptoren mit `O_NOFOLLOW`; Stücke nur an der angekündigten Stelle in fester Größe mit SHA-256 je Stück (sonst zurückgenommen), SHA-256 je Datei nachgerechnet; Endung und Kopfbytes müssen passen, Archive abgelehnt; halbe Uploads nach 24 h ohne Fortschritt entfernt. Der Webdienst liest vom Inhalt nur Kopfbytes |
+| Import-Worker ↔ Übergabe ↔ Freischalten | Der Worker schreibt fertige Pakete nur in die Übergabe, nie in Eingang oder Paketwurzel, und hat weder sudo noch Rechte am Eingang. Ein root-Timer startet `scanview-uebergabe` als eigenen Nutzer (nur Gruppe `scanview-deploy`, nie `scanview`): er kopiert das Paket mit neuen Inodes in den Eingang (nur Ordner und reguläre Dateien, ein Name je Datei, Grenzen); danach ruft root das unveränderte Freischalt-Skript, das alles erneut prüft. root liest dabei keine Dateiinhalte aus der Übergabe, nur geprüfte Ordnernamen. Das Ergebnis geht als ein Wort an den Worker zurück |
+| Import-Worker ↔ Auftrag (fremde Dateien) | Annahme: jeder Parser ist angreifbar. Je Auftrag eine transiente systemd-Unit: `PrivateNetwork`, Adressfamilien nur IP (kein Unix-Socket — sonst erreicht ein Job den Bus des User-Managers und startet eine Unit ohne Grenzen), `/run/user`, `/run/dbus`, `/run/systemd` unsichtbar, Pakete und Berichte anderer Projekte unsichtbar, `ProtectSystem=strict`, nur der Arbeitsordner beschreibbar, `NoNewPrivileges`, eigener PID-Namensraum, `RestrictNamespaces`, RAM ohne Swap, Laufzeit, Prozesse und Dateigröße begrenzt; Parallelität 1. Selbsttest beim Start (kein Netz, kein DNS, kein Unix-Socket, nichts außerhalb beschreibbar, RAM-Grenze greift), sonst startet der Worker nicht. Ausgabe nur nach Positivliste (reguläre Dateien, keine Links, Namen und Größe begrenzt) |
 | Dienst ↔ Betriebssystem | eigener Systemnutzer ohne Anmeldung, gehärtete systemd-Unit (unten), Schreibrecht nur auf das Zustandsverzeichnis |
 | MCP-Server ↔ KI-Anbieter | Werkzeugergebnisse gehen an den Anbieter des Sprachmodells; ab Werk datensparsam (Namen anderer Konten und Token-Namen pseudonymisiert, Freitexte ausgeblendet), Originaldaten nur mit `SCANVIEW_MCP_PERSONENDATEN=voll` als Entscheidung des Verantwortlichen; Hinweise in `mcp-server/README.md`, Lese-Token empfohlen |
 
@@ -120,6 +136,8 @@ Import-Werkzeug ── erzeugt Pakete offline ── Betreiber stellt sie auf de
 | IP-Adresse fehlgeschlagener Passwort-Anmeldungen | Abwehr von Passwort-Raten (fail2ban) | nur Systemjournal, nie Datenbank | nach Journal-Rotation des Hosts |
 | Zugriffslog von Caddy (IP-Adresse, Pfad, Status, Zeit je Anfrage) | Betrieb und Fehlersuche; Log des Betreibers, nicht der Anwendung | Log bzw. Journal von Caddy | nach Einstellung des Betreibers; IP-Adressen gekürzt, wenn die Härtung (Betriebsanleitung, Punkt 6) umgesetzt ist |
 | Projektpakete (Punktwolken, Panoramen) | Anzeige | Paketwurzel, nur lesend | vom Betreiber verwaltet |
+| Uploads (Dateien mit relativen Pfaden, Größe, SHA-256, hochladendes Konto, Zeiten) | Neues Projekt aus hochgeladenen Daten | Upload-Ordner des Hosts (außerhalb der Paketwurzel), Angaben in der Datenbank | bis zum Löschen durch einen Admin, spätestens 24 h nach dem letzten Fortschritt (außer ein offener Import liest sie); nicht in der Sicherung |
+| Auswertungen: Auftrag (Typ, Optionen, startendes Konto, Zeiten, Urteil) und Bericht (`ergebnis.json`, HTML, Karten) | Prüfbericht auf Anforderung der Projektleitung | `jobs.db` und Berichtsablage des Hosts; Freigabe für Bearbeiter in der Datenbank | bis die Projektleitung löscht; Löschen entfernt Ordner, Auftrag und Freigabe, im Protokoll bleibt nur, dass gelöscht wurde |
 | Lokaler Befundentwurf (Formularinhalt, Zielpunkt, Blickposition, verkleinertes Vorschaubild) | ein angefangener Befund übersteht einen Verbindungsabbruch | IndexedDB des Browsers, je Konto und Projekt; geht nicht an den Server | bis zur Bestätigung durch den Server (ohne Speicherung am Server: bis zum Speichern im Browser), zum Verwerfen oder zum Abmelden im Portal (löscht die Entwürfe aller Konten dieses Browsers); ohne diese Anlässe bleibt er im Browser liegen, bis dasselbe Konto das Projekt dort wieder öffnet — ist er dann älter als 30 Tage, trägt er einen Zeitpunkt mehr als einen Tag in der Zukunft oder ist er unlesbar, wird er gelöscht statt angeboten. Das Ablaufen der Sitzung allein löscht nicht. |
 | Lokale Merkpunkte ohne Schreibrecht am Server (Titel, Kategorie, Notiz, Position), etwa eines Betrachters | wer nicht ins Projekt schreiben darf, kann sich trotzdem Stellen im Viewer merken | `localStorage` des Browsers, je Projekt, **nicht** je Konto; geht nicht an den Server | bis zum Löschen im Viewer oder der Websitedaten des Browsers; Abmelden löscht sie nicht. Ein anderes Konto im selben Browser ohne Schreibrecht sieht sie; ein Konto mit Bearbeiterrecht bekommt angeboten, sie ins Projekt zu übernehmen (dann unter seinem Namen). Auf gemeinsam genutzten Geräten nach der Arbeit die Websitedaten löschen. |
 
@@ -143,6 +161,8 @@ unverändert.
 | Viewer/Portal | eigene Origin | immer | CSP `connect-src 'self'` |
 | MCP-Server | die konfigurierte scanview-Instanz | bei jedem Werkzeugaufruf | nur `/api/v1/*`, gedrosselt je Token |
 | Import-Werkzeug | — | nie | läuft offline |
+| Übergabe und Freischalten | — | nie | eigene Unit ohne Netz |
+| Import-Worker und seine Aufträge | — | nie | je Auftrag `PrivateNetwork=yes`, nur IP-Adressfamilien (im leeren Netz-Namensraum); geplante Ausnahme PVGIS-Abruf für Sonnenberichte als eigener Schritt ohne fremde Dateien, nur zum JRC-Host (noch nicht gebaut) |
 
 ## STRIDE je Komponente
 
@@ -217,7 +237,74 @@ ausweiten).
 |---|---|---|---|
 | T | manipuliertes oder fehlerhaftes Paket | Plattform liest nur Schema 2, prüft Projektkennung und Ordnernamen, lehnt Symlinks und defekte `project.json` mit Journal-Eintrag ab; Pakete werden nie überschrieben | NT-PFADE; B-WB-N4 (behoben) |
 | E | Zugang zum Bereitstellen von Paketen wird zu root auf dem Host | Upload ohne sudo in einen Eingang außerhalb der ausgelieferten Daten; sudo nur für ein root-eigenes Freischalt-Skript (feste Pfade, keine Optionen, Prüfung der Projektkennung); es nimmt den Upload vor jeder Prüfung weg, prüft über Datei-Deskriptoren ohne Symlink-Folgen (nur Einträge des Hochladenden, keine ACLs oder anderen erweiterten Attribute, keine Hardlinks) und schaltet eine Kopie in neuen root-Dateien frei (offen gehaltene Schreibzugriffe des Hochladenden erreichen sie nicht); Deploy-Nutzer weder root noch in der Dienstgruppe | NT-FREISCHALTEN (Tests des Freischalt-Skripts als root im Wegwerf-Container); B-WB-M4 (behoben) |
-| E | Werkzeuge der Paketaufbereitung mit Schwachstellen | Werkzeuge in Containern ohne Netz; nicht Teil der Auslieferung | B-SCAN-IMG-PDAL, B-SCAN-IMG-UNTWINE, B-LK-UNTWINE (offen, nur Import) |
+| E | Werkzeuge der Paketaufbereitung mit Schwachstellen | Container-Werkzeuge (PDAL, untwine) laufen nur beim Datenaufbereiter, ohne Netz; auf den Host kommt ab Manifest-Schema /3 der Import-Code mit einer Umgebung aus `import/uv.lock`, die Images werden dort weder gebaut noch geladen und kein Auftrag erreicht Docker oder Podman. Ihr Inhalt steht im eigenen, nicht ausgelieferten Nachweis-SBOM `importbilder` (archiviert, informativ gescannt); das ausgelieferte Import-SBOM enthält nur die uv.lock-Umgebung | B-SCAN-IMG-PDAL, B-SCAN-IMG-UNTWINE, B-LK-UNTWINE (offen, beim Datenaufbereiter); B-SBOM-IMAGES behoben; `server/tests/test_isolation_import.py` |
+
+### Import-Worker und Auswertungsjobs
+
+| | Bedrohung | Maßnahme | Nachweis |
+|---|---|---|---|
+| E | Parser-Schwachstelle in einem Auftrag führt zu Code im Job | Job ohne Netz, ohne Unix-Sockets, ohne neue Rechte, Dateisystem nur lesend bis auf den eigenen Arbeitsordner, eigener PID-Namensraum; ein Ausbruch träfe den Worker-Nutzer (Auftragsdatenbank, Berichte), nicht Konten oder Sitzungen | `server/tests/test_isolation.py` (echtes `systemd-run`: Netz, DNS, Bus, Schreiben außerhalb, unsichtbare Pfade, Gegenprobe) |
+| E | Webdienst wird übernommen und startet Prozesse oder Container | Webdienst ohne Prozessstarts außer `git` (Git-Export), kein Docker-Socket; Aufträge nur als Zeilen in `jobs.db` mit fester Typ- und Optionsliste | `server/tests/test_trennung_worker.py`, `server/tests/test_auswertungen.py` |
+| T | Job fälscht Ergebnis oder Status | Status aus der Zusammenfassung von systemd, nicht aus der Job-Ausgabe (die geht in eine Datei); Ergebnis nur mit gültigem Gesamturteil, Dateien nach Positivliste; Freigabe für Bearbeiter nur in `scanview.db` | `server/tests/test_worker.py`, `test_isolation.py::test_job_kann_zusammenfassung_nicht_faelschen` |
+| I | Bericht erreicht Unbefugte oder wird als Seite mit Skript ausgeliefert | Berichte nur über den Webdienst mit Projektrechten (Projektleitung und Admin, Bearbeiter nach Freigabe), als Download mit `sandbox`-CSP ohne Skripte, `nosniff`; Lesezugriff protokolliert; Löschen entfernt Ordner, Auftrag und Freigabe, das Protokoll behält nur „gelöscht“ | `server/tests/test_auswertungen.py` |
+| D | Aufträge füllen Speicher, Platte oder Warteschlange | RAM je Typ (Prüfen 2 GB) ohne Swap, Laufzeit, Prozesse, Dateigröße, Plattenreserve vor dem Start, Parallelität 1, höchstens 3 offene Aufträge je Projekt | `test_isolation.py` (RAM, Zeit), `test_worker.py`, `test_auswertungen.py` |
+| R | Wer hat gerechnet, freigegeben, gelöscht? | Bearbeitungsprotokoll `auswertung.gestartet`/`.freigabe`/`.geloescht` mit Kanal und Token-Name; Start per Token für KI-Agenten erlaubt, Freigabe und Löschen nicht | `test_auswertungen.py` |
+| D | Worker stirbt mitten im Auftrag | Beim Start: verwaiste Units stoppen, „laufend“ wird „abgebrochen“, Arbeitsordner leer; Herzschlag in `jobs.db`, `/api/gesundheit` meldet „still“ | `test_isolation.py::test_neustart_stoppt_verwaiste_unit`, `test_worker.py` |
+
+Grenzen: Pakete und Berichte anderer Projekte sieht der Job nicht (Paketwurzel und Berichtsablage als leeres
+`tmpfs`, darin nur das eigene Paket lesend und der eigene Arbeitsordner), Prozesse außerhalb seines PID-Namensraums
+auch nicht. Das übrige Dateisystem bleibt lesbar (Systemdateien, Import-Umgebung; am Arbeitsplatz `/home` nur
+lesend, auf dem Server `SCANVIEW_JOBS_PROTECT_HOME=tmpfs`); weitere Pfade wie der Zustand des Webdienstes kommen
+über `SCANVIEW_JOBS_UNSICHTBAR` hinzu. Podman rootless folgt nach einem Spike; bis dahin ist
+`systemd-run` der Weg.
+
+Gemessen im User-Manager (`systemd-run --user`, systemd 262, Arbeitsplatz, 21.10.2026):
+
+| Property | Ergebnis |
+|---|---|
+| `PrivateNetwork=yes` | wirkt: nur `lo`, Verbindung zu 1.1.1.1:443 „Network is unreachable“ |
+| `RestrictAddressFamilies=AF_INET` + `=AF_INET6` | wirkt: kein `AF_UNIX`/`AF_NETLINK`; damit keine Namensauflösung über systemd-resolved und kein Bus. Je Familie ein eigenes `-p` (Liste in einem Wert lehnt `systemd-run` ab). **Ohne** diese Sperre erreicht ein Job mit `PrivateNetwork` den Bus des User-Managers, startet per `systemd-run --user` eine Unit ohne Grenzen und hat dort volles Netz (nachgewiesen, Gegenprobe im Test) |
+| `InaccessiblePaths=` | wirkt (Datei unlesbar) |
+| `TemporaryFileSystem=…:ro`, `BindReadOnlyPaths=`, `BindPaths=` | wirken (fremde Projekte unsichtbar, eigenes Paket nur lesend) |
+| `ProtectSystem=strict` + `ReadWritePaths=` | wirken: außerhalb des Arbeitsordners „Read-only file system“, auch `/tmp` und `/var/tmp` |
+| `ProtectHome=read-only` / `tmpfs` | wirken (`tmpfs`: `/home` leer) |
+| `NoNewPrivileges=yes` | wirkt (`NoNewPrivs: 1`) |
+| `PrivateDevices=yes` | wirkt (`/dev` 18 statt 218 Einträge) |
+| `RestrictNamespaces=yes` | wirkt (`unshare(CLONE_NEWUSER)` scheitert) |
+| `PrivatePIDs=yes` | wirkt (nur PID 1 sichtbar; braucht systemd ≥ 257). Folge: der Job ist PID 1 und ignoriert SIGTERM ohne eigenen Handler, deshalb `TimeoutStopSec=10` |
+| `MemoryMax=` + `MemorySwapMax=0` | wirken (`oom-kill`), sofern `memory` an `user@<uid>.service` delegiert ist; der Selbsttest prüft das: ein Kindprozess fordert 256 MB unter 64 MB Grenze, die Probe-Unit trägt als einzige `OOMPolicy=continue` (endet also nicht als `oom-kill`) und gilt nur als bestanden, wenn das Kind per SIGKILL starb und der Zähler `oom` der eigenen `memory.events` stieg — lesbar trotz `ProtectControlGroups=yes`, gemessen 22.10. mit systemd 262. Gegenprobe ohne `MemoryMax` und mit 1024 MB Grenze: „offen“ (`test_isolation.py`) |
+| `RuntimeMaxSec=`, `TasksMax=`, `LimitFSIZE=` | `RuntimeMaxSec` wirkt (`timeout`); die anderen angenommen, nicht einzeln gemessen |
+| `ProtectKernel*`, `ProtectControlGroups`, `ProtectClock`, `ProtectHostname`, `LockPersonality`, `RestrictRealtime`, `RestrictSUIDSGID`, `SystemCallArchitectures`, `PrivateIPC` | angenommen, Wirkung nicht einzeln gemessen |
+| `ProtectProc=invisible` | ohne Wirkung im User-Manager (nicht gesetzt; `PrivatePIDs` deckt es ab) |
+| `PrivateTmp=yes` | nicht gesetzt: scheitert mit 226/NAMESPACE, wenn der Arbeitsordner unter `/tmp` liegt; `TMPDIR` zeigt stattdessen in den Arbeitsordner |
+
+Voraussetzungen auf dem Host: systemd ≥ 257, cgroup v2 mit `memory` in `cgroup.subtree_control` von
+`user@<uid>.service`, Linger für den Dienstnutzer (oder `SCANVIEW_JOBS_SYSTEMD=system`), dazu
+`dbus-user-session`: `systemd-run --user --wait` braucht den Bus des User-Managers, der private
+Socket allein reicht nicht. `einrichten.sh` prüft das vor jeder Änderung, legt Nutzer, Rechte und
+Units an und wartet auf den bestandenen Selbsttest ([Betriebsanleitung](betrieb.md), Abschnitt
+„Jobläufer“). Die Worker-Unit selbst hat kein IP-Netz und erreicht ihren User-Manager nur
+über `/run/user/<uid>`; die RAM-Grenze aller Aufträge zusammen liegt auf `user@<uid>.service`, weil
+die Aufträge dort laufen und nicht in der Worker-Unit.
+
+#### Uploads und neue Projekte
+
+| | Bedrohung | Maßnahme | Nachweis |
+|---|---|---|---|
+| E | Nicht-Admin oder Lese-Token legt Uploads oder Projekte an | nur Admins (Nicht-Admins 404 wie Verwaltungswege, auch bei kaputtem Körper), Lese-Token 403; Schalter `SCANVIEW_IMPORT` aus → 404 | `server/tests/test_uploads_negativ.py` |
+| T | Pfadtricks im Upload (`..`, `./`, absolute Pfade, Steuerzeichen, Dubletten, Symlink-Tausch) | Positivliste je Segment mit `fullmatch`, Tiefe und Anzahl begrenzt, Ablage über Ordner-Deskriptoren ohne Symlink-Folgen; ein getauschter Ordner führt zu Absage, nie zum Schreiben außerhalb | `test_uploads_negativ.py`, `test_uploads.py::test_kein_pfad_ausserhalb_ueber_symlink` |
+| T | verfälschte oder doppelt gesendete Stücke | `Content-Range` an der Stückgrenze in fester Größe, `Content-Digest` je Stück, Stand per Vergleich weitergeschoben (doppeltes PUT schreibt nicht zweimal), eine Sperre je Datei; SHA-256 je Datei nachgerechnet | `test_uploads.py` |
+| D | Uploads füllen die Platte | Quote vor der Annahme (angekündigte Größen zählen, auch halber Uploads), Plattenreserve, Aufräumen nach 24 h | `test_uploads.py` |
+| E | Parser-Schwachstelle im Import (Mesh-, Splat-Leser) | Auftrag isoliert wie oben, nur der eigene Upload lesend sichtbar, andere Uploads, Pakete, Berichte und Übergabe unsichtbar; kein Container: kein Docker-Socket, kein `docker`/`podman`, keine Namensräume; texturierte Meshes (bräuchten einen Container für die Texturkodierung) und Punktwolken werden noch nicht angenommen | `server/tests/test_isolation_import.py` (echtes `systemd-run`, mit Gegenprobe) |
+| T | Auftrag legt Links, Hardlinks oder Sonderdateien ins Paket | Worker prüft den Paketbaum vor der Übergabe, `scanview-uebergabe` beim Kopieren erneut, das Freischalt-Skript ein drittes Mal | `test_worker_import.py`, `test_uebergabe.py`, NT-FREISCHALTEN |
+| E | übernommener Worker schaltet frei | Worker hat kein sudo und keinen Zugang zum Eingang; freigeschaltet wird nur über den Nutzer `scanview-uebergabe` und das unveränderte Skript (prüft Projektkennung, `VORHANDEN`, Eigentümer, Rechte) | `test_uebergabe.py`; Deploy-Probe |
+| R | Wer hat hochgeladen, gestartet, abgebrochen? | Protokoll `upload.angelegt`/`.abgeschlossen`/`.geloescht`/`.abgelaufen`, `import.gestartet`/`.abgebrochen` mit Kanal und Token-Name | Server-Tests |
+
+Projektordner unter `/srv/scanview/berichte` gehören dem Worker-Nutzer; ein übernommener Worker
+könnte einen davon gegen einen Symlink tauschen. Deshalb öffnet der Webdienst jeden Pfadteil relativ
+zum vorigen mit `O_NOFOLLOW` (Ablage, Projekt, Auftrag, Datei — ohne Wettlauf zwischen Prüfung und
+Öffnen) und liefert keine Datei mit mehreren harten Links aus. Nachweis: Tests mit getauschtem
+Projektordner (auch bei bestandener Pfadprüfung) und hart verlinkter Datei.
 
 ### Lieferkette und Auslieferung
 
@@ -234,6 +321,16 @@ wird mit einem offenen Befund der Schwere „hoch“ oder höher in einem ausgel
 veröffentlicht; offene mittlere Befunde zu Authentifizierung, Rechten, Projekttrennung oder
 Datenabfluss blockieren ebenfalls. Die öffentliche Fassung nennt zu offenen Befunden keine
 Einzelheiten, bis eine Korrektur verfügbar ist.
+
+Bewusst getragene Restrisiken des Imports:
+
+- Ein übernommener Import-Worker kann unter jeder noch freien Projektkennung ein Paket freischalten
+  lassen. Rechte hängen daran nicht (neue Projekte sehen zuerst nur Admins), und das Freischalt-Skript
+  überschreibt nie ein vorhandenes Paket.
+- Ein Paket ohne Punktwolke trägt keinen Lage- oder Maßstabsnachweis; der Viewer weist darauf hin
+  („Modellmaß“), sperrt aber nichts.
+- Wird eine Übergabe nicht bestätigt (Zeitüberschreitung), meldet der Auftrag einen Fehler, das
+  Paket kann aber später noch erscheinen.
 
 Bewusst getragene Restrisiken der Rolle Projektleitung:
 

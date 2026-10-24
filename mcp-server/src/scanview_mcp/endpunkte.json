@@ -19,5 +19,10 @@
   {"werkzeug": "zustaendig_setzen", "methode": "POST", "pfad": "/api/v1/projekte/{pid}/pois/{eid}/faden"},
   {"werkzeug": "frist_setzen", "methode": "POST", "pfad": "/api/v1/projekte/{pid}/pois/{eid}/faden"},
   {"werkzeug": "gewerke_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/gewerke"},
-  {"werkzeug": "paket_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/paket"}
+  {"werkzeug": "paket_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/paket"},
+  {"werkzeug": "auswertung_starten", "methode": "POST", "pfad": "/api/v1/projekte/{pid}/auswertungen"},
+  {"werkzeug": "auswertung_status", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/auswertungen"},
+  {"werkzeug": "auswertung_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/auswertungen/{aid}/ergebnis"},
+  {"werkzeug": "import_starten", "methode": "POST", "pfad": "/api/v1/importe"},
+  {"werkzeug": "import_status", "methode": "GET", "pfad": "/api/v1/importe"}
 ]

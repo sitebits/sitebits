@@ -90,6 +90,7 @@ def write_fixture(
     color_limits: bool = False,
     coord_precision: str = "double",
     bounds: bool = False,
+    coordinate_metadata: str | None = None,
 ) -> FixtureInfo:
     imf = libe57.ImageFile(str(path), "w")
     root = imf.root()
@@ -97,6 +98,8 @@ def write_fixture(
     root.set("guid", libe57.StringNode(imf, _guid()))
     root.set("versionMajor", libe57.IntegerNode(imf, 1))
     root.set("versionMinor", libe57.IntegerNode(imf, 0))
+    if coordinate_metadata is not None:
+        root.set("coordinateMetadata", libe57.StringNode(imf, coordinate_metadata))
     data3d = libe57.VectorNode(imf, True)
     root.set("data3D", data3d)
     guids: list[str] = []

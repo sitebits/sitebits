@@ -15,20 +15,21 @@ werkzeug = "emscripten/emsdk@sha256:2e5a1ae55cc0ef2d0c5d5c87deb4a74bea15c6ae03b2
 bau = "web/vendor/basis/bauen.sh"
 lizenz = "Apache-2.0 AND BSD-3-Clause"
 lizenzbeleg = "web/licenses/zstd-BSD-3-Clause.txt"
-grund = "Upstream-Build erzeugt embind-Aufrufer per Function(); unter der CSP ohne 'unsafe-eval' fehlten Mesh-Texturen still. Eigenbau mit -sDYNAMIC_EXECUTION=0, bitgleich reproduzierbar"
+grund = "Upstream-Build erzeugt embind-Aufrufer per Function(); unter der CSP ohne 'unsafe-eval' fehlten Mesh-Texturen still. Eigenbau mit -sDYNAMIC_EXECUTION=0 und dem zstd-Decoder 1.5.7 statt des mitgelieferten 1.4.9, bitgleich reproduzierbar"
 adr = "2026-10-07-scanview-basis-transcoder-eigenbau"
 
-# Im Quellbaum mitgelieferte Bibliothek; eigene Quelle + Commit, damit die OSV-Ersatzprüfung sie
-# abfragen kann (trivy kennt keinen selbst gebauten C-Code). Version aus zstd/zstd.h (1.4.9),
-# Commit = Tag v1.4.9 (Tag-Objekt 954413f8…, Ziel e4558ffd…).
+# Mitgebaute Bibliothek; eigene Quelle + Commit, damit die OSV-Ersatzprüfung sie abfragen kann
+# (trivy kennt keinen selbst gebauten C-Code). basis_universal v1_50_0 liefert zstd 1.4.9 mit
+# (OSV-2022-15 per Tag); bauen.sh ersetzt den Decoder durch zstd 1.5.7 aus eigenem Checkout.
+# Commit = Tag v1.5.7 (Tag-Objekt ac66b19e…, Ziel f8745da6…).
 [[komponente.enthalten]]
 name = "zstd"
-version = "1.4.9"
+version = "1.5.7"
 quelle = "https://github.com/facebook/zstd"
-commit = "e4558ffd1dc49399faf4ee5d85abed4386b4dcf5"
-tag = "v1.4.9"
+commit = "f8745da6ff1ad1e7bab384bd1f9d742439278e99"
+tag = "v1.5.7"
 lizenz = "BSD-3-Clause"
-teil = "nur der Decoder (zstd/zstddeclib.c laut webgl/transcoder/CMakeLists.txt), keine Kompression"
+teil = "nur der Decoder: zstd/zstddeclib.c, von bauen.sh mit build/single_file_libs/combine.py aus zstd v1.5.7 erzeugt und samt zstd.h/zstd_errors.h im Quellbaum von basis_universal ersetzt (dort 1.4.9), keine Kompression"
 
 [[komponente.datei]]
 pfad = "web/vendor/basis/basis_transcoder.js"
@@ -36,4 +37,4 @@ sha256 = "6f2a04342d3c17c740859938ea678ece979b30ccc2ef89e9879b6af0619b25c1"
 
 [[komponente.datei]]
 pfad = "web/vendor/basis/basis_transcoder.wasm"
-sha256 = "68b26a493951b7840d873637f790d56072ae3a6b8a4e5e9349cae286291092e3"
+sha256 = "23cbe1a04eb8cdda925df80e19ee3dd6ab7a9ffa57afa5dcd183a9a3b402e01a"

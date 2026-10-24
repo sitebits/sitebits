@@ -27,7 +27,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
-from pflicht import auf_schema_1, berichte_dateien, werkzeuge
+from pflicht import auf_schema_1, auf_schema_2, berichte_dateien, werkzeuge
 
 from scanview_nachweise import abschluss, manifest
 from scanview_nachweise.artefakte import Artefakt, Netzschritt
@@ -146,7 +146,8 @@ def _baue_release(ziel: Path, privat: Path, *,
                   trockenlauf: bool = False,
                   aendern: Callable[[dict[str, Any]], None] | None = None) -> Path:
     """Release-Verzeichnis im Deploy-Format: manifest.json, manifest.json.sig, abschluss.json,
-    abschluss.json.sig und artefakte/ mit genau den drei ausgelieferten Tarballs. `aendern`
+    abschluss.json.sig und artefakte/ mit genau den im Manifest als ausgeliefert gekennzeichneten
+    Tarballs (Schema /3: vier, nach `auf_schema_2`/`auf_schema_1`: drei). `aendern`
     verändert das Manifest-dict vor dem Schreiben (dann kanonisch geschrieben und direkt per
     ssh-keygen signiert)."""
     bau = ziel.parent / f"{ziel.name}-bau"
@@ -170,6 +171,7 @@ def _baue_release(ziel: Path, privat: Path, *,
         erstellt=ZEIT)
     (ziel / "artefakte").mkdir(parents=True)
     m = ziel / "manifest.json"
+    manifest_vorher = list(daten_manifest["artefakte"])
     if aendern is None:
         schreibe_manifest(daten_manifest, m)
     else:
@@ -177,8 +179,10 @@ def _baue_release(ziel: Path, privat: Path, *,
         m.write_bytes(kanonisch(daten_manifest))
     signiere(m, privat)
     _signiere_abschluss(ziel, privat)
+    geliefert = {a["name"] for a in daten_manifest.get("artefakte", manifest_vorher)
+                 if a.get("ausgeliefert") is True}
     for a in artefakte:
-        if a.name in manifest.AUSGELIEFERT:
+        if a.name in geliefert:
             shutil.copyfile(a.pfad, ziel / "artefakte" / a.pfad.name)
     return ziel
 
@@ -356,12 +360,40 @@ def _setze_ausgeliefert(name: str, wert: bool) -> Callable[[dict[str, Any]], Non
     return aendern
 
 
-@pytest.mark.parametrize(("name", "wert"), [("mcp", False), ("import", True)])
+@pytest.mark.parametrize(("name", "wert"), [("mcp", False), ("import", False)])
 def test_auslieferungsmenge_fest(tmp_path: Path, schluessel: tuple[Path, Path], name: str,
                                  wert: bool) -> None:
+    """Schema /3: genau web, server, mcp und import — ein /3-Manifest ohne import ist abgelehnt."""
     release = _baue_release(tmp_path / "rel", schluessel[0],
                             aendern=_setze_ausgeliefert(name, wert))
     _abgelehnt(_pruefen(release, schluessel[1]), "manifest")
+
+
+@pytest.mark.parametrize("zurueck", [auf_schema_1, auf_schema_2], ids=["schema-1", "schema-2"])
+def test_altes_schema_mit_import_abgelehnt(tmp_path: Path, schluessel: tuple[Path, Path],
+                                           zurueck: Callable[[dict[str, Any]], None]) -> None:
+    """/1 und /2 lieferten import nicht aus: ein so gekennzeichnetes Manifest ist abgelehnt,
+    auch wenn Signatur und Prüfsummen stimmen."""
+    def aendern(d: dict[str, Any]) -> None:
+        zurueck(d)
+        _setze_ausgeliefert("import", True)(d)
+    release = _baue_release(tmp_path / "rel", schluessel[0], aendern=aendern)
+    ergebnis = _pruefen(release, schluessel[1])
+    _abgelehnt(ergebnis, "manifest")
+    assert "erwartet genau mcp, server, web" in ergebnis.stderr
+
+
+def test_schema_2_ohne_import_angenommen(tmp_path: Path, schluessel: tuple[Path, Path]) -> None:
+    """Archivierte /2-Releases (drei Archive) bleiben prüf- und entpackbar."""
+    release = _baue_release(tmp_path / "rel", schluessel[0], aendern=auf_schema_2)
+    assert sorted(p.name for p in (release / "artefakte").iterdir()) == [
+        f"scanview-{n}-{VERSION}.tar.gz" for n in ("mcp", "server", "web")]
+    assert _pruefen(release, schluessel[1]).returncode == 0
+    ergebnis = _entpacken(release, schluessel[1], tmp_path / "ziel")
+    assert ergebnis.returncode == 0, ergebnis.stderr
+    baum = Path(_stdout_felder(ergebnis)["baum"])
+    assert (baum / "server/uv.lock").is_file() and not (baum / "import").exists()
+    assert "import:" not in _stdout_felder(ergebnis)["artefakte"]
 
 
 def test_artefakt_dateiname_fest(tmp_path: Path, schluessel: tuple[Path, Path]) -> None:
@@ -380,8 +412,8 @@ def test_zusaetzliche_datei_im_release(tmp_path: Path, schluessel: tuple[Path, P
 
 
 def test_zusaetzliches_artefakt(tmp_path: Path, schluessel: tuple[Path, Path]) -> None:
-    """Auch das nicht ausgelieferte import-Artefakt gehört nicht ins Deploy-Verzeichnis."""
-    release = _baue_release(tmp_path / "rel", schluessel[0])
+    """Unter /2 gehört das nicht ausgelieferte import-Artefakt nicht ins Deploy-Verzeichnis."""
+    release = _baue_release(tmp_path / "rel", schluessel[0], aendern=auf_schema_2)
     shutil.copyfile(tmp_path / "rel-bau" / f"scanview-import-{VERSION}.tar.gz",
                     release / "artefakte" / f"scanview-import-{VERSION}.tar.gz")
     _abgelehnt(_pruefen(release, schluessel[1]), "release-verzeichnis")
@@ -444,14 +476,17 @@ def test_entpacken(tmp_path: Path, schluessel: tuple[Path, Path]) -> None:
     assert felder["manifest_sha256"] == hashlib.sha256(roh).hexdigest()
     assert felder["quellcommit"] == QUELLE
     sha = {a["name"]: a["sha256"] for a in daten["artefakte"]}
-    assert felder["artefakte"] == f"web:{sha['web']},server:{sha['server']},mcp:{sha['mcp']}"
+    assert felder["artefakte"] == (f"web:{sha['web']},server:{sha['server']},mcp:{sha['mcp']},"
+                                   f"import:{sha['import']}")
     baum = Path(felder["baum"])
     assert baum.parent == ziel
     assert (baum / "web/dist/index.html").read_bytes() == b"<!doctype html>\n"
     assert (baum / "server/uv.lock").is_file()
     assert (baum / "deploy/platform/scanview-server.service").is_file()
-    # MCP läuft beim Nutzer, nicht auf dem Host: geprüft, aber nicht entpackt.
+    # MCP läuft beim Nutzer, nicht auf dem Host: geprüft, aber nicht entpackt. import (ab /3)
+    # wird entpackt: einrichten.sh baut daraus die Import-Umgebung des Jobläufers.
     assert not (baum / "mcp-server").exists()
+    assert (baum / "import/pyproject.toml").is_file()
     assert stat.S_IMODE((baum / "deploy/platform/einrichten.sh").stat().st_mode) == 0o755
     assert stat.S_IMODE((baum / "server/uv.lock").stat().st_mode) == 0o644
     assert stat.S_IMODE(ziel.stat().st_mode) == 0o700
@@ -640,6 +675,8 @@ def test_konstanten_wie_manifest(monkeypatch: pytest.MonkeyPatch) -> None:
     assert h.NAMESPACE == manifest.NAMESPACE
     assert h.KENNUNG == manifest.KENNUNG
     assert h.AUSGELIEFERT == manifest.AUSGELIEFERT
+    assert h.AUSGELIEFERT_JE_SCHEMA == manifest.AUSGELIEFERT_JE_SCHEMA
+    assert set(h.AUSGELIEFERT_JE_SCHEMA) == set(h.PFLICHT_JE_SCHEMA)
     assert tuple(h.FELDER) == manifest._FELDER
     assert tuple(h.UMGEBUNG_PFLICHT) == manifest.UMGEBUNG_PFLICHT
     assert h.PRUEFUNG_WERTE == manifest.PRUEFUNG_WERTE
@@ -721,8 +758,10 @@ def _shellcheck_da() -> bool:
 @pytest.mark.skipif(not _shellcheck_da(), reason="docker oder gepinntes shellcheck-Image fehlt")
 def test_shellcheck_deploy_skripte() -> None:
     """Gehärteter Lauf über `docker_befehl` wie jedes andere Werkzeug (ohne Netz, nur lesend)."""
-    # Dazu das Freischalt-Skript ohne Endung (läuft als root über sudo, Befund B-WB-M4).
-    skripte = sorted([*(p.name for p in PLATFORM.glob("*.sh")), "scanview-paket-freischalten"])
+    # Dazu die root-Skripte ohne Endung: Freischalten (über sudo, Befund B-WB-M4) und die
+    # Übergabe fertiger Import-Pakete (Timer).
+    skripte = sorted([*(p.name for p in PLATFORM.glob("*.sh")), "scanview-paket-freischalten",
+                      "scanview-import-uebergabe"])
     assert "release-pruefen.sh" in skripte and "einrichten.sh" in skripte
     befehl = docker_befehl(lade_werkzeuge(WERKZEUGE_JSON)["shellcheck"],
                            [f"/skripte/{name}" for name in skripte], {PLATFORM: "/skripte"})
@@ -805,6 +844,34 @@ def test_bootstrap_gueltig_entpackt_und_ruft_einrichten(tmp_path: Path,
     assert r.returncode == 0, r.stderr  # das Test-einrichten.sh ist ein leeres Skript
     assert (wurzel / "scanview-deploy" / VERSION / "deploy/platform/einrichten.sh").is_file()
     assert (wurzel / "scanview-release" / VERSION / "manifest.json").is_file()
+
+
+@pytest.mark.parametrize("zurueck", [auf_schema_1, auf_schema_2], ids=["schema-1", "schema-2"])
+def test_bootstrap_nimmt_archivierte_schemata(tmp_path: Path, schluessel: tuple[Path, Path],
+                                               zurueck: Callable[[dict[str, Any]], None]) -> None:
+    release = _baue_release(tmp_path / "rel", schluessel[0], aendern=zurueck)
+    r, _wurzel = _bootstrap(tmp_path, release, schluessel[1])
+    assert r.returncode == 0, r.stderr
+
+
+@pytest.mark.parametrize("fall", ["drei-unter-3", "vier-unter-2", "schema-unbekannt"])
+def test_bootstrap_auslieferungsmenge_je_schema(tmp_path: Path, schluessel: tuple[Path, Path],
+                                                 fall: str) -> None:
+    """Das Bootstrap-Skript prüft die Auslieferungsmenge des Manifest-Schemas, bevor es etwas
+    entpackt (/3: mit import; /1, /2: ohne; unbekanntes Schema: Abbruch)."""
+    def aendern(d: dict[str, Any]) -> None:
+        if fall == "drei-unter-3":
+            _setze_ausgeliefert("import", False)(d)
+        elif fall == "vier-unter-2":
+            auf_schema_2(d)
+            _setze_ausgeliefert("import", True)(d)
+        else:
+            d["schema"] = "scanview-release-manifest/9"
+    release = _baue_release(tmp_path / "rel", schluessel[0], aendern=aendern)
+    r, wurzel = _bootstrap(tmp_path, release, schluessel[1])
+    assert r.returncode != 0
+    assert "Abbruch: Artefakte" in r.stderr or "Abbruch: Schema" in r.stderr, r.stderr
+    assert not (wurzel / "scanview-deploy" / VERSION).exists()
 
 
 @pytest.mark.parametrize("fall", ["fremde-signatur", "tarball-veraendert", "ohne-abschluss",

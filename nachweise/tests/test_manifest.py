@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from pflicht import auf_schema_1, berichte_dateien, werkzeuge, werkzeuge_roh
+from pflicht import auf_schema_1, auf_schema_2, berichte_dateien, werkzeuge, werkzeuge_roh
 
 from scanview_nachweise import cli, manifest
 from scanview_nachweise.artefakte import Artefakt, Netzschritt
@@ -60,7 +60,7 @@ def eingaben(tmp_path: Path) -> dict[str, Any]:
     art.mkdir()
     sb = tmp_path / "sbom"
     sb.mkdir()
-    for n in ("web", "server", "mcp"):
+    for n in ("web", "server", "mcp", "import"):
         (sb / f"scanview-{n}-0.1.0.cdx.json").write_text(f'{{"n":"{n}"}}', encoding="utf-8")
     (tmp_path / "scan-ergebnis.json").write_text('{"ergebnis":"grün"}', encoding="utf-8")
     return {
@@ -69,12 +69,13 @@ def eingaben(tmp_path: Path) -> dict[str, Any]:
         "exportcommit": EXPORT,
         "artefakte": [_artefakt(art, "web", b"web"), _artefakt(art, "server", b"server"),
                       _artefakt(art, "mcp", b"mcp"), _artefakt(art, "import", b"import")],
-        "sboms": [sb / f"scanview-{n}-0.1.0.cdx.json" for n in ("web", "server", "mcp")],
+        "sboms": [sb / f"scanview-{n}-0.1.0.cdx.json"
+                  for n in ("web", "server", "mcp", "import")],
         "berichte": berichte_dateien(tmp_path / "berichte"),
         "werkzeuge": WERKZEUGE,
         "db_stand": DB,
         "pruefungen": dict(PRUEFUNGEN),
-        "ausgeliefert": {"web", "server", "mcp"},
+        "ausgeliefert": {"web", "server", "mcp", "import"},
         "netzschritte": [NETZ],
         "erstellt": ZEIT,
         "umgebung": dict(UMGEBUNG),
@@ -132,7 +133,7 @@ def test_manifest_inhalt(eingaben):
     assert web == {"name": "web", "datei": "scanview-web-0.1.0.tar",
                    "sha256": hashlib.sha256(b"web").hexdigest(),
                    "sha512": hashlib.sha512(b"web").hexdigest(), "ausgeliefert": True}
-    assert [a["ausgeliefert"] for a in m["artefakte"]] == [True, True, True, False]
+    assert [a["ausgeliefert"] for a in m["artefakte"]] == [True, True, True, True]
     assert m["sboms"] == {p.name: _sha256(p) for p in eingaben["sboms"]}
     assert m["berichte"] == {n: {"datei": p.name, "sha256": _sha256(p)}
                              for n, p in eingaben["berichte"].items()}
@@ -158,7 +159,7 @@ def test_manifest_ohne_exportcommit(eingaben):
     assert e.value.regel == "manifest" and "Exportcommit" in e.value.text
 
 
-@pytest.mark.parametrize("name", ["web", "server", "mcp"])
+@pytest.mark.parametrize("name", ["web", "server", "mcp", "import"])
 def test_manifest_ohne_sbom_eines_ausgelieferten(eingaben, name):
     eingaben["sboms"] = [p for p in eingaben["sboms"] if f"-{name}-" not in p.name]
     with pytest.raises(NachweisFehler, match=f"SBOM fehlt.*{name}"):
@@ -232,7 +233,7 @@ def test_artefakt_hash_weicht_ab(eingaben):
 
 
 @pytest.mark.parametrize("ausgeliefert", [set(), {"web", "mcp"}, {"web", "server"},
-                                          {"web", "server", "mcp", "import"}])
+                                          {"web", "server", "mcp"}])
 def test_ausgeliefert_muss_passen(eingaben, ausgeliefert):
     eingaben["ausgeliefert"] = ausgeliefert
     with pytest.raises(NachweisFehler, match="ausgeliefert"):
@@ -372,6 +373,7 @@ def test_pruefe_artefakte(eingaben, tmp_path):
 
 def test_pruefe_artefakte_nur_ausgeliefert(eingaben, tmp_path):
     m = _bauen(eingaben)
+    auf_schema_2(m)  # /2: import steht nur informativ im Manifest
     (tmp_path / "artefakte" / "scanview-import-0.1.0.tar").unlink()
     with pytest.raises(NachweisFehler) as e:
         pruefe_artefakte(m, tmp_path / "artefakte")
@@ -439,7 +441,12 @@ def test_repo_allowed_signers_passt_zum_oeffentlichen_schluessel():
 # --- Ausgelieferte Artefakte (Konstante) --------------------------------------------------------
 
 def test_ausgeliefert_konstante_r14():
-    assert manifest.AUSGELIEFERT == frozenset({"web", "server", "mcp"})
+    assert manifest.AUSGELIEFERT == frozenset({"web", "server", "mcp", "import"})
+    assert manifest.AUSGELIEFERT_JE_SCHEMA == {
+        SCHEMA_1: frozenset({"web", "server", "mcp"}),
+        SCHEMA_2: frozenset({"web", "server", "mcp"}),
+        SCHEMA_3: frozenset({"web", "server", "mcp", "import"}),
+    }
 
 
 def test_ausgeliefertes_artefakt_fehlt_im_bau(eingaben):
@@ -627,6 +634,8 @@ def test_pflichtlisten_eine_quelle():
 
 SCHEMA_1 = "scanview-release-manifest/1"
 SCHEMA_2 = "scanview-release-manifest/2"
+#: Schema /3: gleiche Pflichtlisten wie /2, dazu wird import ausgeliefert.
+SCHEMA_3 = "scanview-release-manifest/3"
 #: Stand von Schema /1 — eingefroren: archivierte 0.1.0-Manifeste bleiben lesbar.
 BERICHTE_1 = ("stufe-einfrieren", "stufe-register", "stufe-qualitaetstor", "stufe-sbom",
               "stufe-scan", "stufe-negativkontrollen", "stufe-lizenzen", "stufe-matrix",
@@ -642,8 +651,9 @@ WERKZEUGE_2 = (*WERKZEUGE_1, "semgrep", "bandit", "schemathesis", "zap", "caddy-
 
 
 def test_pflichtlisten_je_schema():
-    assert manifest.SCHEMA == SCHEMA_2
-    assert set(manifest.PFLICHT_JE_SCHEMA) == {SCHEMA_1, SCHEMA_2}
+    assert manifest.SCHEMA == SCHEMA_3
+    assert set(manifest.PFLICHT_JE_SCHEMA) == {SCHEMA_1, SCHEMA_2, SCHEMA_3}
+    assert manifest.PFLICHT_JE_SCHEMA[SCHEMA_3] == manifest.PFLICHT_JE_SCHEMA[SCHEMA_2]
     assert manifest.PFLICHT_JE_SCHEMA[SCHEMA_1] == (BERICHTE_1, WERKZEUGE_1, PRUEFUNGEN_1)
     assert manifest.PFLICHT_JE_SCHEMA[SCHEMA_2] == (
         manifest.PFLICHT_BERICHTE, manifest.PFLICHT_WERKZEUGE, manifest.PFLICHT_PRUEFUNGEN)
@@ -674,6 +684,7 @@ def test_schema_1_ohne_commit_signatur_bleibt_lesbar(eingaben, tmp_path):
 def test_schema_1_mit_werkzeugen_von_schema_2_abgelehnt(eingaben, tmp_path):
     """/1 ist eingefroren: die erst mit /2 verlangten Werkzeuge sind dort unbekannt."""
     m = _bauen(eingaben)
+    auf_schema_2(m)
     m["schema"] = SCHEMA_1
     del m["pruefungen"]["commit-signatur"]
     del m["berichte"]["npm-signaturen"]
@@ -696,3 +707,38 @@ def test_schema_1_mit_liste_von_schema_2_geprueft(eingaben, tmp_path):
     del m["pruefungen"]["scan"]
     with pytest.raises(NachweisFehler, match=r"Pflichtprüfungen.*scan"):
         lade_manifest(_geschrieben(m, tmp_path / "m.json"))
+
+
+# --- Auslieferungsmenge je Schema: /3 mit import, /1 und /2 ohne ---------------------------------
+
+def test_schema_2_ohne_import_bleibt_lesbar(eingaben, tmp_path):
+    m = _bauen(eingaben)
+    auf_schema_2(m)
+    assert lade_manifest(_geschrieben(m, tmp_path / "m.json"))["schema"] == SCHEMA_2
+
+
+def test_schema_3_ohne_ausgeliefertes_import_abgelehnt(eingaben, tmp_path):
+    m = _bauen(eingaben)
+    next(a for a in m["artefakte"] if a["name"] == "import")["ausgeliefert"] = False
+    with pytest.raises(NachweisFehler, match="ausgeliefert"):
+        lade_manifest(_geschrieben(m, tmp_path / "m.json"))
+    with pytest.raises(NachweisFehler, match="erwartet import, mcp, server, web"):
+        pruefe_artefakte(m, tmp_path)
+
+
+@pytest.mark.parametrize("schema", [SCHEMA_1, SCHEMA_2])
+def test_altes_schema_mit_ausgeliefertem_import_abgelehnt(eingaben, tmp_path, schema):
+    """Ein /1- oder /2-Manifest darf import nicht als ausgeliefert führen — sonst nähme ein
+    Prüfer einen ungeprüften Artefaktsatz unter altem Schema an."""
+    m = _bauen(eingaben)
+    auf_schema_1(m) if schema == SCHEMA_1 else auf_schema_2(m)
+    next(a for a in m["artefakte"] if a["name"] == "import")["ausgeliefert"] = True
+    with pytest.raises(NachweisFehler, match="ausgeliefert"):
+        lade_manifest(_geschrieben(m, tmp_path / "m.json"))
+    with pytest.raises(NachweisFehler, match="erwartet mcp, server, web"):
+        pruefe_artefakte(m, tmp_path)
+
+
+def test_unbekanntes_schema_hat_keine_auslieferungsmenge():
+    with pytest.raises(NachweisFehler, match="unbekanntes Schema"):
+        manifest.ausgeliefert_fuer({"schema": "scanview-release-manifest/9"})

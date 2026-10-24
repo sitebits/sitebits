@@ -7,7 +7,7 @@
 
 Bisher benennt der Import das Höhensystem eines Pakets nur (`frame.crs.verticalDatum`), rechnet aber
 nicht um. Daten aus verschiedenen Quellen passen dadurch in der Höhe nicht zusammen: Photogrammetrie
-aus Metashape liefert oft ellipsoidische Höhen (ETRS89/GRS80), amtliche Daten in Deutschland
+liefert oft ellipsoidische Höhen (ETRS89/GRS80), amtliche Daten in Deutschland
 Normalhöhen über NHN im DHHN2016. Der Unterschied ist die Quasigeoidhöhe, in Brandenburg rund 40 m.
 Viele Quelldateien deklarieren gar kein Höhensystem (LAS/LAZ ohne vertikales CRS, E57).
 

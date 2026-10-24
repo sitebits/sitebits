@@ -1,0 +1,4271 @@
+{
+  "components": {
+    "schemas": {
+      "AbschliessenIn": {
+        "additionalProperties": false,
+        "properties": {
+          "dateien": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PruefsummeIn"
+                },
+                "maxItems": 10000,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dateien"
+          }
+        },
+        "title": "AbschliessenIn",
+        "type": "object"
+      },
+      "AenderungIn": {
+        "properties": {
+          "daten": {
+            "additionalProperties": true,
+            "title": "Daten",
+            "type": "object"
+          },
+          "version": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "daten",
+          "version"
+        ],
+        "title": "AenderungIn",
+        "type": "object"
+      },
+      "Auswertung": {
+        "additionalProperties": false,
+        "properties": {
+          "beendetAm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beendetam"
+          },
+          "begonnenAm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Begonnenam"
+          },
+          "bericht": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pfad des Berichts, sobald fertig",
+            "title": "Bericht"
+          },
+          "ergebnis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pfad des Ergebnisses, sobald fertig",
+            "title": "Ergebnis"
+          },
+          "erstelltAm": {
+            "title": "Erstelltam",
+            "type": "integer"
+          },
+          "erstelltVon": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Erstelltvon"
+          },
+          "erstelltVonName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Erstelltvonname"
+          },
+          "fehler": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fehler"
+          },
+          "freigegeben": {
+            "title": "Freigegeben",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kanal": {
+            "title": "Kanal",
+            "type": "string"
+          },
+          "optionen": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Optionen",
+            "type": "object"
+          },
+          "status": {
+            "description": "wartend, laufend, fertig, fehlgeschlagen oder abgebrochen",
+            "title": "Status",
+            "type": "string"
+          },
+          "typ": {
+            "title": "Typ",
+            "type": "string"
+          },
+          "urteil": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urteil"
+          },
+          "warteplatz": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warteplatz"
+          },
+          "zaehlung": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zaehlung"
+          }
+        },
+        "required": [
+          "id",
+          "typ",
+          "optionen",
+          "status",
+          "erstelltAm",
+          "erstelltVon",
+          "erstelltVonName",
+          "kanal",
+          "begonnenAm",
+          "beendetAm",
+          "warteplatz",
+          "urteil",
+          "zaehlung",
+          "fehler",
+          "freigegeben",
+          "ergebnis",
+          "bericht"
+        ],
+        "title": "Auswertung",
+        "type": "object"
+      },
+      "AuswertungIn": {
+        "additionalProperties": false,
+        "properties": {
+          "optionen": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optionen"
+          },
+          "typ": {
+            "maxLength": 40,
+            "title": "Typ",
+            "type": "string"
+          }
+        },
+        "required": [
+          "typ"
+        ],
+        "title": "AuswertungIn",
+        "type": "object"
+      },
+      "AuswertungMitWorker": {
+        "additionalProperties": false,
+        "properties": {
+          "beendetAm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beendetam"
+          },
+          "begonnenAm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Begonnenam"
+          },
+          "bericht": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pfad des Berichts, sobald fertig",
+            "title": "Bericht"
+          },
+          "ergebnis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Pfad des Ergebnisses, sobald fertig",
+            "title": "Ergebnis"
+          },
+          "erstelltAm": {
+            "title": "Erstelltam",
+            "type": "integer"
+          },
+          "erstelltVon": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Erstelltvon"
+          },
+          "erstelltVonName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Erstelltvonname"
+          },
+          "fehler": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fehler"
+          },
+          "freigegeben": {
+            "title": "Freigegeben",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kanal": {
+            "title": "Kanal",
+            "type": "string"
+          },
+          "optionen": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Optionen",
+            "type": "object"
+          },
+          "status": {
+            "description": "wartend, laufend, fertig, fehlgeschlagen oder abgebrochen",
+            "title": "Status",
+            "type": "string"
+          },
+          "typ": {
+            "title": "Typ",
+            "type": "string"
+          },
+          "urteil": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urteil"
+          },
+          "warteplatz": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warteplatz"
+          },
+          "worker": {
+            "description": "Zustand des Workers: aktiv, still oder aus",
+            "title": "Worker",
+            "type": "string"
+          },
+          "zaehlung": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zaehlung"
+          }
+        },
+        "required": [
+          "id",
+          "typ",
+          "optionen",
+          "status",
+          "erstelltAm",
+          "erstelltVon",
+          "erstelltVonName",
+          "kanal",
+          "begonnenAm",
+          "beendetAm",
+          "warteplatz",
+          "urteil",
+          "zaehlung",
+          "fehler",
+          "freigegeben",
+          "ergebnis",
+          "bericht",
+          "worker"
+        ],
+        "title": "AuswertungMitWorker",
+        "type": "object"
+      },
+      "Auswertungsliste": {
+        "additionalProperties": false,
+        "properties": {
+          "auswertungen": {
+            "items": {
+              "$ref": "#/components/schemas/Auswertung"
+            },
+            "title": "Auswertungen",
+            "type": "array"
+          },
+          "worker": {
+            "title": "Worker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "auswertungen",
+          "worker"
+        ],
+        "title": "Auswertungsliste",
+        "type": "object"
+      },
+      "DateiIn": {
+        "additionalProperties": false,
+        "properties": {
+          "groesse": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 1125899906842624.0,
+            "title": "Groesse",
+            "type": "integer"
+          },
+          "pfad": {
+            "maxLength": 1300,
+            "minLength": 1,
+            "title": "Pfad",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pfad",
+          "groesse"
+        ],
+        "title": "DateiIn",
+        "type": "object"
+      },
+      "Einstellungen": {
+        "additionalProperties": false,
+        "properties": {
+          "befundFaeden": {
+            "title": "Befundfaeden",
+            "type": "boolean"
+          },
+          "exportBearbeiter": {
+            "title": "Exportbearbeiter",
+            "type": "boolean"
+          },
+          "nurLeseLinks": {
+            "title": "Nurleselinks",
+            "type": "boolean"
+          },
+          "rueckmeldungen": {
+            "title": "Rueckmeldungen",
+            "type": "boolean"
+          },
+          "vorlage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null = Projekt noch nicht eingerichtet",
+            "title": "Vorlage"
+          }
+        },
+        "required": [
+          "vorlage",
+          "rueckmeldungen",
+          "exportBearbeiter",
+          "befundFaeden",
+          "nurLeseLinks"
+        ],
+        "title": "Einstellungen",
+        "type": "object"
+      },
+      "Ergebnis": {
+        "additionalProperties": true,
+        "description": "ergebnis.json des Prüfers (`auswerten_pruefen`); weitere Felder möglich.",
+        "properties": {
+          "gesamt": {
+            "$ref": "#/components/schemas/ErgebnisGesamt"
+          },
+          "katalog": {
+            "$ref": "#/components/schemas/ErgebnisKatalog"
+          },
+          "zeilen": {
+            "items": {
+              "$ref": "#/components/schemas/ErgebnisZeile"
+            },
+            "title": "Zeilen",
+            "type": "array"
+          }
+        },
+        "required": [
+          "katalog",
+          "gesamt",
+          "zeilen"
+        ],
+        "title": "Ergebnis",
+        "type": "object"
+      },
+      "ErgebnisGesamt": {
+        "additionalProperties": true,
+        "properties": {
+          "entschieden": {
+            "title": "Entschieden",
+            "type": "integer"
+          },
+          "urteil": {
+            "description": "erfüllt, nicht erfüllt oder erfüllt, soweit prüfbar",
+            "title": "Urteil",
+            "type": "string"
+          },
+          "zaehlung": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Zaehlung",
+            "type": "object"
+          }
+        },
+        "required": [
+          "urteil",
+          "zaehlung",
+          "entschieden"
+        ],
+        "title": "ErgebnisGesamt",
+        "type": "object"
+      },
+      "ErgebnisKatalog": {
+        "additionalProperties": true,
+        "properties": {
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "titel": {
+            "title": "Titel",
+            "type": "string"
+          }
+        },
+        "required": [
+          "titel",
+          "sha256"
+        ],
+        "title": "ErgebnisKatalog",
+        "type": "object"
+      },
+      "ErgebnisZeile": {
+        "additionalProperties": true,
+        "properties": {
+          "anforderung": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anforderung"
+          },
+          "belege": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Belege"
+          },
+          "grund": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grund"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "parameter": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameter"
+          },
+          "pruefart": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pruefart"
+          },
+          "urteil": {
+            "description": "erfüllt, nicht erfüllt oder nicht prüfbar",
+            "title": "Urteil",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "urteil"
+        ],
+        "title": "ErgebnisZeile",
+        "type": "object"
+      },
+      "Fehler": {
+        "additionalProperties": false,
+        "description": "Jede Fehlerantwort (4xx): Dienstkennung und ein Satz für Menschen.",
+        "properties": {
+          "aktuell": {
+            "description": "Nur bei 409 nach Bearbeitungskonflikt: der aktuelle Stand des Objekts.",
+            "title": "Aktuell"
+          },
+          "dienst": {
+            "title": "Dienst",
+            "type": "string"
+          },
+          "fehler": {
+            "title": "Fehler",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dienst",
+          "fehler"
+        ],
+        "title": "Fehler",
+        "type": "object"
+      },
+      "FreigabeIn": {
+        "additionalProperties": false,
+        "properties": {
+          "freigegeben": {
+            "title": "Freigegeben",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "freigegeben"
+        ],
+        "title": "FreigabeIn",
+        "type": "object"
+      },
+      "Genauigkeit": {
+        "additionalProperties": false,
+        "description": "Genauigkeitsnachweis einer Ebene (Punktwolke oder Mesh).",
+        "properties": {
+          "art": {
+            "title": "Art",
+            "type": "string"
+          },
+          "ebene": {
+            "title": "Ebene",
+            "type": "string"
+          },
+          "nachweis": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Status und Kennzahlen, maschinenlesbar",
+            "title": "Nachweis"
+          },
+          "titel": {
+            "title": "Titel",
+            "type": "string"
+          },
+          "zeilen": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Zeilen",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ebene",
+          "titel",
+          "art",
+          "zeilen",
+          "nachweis"
+        ],
+        "title": "Genauigkeit",
+        "type": "object"
+      },
+      "ImportIn": {
+        "additionalProperties": false,
+        "properties": {
+          "optionen": {
+            "additionalProperties": true,
+            "title": "Optionen",
+            "type": "object"
+          },
+          "typ": {
+            "maxLength": 40,
+            "title": "Typ",
+            "type": "string"
+          },
+          "upload": {
+            "maxLength": 32,
+            "minLength": 32,
+            "title": "Upload",
+            "type": "string"
+          }
+        },
+        "required": [
+          "upload",
+          "typ"
+        ],
+        "title": "ImportIn",
+        "type": "object"
+      },
+      "Kategorie": {
+        "additionalProperties": false,
+        "properties": {
+          "aktiv": {
+            "title": "Aktiv",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "aktiv"
+        ],
+        "title": "Kategorie",
+        "type": "object"
+      },
+      "Messung": {
+        "additionalProperties": false,
+        "properties": {
+          "daten": {
+            "additionalProperties": true,
+            "description": "kind, points, ggf. areaM2, planarityM, pointSources",
+            "title": "Daten",
+            "type": "object"
+          },
+          "erstelltAm": {
+            "title": "Erstelltam",
+            "type": "integer"
+          },
+          "erstelltVon": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Erstelltvon"
+          },
+          "erstelltVonName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Erstelltvonname"
+          },
+          "geaendertAm": {
+            "title": "Geaendertam",
+            "type": "integer"
+          },
+          "geaendertVon": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geaendertvon"
+          },
+          "geaendertVonName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geaendertvonname"
+          },
+          "herkunft": {
+            "description": "mensch oder ki",
+            "title": "Herkunft",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "loeschenVorgeschlagen": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loeschenvorgeschlagen"
+          },
+          "paketRevision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paketrevision"
+          },
+          "pruefstand": {
+            "description": "gueltig, vorschlag oder verworfen",
+            "title": "Pruefstand",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "paketRevision",
+          "erstelltVon",
+          "erstelltAm",
+          "geaendertVon",
+          "geaendertVonName",
+          "geaendertAm",
+          "erstelltVonName",
+          "herkunft",
+          "pruefstand",
+          "loeschenVorgeschlagen",
+          "daten"
+        ],
+        "title": "Messung",
+        "type": "object"
+      },
+      "MessungListe": {
+        "additionalProperties": false,
+        "properties": {
+          "messungen": {
+            "items": {
+              "$ref": "#/components/schemas/Messung"
+            },
+            "title": "Messungen",
+            "type": "array"
+          }
+        },
+        "required": [
+          "messungen"
+        ],
+        "title": "MessungListe",
+        "type": "object"
+      },
+      "MetaIn": {
+        "properties": {
+          "beschreibung": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Beschreibung"
+          },
+          "titel": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titel"
+          },
+          "version": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 0.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "MetaIn",
+        "type": "object"
+      },
+      "NeuIn": {
+        "properties": {
+          "daten": {
+            "additionalProperties": true,
+            "title": "Daten",
+            "type": "object"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          }
+        },
+        "required": [
+          "daten"
+        ],
+        "title": "NeuIn",
+        "type": "object"
+      },
+      "Poi": {
+        "additionalProperties": false,
+        "properties": {
+          "daten": {
+            "$ref": "#/components/schemas/PoiDaten"
+          },
+          "erstelltAm": {
+            "title": "Erstelltam",
+            "type": "integer"
+          },
+          "erstelltVon": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Erstelltvon"
+          },
+          "erstelltVonName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Erstelltvonname"
+          },
+          "geaendertAm": {
+            "title": "Geaendertam",
+            "type": "integer"
+          },
+          "geaendertVon": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geaendertvon"
+          },
+          "geaendertVonName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geaendertvonname"
+          },
+          "herkunft": {
+            "description": "mensch oder ki",
+            "title": "Herkunft",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "loeschenVorgeschlagen": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loeschenvorgeschlagen"
+          },
+          "paketRevision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paketrevision"
+          },
+          "pruefstand": {
+            "description": "gueltig, vorschlag oder verworfen",
+            "title": "Pruefstand",
+            "type": "string"
+          },
+          "stand": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "paketRevision",
+          "erstelltVon",
+          "erstelltAm",
+          "geaendertVon",
+          "geaendertVonName",
+          "geaendertAm",
+          "erstelltVonName",
+          "herkunft",
+          "pruefstand",
+          "loeschenVorgeschlagen",
+          "daten"
+        ],
+        "title": "Poi",
+        "type": "object"
+      },
+      "PoiDaten": {
+        "additionalProperties": false,
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "position": {
+            "description": "Weltkoordinaten [x, y, z] in m",
+            "items": {
+              "type": "number"
+            },
+            "title": "Position",
+            "type": "array"
+          },
+          "positionSource": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Punktquelle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "station": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "category",
+          "note",
+          "position",
+          "station"
+        ],
+        "title": "PoiDaten",
+        "type": "object"
+      },
+      "PoiListe": {
+        "additionalProperties": false,
+        "properties": {
+          "pois": {
+            "items": {
+              "$ref": "#/components/schemas/Poi"
+            },
+            "title": "Pois",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pois"
+        ],
+        "title": "PoiListe",
+        "type": "object"
+      },
+      "Projekt": {
+        "additionalProperties": false,
+        "description": "Ein Projekt mit seinen Kategorien.",
+        "properties": {
+          "ausdehnung": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ausdehnung [x, y, z] in m",
+            "title": "Ausdehnung"
+          },
+          "befund_faeden": {
+            "title": "Befund Faeden",
+            "type": "boolean"
+          },
+          "beschreibung": {
+            "title": "Beschreibung",
+            "type": "string"
+          },
+          "crs": {
+            "title": "Crs",
+            "type": "string"
+          },
+          "draufsicht": {
+            "title": "Draufsicht",
+            "type": "boolean"
+          },
+          "einheit": {
+            "description": "Koordinaten- und Höhensystem wie im CSV-Kopf",
+            "title": "Einheit",
+            "type": "string"
+          },
+          "einstellungen": {
+            "$ref": "#/components/schemas/Einstellungen"
+          },
+          "genauigkeit": {
+            "items": {
+              "$ref": "#/components/schemas/Genauigkeit"
+            },
+            "title": "Genauigkeit",
+            "type": "array"
+          },
+          "groesseBytes": {
+            "title": "Groessebytes",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kategorien": {
+            "items": {
+              "$ref": "#/components/schemas/Kategorie"
+            },
+            "title": "Kategorien",
+            "type": "array"
+          },
+          "punkte": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Punkte"
+          },
+          "rolle": {
+            "description": "Eigene Rolle im Projekt",
+            "title": "Rolle",
+            "type": "string"
+          },
+          "scandatum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scandatum"
+          },
+          "standpunkte": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Standpunkte"
+          },
+          "titel": {
+            "title": "Titel",
+            "type": "string"
+          },
+          "version": {
+            "description": "Version der Metadaten (für PATCH)",
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "titel",
+          "beschreibung",
+          "punkte",
+          "standpunkte",
+          "ausdehnung",
+          "crs",
+          "scandatum",
+          "groesseBytes",
+          "einheit",
+          "draufsicht",
+          "rolle",
+          "genauigkeit",
+          "version",
+          "einstellungen",
+          "befund_faeden",
+          "kategorien"
+        ],
+        "title": "Projekt",
+        "type": "object"
+      },
+      "ProjektBasis": {
+        "additionalProperties": false,
+        "description": "Projektkarte (Antwort auf PATCH /projekte/{pid}).",
+        "properties": {
+          "ausdehnung": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ausdehnung [x, y, z] in m",
+            "title": "Ausdehnung"
+          },
+          "befund_faeden": {
+            "title": "Befund Faeden",
+            "type": "boolean"
+          },
+          "beschreibung": {
+            "title": "Beschreibung",
+            "type": "string"
+          },
+          "crs": {
+            "title": "Crs",
+            "type": "string"
+          },
+          "draufsicht": {
+            "title": "Draufsicht",
+            "type": "boolean"
+          },
+          "einheit": {
+            "description": "Koordinaten- und Höhensystem wie im CSV-Kopf",
+            "title": "Einheit",
+            "type": "string"
+          },
+          "einstellungen": {
+            "$ref": "#/components/schemas/Einstellungen"
+          },
+          "genauigkeit": {
+            "items": {
+              "$ref": "#/components/schemas/Genauigkeit"
+            },
+            "title": "Genauigkeit",
+            "type": "array"
+          },
+          "groesseBytes": {
+            "title": "Groessebytes",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "punkte": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Punkte"
+          },
+          "rolle": {
+            "description": "Eigene Rolle im Projekt",
+            "title": "Rolle",
+            "type": "string"
+          },
+          "scandatum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scandatum"
+          },
+          "standpunkte": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Standpunkte"
+          },
+          "titel": {
+            "title": "Titel",
+            "type": "string"
+          },
+          "version": {
+            "description": "Version der Metadaten (für PATCH)",
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "titel",
+          "beschreibung",
+          "punkte",
+          "standpunkte",
+          "ausdehnung",
+          "crs",
+          "scandatum",
+          "groesseBytes",
+          "einheit",
+          "draufsicht",
+          "rolle",
+          "genauigkeit",
+          "version",
+          "einstellungen",
+          "befund_faeden"
+        ],
+        "title": "ProjektBasis",
+        "type": "object"
+      },
+      "Projektkarte": {
+        "additionalProperties": false,
+        "description": "Eintrag der Projektliste.",
+        "properties": {
+          "ausdehnung": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ausdehnung [x, y, z] in m",
+            "title": "Ausdehnung"
+          },
+          "befund_faeden": {
+            "title": "Befund Faeden",
+            "type": "boolean"
+          },
+          "beschreibung": {
+            "title": "Beschreibung",
+            "type": "string"
+          },
+          "crs": {
+            "title": "Crs",
+            "type": "string"
+          },
+          "draufsicht": {
+            "title": "Draufsicht",
+            "type": "boolean"
+          },
+          "einheit": {
+            "description": "Koordinaten- und Höhensystem wie im CSV-Kopf",
+            "title": "Einheit",
+            "type": "string"
+          },
+          "einstellungen": {
+            "$ref": "#/components/schemas/Einstellungen"
+          },
+          "genauigkeit": {
+            "items": {
+              "$ref": "#/components/schemas/Genauigkeit"
+            },
+            "title": "Genauigkeit",
+            "type": "array"
+          },
+          "groesseBytes": {
+            "title": "Groessebytes",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "punkte": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Punkte"
+          },
+          "rolle": {
+            "description": "Eigene Rolle im Projekt",
+            "title": "Rolle",
+            "type": "string"
+          },
+          "scandatum": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scandatum"
+          },
+          "standpunkte": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Standpunkte"
+          },
+          "titel": {
+            "title": "Titel",
+            "type": "string"
+          },
+          "ueberfaellig_meine": {
+            "description": "Überfällige Befunde, für die ich zuständig bin",
+            "title": "Ueberfaellig Meine",
+            "type": "integer"
+          },
+          "version": {
+            "description": "Version der Metadaten (für PATCH)",
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "titel",
+          "beschreibung",
+          "punkte",
+          "standpunkte",
+          "ausdehnung",
+          "crs",
+          "scandatum",
+          "groesseBytes",
+          "einheit",
+          "draufsicht",
+          "rolle",
+          "genauigkeit",
+          "version",
+          "einstellungen",
+          "befund_faeden",
+          "ueberfaellig_meine"
+        ],
+        "title": "Projektkarte",
+        "type": "object"
+      },
+      "Projektliste": {
+        "additionalProperties": false,
+        "properties": {
+          "projekte": {
+            "items": {
+              "$ref": "#/components/schemas/Projektkarte"
+            },
+            "title": "Projekte",
+            "type": "array"
+          }
+        },
+        "required": [
+          "projekte"
+        ],
+        "title": "Projektliste",
+        "type": "object"
+      },
+      "PruefIn": {
+        "properties": {
+          "version": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "PruefIn",
+        "type": "object"
+      },
+      "PruefsummeIn": {
+        "additionalProperties": false,
+        "properties": {
+          "nr": {
+            "maximum": 10000.0,
+            "minimum": 0.0,
+            "title": "Nr",
+            "type": "integer"
+          },
+          "sha256": {
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nr",
+          "sha256"
+        ],
+        "title": "PruefsummeIn",
+        "type": "object"
+      },
+      "Punktquelle": {
+        "additionalProperties": false,
+        "properties": {
+          "layerId": {
+            "title": "Layerid",
+            "type": "string"
+          },
+          "source": {
+            "description": "pointcloud oder mesh",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "layerId"
+        ],
+        "title": "Punktquelle",
+        "type": "object"
+      },
+      "Sitzung": {
+        "additionalProperties": false,
+        "properties": {
+          "dienst": {
+            "title": "Dienst",
+            "type": "string"
+          },
+          "import": {
+            "description": "Darf dieses Konto Uploads und neue Projekte anlegen? Nur Admins, nur mit eingeschaltetem Import (SCANVIEW_IMPORT=1).",
+            "title": "Import",
+            "type": "boolean"
+          },
+          "nutzer": {
+            "$ref": "#/components/schemas/SitzungNutzer"
+          },
+          "quelltext_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Quelltext-Link der Instanz oder null",
+            "title": "Quelltext Url"
+          }
+        },
+        "required": [
+          "dienst",
+          "nutzer",
+          "import",
+          "quelltext_url"
+        ],
+        "title": "Sitzung",
+        "type": "object"
+      },
+      "SitzungNutzer": {
+        "additionalProperties": false,
+        "properties": {
+          "admin": {
+            "title": "Admin",
+            "type": "boolean"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "admin"
+        ],
+        "title": "SitzungNutzer",
+        "type": "object"
+      },
+      "Stand": {
+        "additionalProperties": false,
+        "description": "Stand eines Befunds (nur wenn das Projekt Befund-Fäden nutzt).",
+        "properties": {
+          "frist": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frist"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "zustaendig": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Zustaendig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "zustaendig",
+          "frist",
+          "version"
+        ],
+        "title": "Stand",
+        "type": "object"
+      },
+      "UploadIn": {
+        "additionalProperties": false,
+        "properties": {
+          "dateien": {
+            "items": {
+              "$ref": "#/components/schemas/DateiIn"
+            },
+            "maxItems": 10001,
+            "minItems": 1,
+            "title": "Dateien",
+            "type": "array"
+          }
+        },
+        "required": [
+          "dateien"
+        ],
+        "title": "UploadIn",
+        "type": "object"
+      },
+      "Version": {
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "Version",
+        "type": "object"
+      },
+      "Zustaendig": {
+        "additionalProperties": false,
+        "properties": {
+          "gewerk_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gewerk Id"
+          },
+          "nutzer_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nutzer Id"
+          }
+        },
+        "required": [
+          "gewerk_id",
+          "nutzer_id"
+        ],
+        "title": "Zustaendig",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Öffentliche API v1 einer siteBits-Instanz: alle Operationen, die ein persönliches API-Token erreicht. Anmeldung per `Authorization: Bearer <Token>`.",
+    "title": "siteBits API",
+    "version": "1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/importe": {
+      "get": {
+        "operationId": "importe_auflisten_api_v1_importe_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Importaufträge der Instanz (Admin) und Zustand des Workers"
+      },
+      "post": {
+        "operationId": "import_starten_api_v1_importe_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Neues Projekt aus einem abgeschlossenen Upload (Admin; neu_mesh, neu_splats)"
+      }
+    },
+    "/api/v1/importe/{aid}": {
+      "delete": {
+        "operationId": "import_abbrechen_api_v1_importe__aid__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "aid",
+            "required": true,
+            "schema": {
+              "title": "Aid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Import abbrechen (wartend sofort, laufend: der Worker stoppt den Lauf)"
+      },
+      "get": {
+        "operationId": "import_lesen_api_v1_importe__aid__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "aid",
+            "required": true,
+            "schema": {
+              "title": "Aid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Ein Importauftrag: Status, Stufe, Fehler"
+      }
+    },
+    "/api/v1/projekte": {
+      "get": {
+        "operationId": "projekte_api_v1_projekte_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Projektliste"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Projekte, auf die der Nutzer ein Recht hat"
+      }
+    },
+    "/api/v1/projekte/{pid}": {
+      "get": {
+        "operationId": "projekt_lesen_api_v1_projekte__pid__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Projekt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Ein Projekt: Karte, eigene Rolle, Metadaten-Version"
+      },
+      "patch": {
+        "operationId": "projekt_aendern_api_v1_projekte__pid__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetaIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjektBasis"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Titel/Beschreibung ändern (Bearbeiter; version = zuletzt gelesene)"
+      }
+    },
+    "/api/v1/projekte/{pid}/auswertungen": {
+      "get": {
+        "operationId": "auflisten_api_v1_projekte__pid__auswertungen_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Auswertungsliste"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Auswertungen des Projekts (neueste zuerst) und Zustand des Workers"
+      },
+      "post": {
+        "operationId": "starten_api_v1_projekte__pid__auswertungen_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuswertungIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuswertungMitWorker"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Auswertung einreihen (Projektleitung; Typ und Optionen aus fester Liste)"
+      }
+    },
+    "/api/v1/projekte/{pid}/auswertungen/{aid}": {
+      "delete": {
+        "operationId": "loeschen_api_v1_projekte__pid__auswertungen__aid__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "aid",
+            "required": true,
+            "schema": {
+              "title": "Aid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Auswertung löschen (Projektleitung; der Worker entfernt den Bericht)"
+      },
+      "get": {
+        "operationId": "lesen_api_v1_projekte__pid__auswertungen__aid__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "aid",
+            "required": true,
+            "schema": {
+              "title": "Aid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuswertungMitWorker"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Eine Auswertung: Status, Urteil, Zählung, Freigabe"
+      }
+    },
+    "/api/v1/projekte/{pid}/auswertungen/{aid}/bericht": {
+      "get": {
+        "operationId": "bericht_api_v1_projekte__pid__auswertungen__aid__bericht_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "aid",
+            "required": true,
+            "schema": {
+              "title": "Aid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Prüfbericht als HTML-Datei (Download, ohne Skripte)"
+      }
+    },
+    "/api/v1/projekte/{pid}/auswertungen/{aid}/ergebnis": {
+      "get": {
+        "operationId": "ergebnis_api_v1_projekte__pid__auswertungen__aid__ergebnis_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "aid",
+            "required": true,
+            "schema": {
+              "title": "Aid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ergebnis"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "ergebnis.json der fertigen Auswertung"
+      }
+    },
+    "/api/v1/projekte/{pid}/auswertungen/{aid}/freigabe": {
+      "post": {
+        "operationId": "freigeben_api_v1_projekte__pid__auswertungen__aid__freigabe_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "aid",
+            "required": true,
+            "schema": {
+              "title": "Aid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FreigabeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Auswertung"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Bericht für Bearbeiter freigeben oder Freigabe entziehen (Mensch)"
+      }
+    },
+    "/api/v1/projekte/{pid}/befunde": {
+      "get": {
+        "operationId": "befunde_lesen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "zustaendig",
+            "required": false,
+            "schema": {
+              "default": "alle",
+              "title": "Zustaendig",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "frist",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Frist"
+            }
+          },
+          {
+            "in": "query",
+            "name": "kategorie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kategorie"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Liste „Fällig/überfällig“: Befunde mit Stand, überfällig zuerst (status: offen|in_arbeit|erledigt|abgeschlossen|abgelehnt; zustaendig: alle|gewerk|ich; frist: ueberfaellig|woche|ohne)"
+      }
+    },
+    "/api/v1/projekte/{pid}/beteiligte": {
+      "get": {
+        "operationId": "beteiligte_api_v1_projekte__pid__beteiligte_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Beteiligte des Projekts mit Rolle und Gewerk (E-Mail, letzte Anmeldung und Sperre nur für Projektleitung/Admin im Browser)"
+      }
+    },
+    "/api/v1/projekte/{pid}/export.csv": {
+      "get": {
+        "operationId": "export_csv_api_v1_projekte__pid__export_csv_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "POIs und Messungen als CSV (Bearbeiter)"
+      }
+    },
+    "/api/v1/projekte/{pid}/export.json": {
+      "get": {
+        "operationId": "export_json_api_v1_projekte__pid__export_json_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "POIs und Messungen als JSON (Bearbeiter)"
+      }
+    },
+    "/api/v1/projekte/{pid}/gewerke": {
+      "get": {
+        "operationId": "gewerke_lesen_api_v1_projekte__pid__gewerke_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Gewerke des Projekts"
+      }
+    },
+    "/api/v1/projekte/{pid}/maengelliste": {
+      "get": {
+        "operationId": "maengelliste_druck_api_v1_projekte__pid__maengelliste_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Befundliste für die Druckansicht (Bearbeiter)"
+      }
+    },
+    "/api/v1/projekte/{pid}/maengelliste.xlsx": {
+      "get": {
+        "operationId": "maengelliste_xlsx_api_v1_projekte__pid__maengelliste_xlsx_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Befundliste als XLSX (Bearbeiter)"
+      }
+    },
+    "/api/v1/projekte/{pid}/messungen": {
+      "get": {
+        "operationId": "messungen_lesen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "vorschlaege",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Vorschlaege",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessungListe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "messungen: alle nicht gelöschten Einträge"
+      },
+      "post": {
+        "operationId": "messungen_anlegen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NeuIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Messung"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "messungen: anlegen (Bearbeiter)"
+      }
+    },
+    "/api/v1/projekte/{pid}/messungen/{eid}": {
+      "delete": {
+        "operationId": "messungen_loeschen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Messung"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "204": {
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "messungen: löschen (weich, Bearbeiter; ?version=N; 202 = per KI-Agent nur vorgeschlagen)"
+      },
+      "patch": {
+        "operationId": "messungen_aendern",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AenderungIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Messung"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "messungen: ändern (Bearbeiter; version = zuletzt gelesene)"
+      }
+    },
+    "/api/v1/projekte/{pid}/messungen/{eid}/annehmen": {
+      "post": {
+        "operationId": "messungen_annehmen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PruefIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Messung"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "messungen: KI-Vorschlag annehmen (Bearbeiter; nicht per KI-Agent; 204 = Löschvorschlag ausgeführt)"
+      }
+    },
+    "/api/v1/projekte/{pid}/messungen/{eid}/verwerfen": {
+      "post": {
+        "operationId": "messungen_verwerfen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PruefIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Messung"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "messungen: KI-Vorschlag verwerfen (Bearbeiter; nicht per KI-Agent; 204 = Vorschlag verworfen)"
+      }
+    },
+    "/api/v1/projekte/{pid}/paket": {
+      "get": {
+        "description": "Paketinhalt für Agenten. Fotos-Ebene nur, wenn die Rolle die Fotos laden dürfte.",
+        "operationId": "paket_lesen_api_v1_projekte__pid__paket_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Paketinhalt: Ebenen, Koordinaten, Höhe, Klassen"
+      }
+    },
+    "/api/v1/projekte/{pid}/pois": {
+      "get": {
+        "operationId": "pois_lesen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "vorschlaege",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Vorschlaege",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoiListe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "pois: alle nicht gelöschten Einträge"
+      },
+      "post": {
+        "operationId": "pois_anlegen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NeuIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Poi"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "pois: anlegen (Bearbeiter; Rückmelder nur eigene Rückmeldungen)"
+      }
+    },
+    "/api/v1/projekte/{pid}/pois/{eid}": {
+      "delete": {
+        "operationId": "pois_loeschen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Poi"
+                }
+              }
+            },
+            "description": "Accepted"
+          },
+          "204": {
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "pois: löschen (weich, Bearbeiter; Rückmelder nur eigene Rückmeldungen; ?version=N; 202 = per KI-Agent nur vorgeschlagen)"
+      },
+      "patch": {
+        "operationId": "pois_aendern",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AenderungIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Poi"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "pois: ändern (Bearbeiter; Rückmelder nur eigene Rückmeldungen; version = zuletzt gelesene)"
+      }
+    },
+    "/api/v1/projekte/{pid}/pois/{eid}/annehmen": {
+      "post": {
+        "operationId": "pois_annehmen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PruefIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Poi"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "pois: KI-Vorschlag annehmen (Bearbeiter; Rückmelder nur eigene Rückmeldungen; nicht per KI-Agent; 204 = Löschvorschlag ausgeführt)"
+      }
+    },
+    "/api/v1/projekte/{pid}/pois/{eid}/faden": {
+      "get": {
+        "operationId": "faden_lesen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Befund-Faden: Stand, sichtbare Einträge und eigene Rechte"
+      },
+      "post": {
+        "operationId": "faden_eintrag_anlegen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "art": {
+                    "maxLength": 20,
+                    "title": "Art",
+                    "type": "string"
+                  },
+                  "intern": {
+                    "default": false,
+                    "title": "Intern",
+                    "type": "boolean"
+                  },
+                  "text": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Text"
+                  },
+                  "version": {
+                    "anyOf": [
+                      {
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Version"
+                  },
+                  "wert": {
+                    "title": "Wert"
+                  }
+                },
+                "required": [
+                  "art"
+                ],
+                "title": "EintragIn",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Eintrag im Befund-Faden (kommentar, link, status, zustaendig, frist; version Pflicht bei status/zustaendig/frist)"
+      }
+    },
+    "/api/v1/projekte/{pid}/pois/{eid}/faden/{schluessel}/annehmen": {
+      "post": {
+        "operationId": "faden_vorschlag_annehmen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "schluessel",
+            "required": true,
+            "schema": {
+              "title": "Schluessel",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "version": {
+                    "maximum": 9223372036854775807,
+                    "minimum": 1,
+                    "title": "Version",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "version"
+                ],
+                "title": "AnnehmenIn",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "KI-Vorschlag im Faden annehmen (setzt den Stand; version = aktueller Stand; nicht per KI-Agent)"
+      }
+    },
+    "/api/v1/projekte/{pid}/pois/{eid}/faden/{schluessel}/verwerfen": {
+      "post": {
+        "operationId": "faden_vorschlag_verwerfen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "schluessel",
+            "required": true,
+            "schema": {
+              "title": "Schluessel",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "text": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Text"
+                  }
+                },
+                "title": "VerwerfenIn",
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "KI-Vorschlag im Faden verwerfen (Kommentar, Text optional; nicht per KI-Agent)"
+      }
+    },
+    "/api/v1/projekte/{pid}/pois/{eid}/faden/{schluessel}/zurueckziehen": {
+      "post": {
+        "operationId": "faden_eintrag_zurueckziehen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "schluessel",
+            "required": true,
+            "schema": {
+              "title": "Schluessel",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Eigenen Kommentar oder Link zurückziehen (Text für alle ersetzt)"
+      }
+    },
+    "/api/v1/projekte/{pid}/pois/{eid}/verwerfen": {
+      "post": {
+        "operationId": "pois_verwerfen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PruefIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Poi"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "pois: KI-Vorschlag verwerfen (Bearbeiter; Rückmelder nur eigene Rückmeldungen; nicht per KI-Agent; 204 = Vorschlag verworfen)"
+      }
+    },
+    "/api/v1/projekte/{pid}/protokoll": {
+      "get": {
+        "operationId": "projekt_protokoll_api_v1_projekte__pid__protokoll_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "vor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 9223372036854775807,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Verlauf eines Projekts (neueste zuerst)"
+      }
+    },
+    "/api/v1/projekte/{pid}/protokoll.jsonl": {
+      "get": {
+        "operationId": "projekt_protokoll_jsonl_api_v1_projekte__pid__protokoll_jsonl_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Verlauf eines Projekts als JSON Lines"
+      }
+    },
+    "/api/v1/projekte/{pid}/zu-pruefen": {
+      "get": {
+        "operationId": "zu_pruefen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Offene KI-Vorschläge: POIs, Messungen (auch Löschvorschläge) und Faden (ab Bearbeiter)"
+      }
+    },
+    "/api/v1/sitzung": {
+      "get": {
+        "operationId": "sitzung_api_v1_sitzung_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Sitzung"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Angemeldeter Nutzer (401 ohne Sitzung)"
+      }
+    },
+    "/api/v1/uploads": {
+      "get": {
+        "operationId": "uploads_auflisten_api_v1_uploads_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Uploads der Instanz (Admin), Quote und Belegung"
+      },
+      "post": {
+        "operationId": "upload_anlegen_api_v1_uploads_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Upload ankündigen (Admin): Dateiliste mit relativen Pfaden und Größen"
+      }
+    },
+    "/api/v1/uploads/{uid}": {
+      "delete": {
+        "operationId": "upload_loeschen_api_v1_uploads__uid__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "title": "Uid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Upload abbrechen bzw. löschen (räumt die Dateien weg)"
+      },
+      "get": {
+        "operationId": "upload_lesen_api_v1_uploads__uid__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "title": "Uid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Ein Upload: Dateien, Stand, Prüfsummen"
+      }
+    },
+    "/api/v1/uploads/{uid}/abschliessen": {
+      "post": {
+        "operationId": "abschliessen_api_v1_uploads__uid__abschliessen_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "title": "Uid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AbschliessenIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Upload abschließen: SHA-256 nachrechnen, Endung und Kopfbytes prüfen"
+      }
+    },
+    "/api/v1/uploads/{uid}/dateien/{nr}": {
+      "head": {
+        "operationId": "stand_api_v1_uploads__uid__dateien__nr__head",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "title": "Uid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "nr",
+            "required": true,
+            "schema": {
+              "title": "Nr",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "description": "Fehler (HEAD: nur Status und Kopfzeilen, kein Körper)"
+          }
+        },
+        "summary": "Stand einer Datei (Header Upload-Offset) zum Fortsetzen"
+      },
+      "put": {
+        "operationId": "stueck_api_v1_uploads__uid__dateien__nr__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "title": "Uid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "nr",
+            "required": true,
+            "schema": {
+              "title": "Nr",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Ein Stück schreiben (Content-Range, Content-Digest sha-256)"
+      }
+    },
+    "/api/v1/version": {
+      "get": {
+        "description": "Version des installierten Pakets `scanview-server`, wie alle API-Routen nur für\nAngemeldete (401 sonst). Das ausgelieferte Web-Bundle trägt die Version ohnehin für die\nDiagnose; das Verbergen der Version ist keine Schutzmaßnahme — die schützen die\nPatch-Fristen (docs/public/support-und-patches.md).",
+        "operationId": "version_api_v1_version_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Produktversion (nur angemeldet)"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
+}

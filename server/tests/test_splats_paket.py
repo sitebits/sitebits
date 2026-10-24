@@ -69,3 +69,29 @@ def test_rad_files_still_pass_session_and_project_rights_gate(monkeypatch):
         assert call('foreign', file) == 404
     monkeypatch.setattr(api, 'aktueller_nutzer', lambda request, conn: None)
     assert call('fixture', 'model-lod-0.radc') == 401
+
+
+def test_splats_ohne_wolke_tragen_den_hinweis_als_text(tmp_path):
+    """Paket aus `scanview-import neu-ohne-wolke`: frameCheck ist der Text „keine Wolke“, der
+    Rahmen lokal (ohne Koordinatensystem); der Katalog nimmt es an."""
+    from scanview_server.katalog import Katalog
+
+    layer = {"id": "splats", "kind": "splats", "title": "Sichtschicht", "format": "spz",
+             "url": "layers/splats/model.spz", "splatCount": 3000, "chunkCount": 1,
+             "shDegree": 0, "boundsWorld": [[-3, -3, -3], [3, 3, 3]],
+             "frameCheck": "keine Wolke", "source": {"filename": "geheim.spz"}}
+    pkg = tmp_path / "ohne-wolke"
+    pkg.mkdir()
+    (pkg / "project.json").write_text(json.dumps({
+        "schemaVersion": 2, "projectId": "ohne-wolke", "revision": 1, "title": "Ohne Wolke",
+        "frame": {"crs": {"wkt": None, "verticalDatum": None,
+                          "declaredBy": "keine Angabe (lokal, Modellmaß)"},
+                  "unit": "m", "originWorld": [0, 0, 0]},
+        "layers": [layer]}))
+    e = uebersicht(pkg, fotos_sichtbar=False)["ebenen"][0]
+    assert e["frameCheck"] == "keine Wolke"
+    assert "source" not in e and "url" not in e
+    k = Katalog(tmp_path)
+    k.laden()
+    karte = k.get("ohne-wolke")
+    assert karte is not None and karte.titel == "Ohne Wolke" and karte.punkte is None

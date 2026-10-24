@@ -10,6 +10,8 @@
 // gebaut) hätte einen laufenden Regler-Zug mitten in der Geste abgebrochen und die Tastaturauswahl
 // verloren — dasselbe Problem, das panels.ts mit captureFocus() für seine eigenen Rahmen löst.
 import type { LayerEntry, LayerRegistry } from './layers';
+import { MESH_FLAECHEN } from './meshMath';
+import type { MeshFlaeche } from './meshMath';
 
 const KIND_LABEL: Record<string, string> = { pointcloud: 'Punktwolke', panoramas: 'Standpunkte', mesh: 'Mesh', splats: 'Sichtschicht', images: 'Fotos' };
 const artLabel = (kind: string): string => KIND_LABEL[kind] ?? 'nicht unterstützt';
@@ -25,7 +27,11 @@ interface Row {
   checkbox: HTMLInputElement;
   range: HTMLInputElement | null;
   shade: HTMLInputElement | null;
+  flaeche: HTMLSelectElement | null;
+  draht: HTMLInputElement | null;
 }
+
+const FLAECHE_LABEL: Record<MeshFlaeche, string> = { textur: 'Textur', grau: 'Grau', normalen: 'Normalen', aus: 'Aus' };
 
 /** ``keyNumber``: Position unter den Tasten 1–9 (layerForKey), null ohne Taste (nicht unterstützt). */
 function buildRow(reg: LayerRegistry, e: LayerEntry, keyNumber: number | null): Row {
@@ -54,7 +60,24 @@ function buildRow(reg: LayerRegistry, e: LayerEntry, keyNumber: number | null): 
     li.append(d);
   }
   let shade: HTMLInputElement | null = null;
+  let flaeche: HTMLSelectElement | null = null;
+  let draht: HTMLInputElement | null = null;
   if (e.kind === 'mesh' && e.supported) {
+    // Darstellung wie Sketchfab: Fläche (Textur/Grau/Normalen/Aus) und Drahtgitter darüber.
+    const zeile = el('span'); zeile.className = 'sv-ebene-schalter';
+    const fl = el('label', 'Fläche ');
+    flaeche = el('select');
+    for (const f of MESH_FLAECHEN) { const o = el('option', FLAECHE_LABEL[f]); o.value = f; flaeche.append(o); }
+    flaeche.value = e.flaeche ?? 'textur';
+    flaeche.setAttribute('aria-label', `${e.title} Fläche`);
+    flaeche.addEventListener('change', () => reg.setFlaeche(e.id, flaeche!.value as MeshFlaeche));
+    fl.append(flaeche);
+    const dl = el('label', 'Drahtgitter');
+    draht = el('input'); draht.type = 'checkbox'; draht.checked = e.draht ?? false;
+    draht.setAttribute('aria-label', `${e.title} Drahtgitter`);
+    draht.addEventListener('change', () => reg.setDraht(e.id, draht!.checked));
+    dl.prepend(draht);
+    zeile.append(fl, ' ', dl); li.append(zeile);
     const label = el('label', 'Schattierung'); label.className = 'sv-ebene-schalter';
     shade = el('input'); shade.type = 'checkbox'; shade.checked = e.shading ?? false;
     shade.setAttribute('aria-label', `${e.title} Schattierung`);
@@ -80,7 +103,7 @@ function buildRow(reg: LayerRegistry, e: LayerEntry, keyNumber: number | null): 
   frameBtn.addEventListener('click', () => reg.frame(e.id));
   li.append(frameBtn);
 
-  return { li, checkbox, range, shade };
+  return { li, checkbox, range, shade, flaeche, draht };
 }
 
 export function attachLayersPanel(root: HTMLElement, reg: LayerRegistry, vorschlaege?: { an: boolean; aendern(an: boolean): void }): void {
@@ -114,6 +137,8 @@ export function attachLayersPanel(root: HTMLElement, reg: LayerRegistry, vorschl
       if (!row) continue;
       if (row.checkbox.checked !== e.visible) row.checkbox.checked = e.visible;
       if (row.shade) row.shade.checked = e.shading ?? false;
+      if (row.flaeche && row.flaeche.value !== (e.flaeche ?? 'textur')) row.flaeche.value = e.flaeche ?? 'textur';
+      if (row.draht) row.draht.checked = e.draht ?? false;
       if (row.range && Number(row.range.value) !== e.opacity) row.range.value = String(e.opacity);
     }
   });

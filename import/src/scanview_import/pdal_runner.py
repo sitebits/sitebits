@@ -2,7 +2,10 @@
 
 PDAL (BSD) läuft aus ``pdal/pdal``, untwine (GPL-3) aus dem eigenen Image
 ``scanview-untwine`` (``import/docker/untwine.Dockerfile``). Jeder Container läuft mit
-harter Speichergrenze und als aufrufender Nutzer.
+harter Speichergrenze, als aufrufender Nutzer und gehärtet wie der Textur-Container: ohne Netz
+(R-E-F-3 — die Parser lesen fremde Dateien, lokale Dateien brauchen kein Netz), ohne
+Capabilities, ohne Rechteausweitung, mit schreibgeschütztem Wurzeldateisystem (nur ``/work``,
+die Ziel-Mounts und ``/tmp`` beschreibbar).
 """
 
 from __future__ import annotations
@@ -187,9 +190,18 @@ def _docker_args(
         "docker",
         "run",
         "--rm",
+        "--network",
+        "none",
         *docker_grenzen(),
         "--user",
         f"{os.getuid()}:{os.getgid()}",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        "--read-only",
+        "--tmpfs",
+        "/tmp:rw,nosuid,nodev,size=2g",
         "-v",
         f"{workdir}:/work",
     ]

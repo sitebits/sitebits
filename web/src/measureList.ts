@@ -1,6 +1,6 @@
 import { ausgelasseneVorschlaege, vorschlagText } from './vorschlagApi';
 import { exportMitHinweis, pruefknoepfe } from './vorschlagBedienung';
-import { measurementNotes, sourceLabel } from './pointSources';
+import { anzeigeSprache, measurementNotes, sourceLabel } from './pointSources';
 import type { SourceLayer } from './pointSources';
 // Messliste: alle Messungen in Anlegereihenfolge (auch nach dem Neuladen — siehe
 // hash.ts o=) mit Werten, Auswahl per Zeilenklick, Löschen je Zeile, CSV-/JSON-Download und „Alle löschen“
@@ -105,7 +105,7 @@ export function attachMeasureList(o: {
         }
         const sources = el('div', meas.points.map((_,i) => `P${i+1}: ${sourceLabel(meas.pointSources?.[i],o.sourceLayers ?? [])}`).join(' · '));
         sources.className = 'muted'; value.append(sources);
-        for (const note of measurementNotes(meas,o.sourceLayers ?? [])) value.append(el('div',note));
+        for (const note of measurementNotes(meas,o.sourceLayers ?? [],anzeigeSprache())) value.append(el('div',note));
         const del = el('button', '×');
         del.type = 'button';
         del.setAttribute('aria-label', `Messung ${meas.id} löschen`);

@@ -83,7 +83,7 @@ def _dateien(version: str) -> dict[str, bytes]:
     """Die Nachweisdateien, die das Manifest referenziert (relativer Pfad → Inhalt)."""
     d: dict[str, bytes] = {f"berichte/{n}.json": f'{{"b":"{n}"}}'.encode()
                            for n in PFLICHT_BERICHTE}
-    for n in ("web", "server", "mcp"):
+    for n in ("web", "server", "mcp", "import"):
         d[f"artefakte/scanview-{n}-{version}.tar.gz"] = f"tar {n}".encode()
         d[f"sbom/scanview-{n}-{version}.cdx.json"] = f'{{"sbom":"{n}"}}'.encode()
     return d
@@ -102,9 +102,9 @@ def _manifest(version: str) -> dict[str, object]:
                        "sha512": hashlib.sha512(
                            d[f"artefakte/scanview-{n}-{version}.tar.gz"]).hexdigest(),
                        "ausgeliefert": True}
-                      for n in ("web", "server", "mcp")],
+                      for n in ("web", "server", "mcp", "import")],
         "sboms": {f"scanview-{n}-{version}.cdx.json": sha[f"sbom/scanview-{n}-{version}.cdx.json"]
-                  for n in ("web", "server", "mcp")},
+                  for n in ("web", "server", "mcp", "import")},
         "berichte": {n: {"datei": f"{n}.json", "sha256": sha[f"berichte/{n}.json"]}
                      for n in PFLICHT_BERICHTE},
         "werkzeuge": werkzeuge_roh(),

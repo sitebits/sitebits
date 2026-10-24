@@ -1,9 +1,7 @@
 // Tastenhinweise: kurze Zeilen „<Taste>: <Tätigkeit>“ unten in der 3D-Ansicht, je Zustand höchstens drei. Ein
 // Hinweis verschwindet, nachdem seine Tätigkeit dreimal ausgeführt wurde (Zähler je Konto im Browser), bleibt mit
-// „Hinweise immer zeigen“ stehen und zeigt immer die aktuelle Belegung (Tastatur oder Controller). Kein Zähler
+// „Hinweise immer zeigen“ stehen und zeigt immer die aktuelle Tastenbelegung; solange ein Controller benutzt wird, tritt sie zugunsten der Controller-Leiste zurück. Kein Zähler
 // und keine Belohnung wird angezeigt. Rein (Vitest): Auswahl, Zähler, Beschriftung, Ausweichen der Leiste.
-import { controllerTyp } from './gamepad';
-import type { PadAktion } from './gamepad';
 import type { KeyAction } from './keymap';
 import type { AktionId } from './tastenbelegung';
 import type { OrbitLinks } from './bedienEinstellungen';
@@ -125,39 +123,14 @@ export function hinweisFuerAktion(a: KeyAction, k: { begehen: boolean; panoramaZ
   return null;
 }
 
-// --- Beschriftung -------------------------------------------------------------------------------------------
-export type PadTyp = ReturnType<typeof controllerTyp>;
-/** Kurznamen der Knöpfe 0–16 im Standard-Mapping; generische Pads beschriftet wie die verbreitete Xbox-Anordnung. */
-const PAD_KURZ_XBOX: readonly string[] = [
-  'A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'Ansicht', 'Menü', 'LS', 'RS', 'Kreuz ↑', 'Kreuz ↓', 'Kreuz ←', 'Kreuz →', 'Home',
-];
-const PAD_KURZ_PLAYSTATION: readonly string[] = [
-  '✕', '○', '□', '△', 'L1', 'R1', 'L2', 'R2', 'Create', 'Options', 'L3', 'R3', 'Kreuz ↑', 'Kreuz ↓', 'Kreuz ←', 'Kreuz →', 'PS',
-];
-/** Kurzname eines Knopfs; nicht belegt (−1) oder unbekannt = ''. */
-export function padKurz(typ: PadTyp, knopf: number): string {
-  const tabelle = typ === 'playstation' ? PAD_KURZ_PLAYSTATION : PAD_KURZ_XBOX;
-  return Number.isInteger(knopf) && knopf >= 0 ? (tabelle[knopf] ?? '') : '';
-}
-/** Controller-Knöpfe zeigen nur, wenn zuletzt ein Controller benutzt wurde (`typ`), er noch verbunden ist
- *  (`padId` nicht leer) und der Controller wirkt (nur im Begehen). Ein abgesteckter Controller fällt auf Tasten zurück. */
-export const padAktiv = (typ: PadTyp | null, begehen: boolean, padId: string): boolean => typ !== null && begehen && padId !== '';
-export const padTypVon = (id: string): PadTyp => controllerTyp(id);
-
+// --- Beschriftung ---------------------------------------------------------------------------------------------
 const AKTION: Partial<Record<HinweisId, AktionId>> = {
   begehen: 'begehen', tastenhilfe: 'tastenhilfe', setzen: 'begehen.setzen', zielen: 'begehen.zielen', befund: 'begehen.befund', teilen: 'teilen',
 };
-const PAD: Partial<Record<HinweisId, PadAktion>> = { setzen: 'setzen', zielen: 'zielen', befund: 'befund' };
-
-/** Aktuelle Beschriftung eines Hinweises. Mit benutztem Controller im Begehen dessen Knöpfe (sonst die Taste);
+/** Aktuelle Beschriftung eines Hinweises (Tasten; mit Controller zeigt padSteuerung.ts eine eigene Leiste).
  *  Beenden ist immer Esc. `kuerzel` liefert '' für nicht belegte oder abgeschaltete Tasten. */
-export function hinweisTaste(id: HinweisId, o: {
-  kuerzel: (a: AktionId) => string;
-  pad: { typ: PadTyp; belegung: Record<PadAktion, number> } | null;
-}): string {
+export function hinweisTaste(id: HinweisId, o: { kuerzel: (a: AktionId) => string }): string {
   if (id === 'beenden') return 'Esc';
-  const p = PAD[id];
-  if (o.pad && p) return padKurz(o.pad.typ, o.pad.belegung[p]);
   if (id === 'drehen') return [o.kuerzel('begehen.drehen-links'), o.kuerzel('begehen.drehen-rechts')].filter(Boolean).join(' ');
   const a = AKTION[id];
   return a ? o.kuerzel(a) : '';
@@ -175,14 +148,15 @@ export function ueberdeckt(leiste: Rechteck, fokus: Rechteck): boolean {
   return schneidet(leiste, fokus) && !umschliesst;
 }
 
-/** Seite der Leiste. Rechts ist die Vorgabe; links nur, wenn es dort weniger verdeckt. Das fokussierte Element wiegt
- *  schwerer als ein Panel (ein angedocktes Panel, z. B. die Minikarte unten rechts). `rechts` ist die Leiste an
- *  ihrem rechten Platz, `breite` die Breite des Fensters; links liegt sie mit demselben Randabstand. */
-export function seiteFuer(rechts: Rechteck, breite: number, fokus: Rechteck | null, panels: readonly Rechteck[]): 'rechts' | 'links' {
+/** Seite der Leiste. Rechts ist die Vorgabe; links nur, wenn es dort frei ist. Verdeckt sie auf beiden Seiten etwas —
+ *  das fokussierte Element oder ein Panel (z. B. die Minikarte unten rechts) —, tritt sie zurück (`keine`): dieselben
+ *  Angaben stehen im Dialog „Bedienung“. `rechts` ist die Leiste an ihrem rechten Platz, `breite` die Breite des
+ *  Fensters; links liegt sie mit demselben Randabstand. */
+export function seiteFuer(rechts: Rechteck, breite: number, fokus: Rechteck | null, panels: readonly Rechteck[]): 'rechts' | 'links' | 'keine' {
   const rand = breite - rechts.right;
   const links = { left: rand, right: rand + (rechts.right - rechts.left), top: rechts.top, bottom: rechts.bottom };
-  const last = (r: Rechteck): number => (fokus && ueberdeckt(r, fokus) ? 2 : 0) + (panels.some((p) => schneidet(r, p)) ? 1 : 0);
-  return last(links) < last(rechts) ? 'links' : 'rechts';
+  const frei = (r: Rechteck): boolean => !(fokus && ueberdeckt(r, fokus)) && !panels.some((p) => schneidet(r, p));
+  return frei(rechts) ? 'rechts' : frei(links) ? 'links' : 'keine';
 }
 
 /**

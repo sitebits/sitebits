@@ -1,0 +1,12 @@
+# scanview-import-uebergabe.timer — alle 15 s nach fertigen, geprüften Paketen in der Übergabe
+# sehen. Nur mit SCANVIEW_IMPORT=1 installiert (einrichten.sh).
+[Unit]
+Description=scanview: geprüfte Import-Pakete freischalten (Takt)
+
+[Timer]
+OnBootSec=1min
+OnUnitInactiveSec=15s
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

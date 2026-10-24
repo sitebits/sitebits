@@ -1,6 +1,6 @@
 """Rahmenprüfung: Stammen Fotos und Paketwolke aus demselben Ausrichtungsstand?
 
-Ohne Bildkorrelation: Die Tie Points des Metashape-Exports liegen im Weltrahmen der Fotos. Ihr
+Ohne Bildkorrelation: Die Tie Points des Kameraexports liegen im Weltrahmen der Fotos. Ihr
 Median-Abstand zum nächsten Punkt der Paketwolke ist bei gleichem Stand im Zentimeterbereich,
 bei einem anderen Stand (neu ausgerichtet, anders georeferenziert) Dezimeter bis Meter. Gezählt
 werden nur Tie Points innerhalb der Grundrissausdehnung der Wolke.

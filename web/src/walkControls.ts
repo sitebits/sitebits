@@ -96,6 +96,12 @@ export function drehe(
   };
 }
 
+/** Blick um feste Winkel [rad] drehen (Controller: Rate und Bildzeit sind schon eingerechnet). */
+export function dreheUm(yaw: number, pitch: number, dyaw: number, dpitch: number): { yaw: number; pitch: number } {
+  if (!Number.isFinite(dyaw) || !Number.isFinite(dpitch)) return { yaw, pitch };
+  return { yaw: normiereYaw(yaw + dyaw), pitch: klemmePitch(pitch + dpitch) };
+}
+
 export function drehSchritt(yaw: number, richtung: -1 | 1, schrittGrad: number): number {
   return normiereYaw(yaw + richtung * schrittGrad * GRAD);
 }

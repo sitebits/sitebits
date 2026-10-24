@@ -91,3 +91,4 @@ ohne das Werkzeug mit dem Grund „WERKZEUG FEHLT“ und wiederholen die Auslass
 Laufs als Warnung. In der Release-Kette (Stufe `qualitaetstor`) setzt `SCANVIEW_QUALITAETSTOR=1`
 automatisch für die pytest-Läufe, dort ist ein fehlendes Werkzeug ein Fehlschlag; von Hand per
 Opt-in: `SCANVIEW_QUALITAETSTOR=1 uv run pytest`.
+Ebenso setzt sie `SCANVIEW_OOM_LIVE=1`: erst damit läuft der Server-Test mit Marker `oom_live` (echter oom-kill einer Auftrags-Unit), der lokal übersprungen wird.

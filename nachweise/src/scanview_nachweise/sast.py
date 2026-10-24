@@ -43,10 +43,10 @@ Schwere = Literal["hoch", "mittel", "niedrig", "info"]
 WERKZEUGE: tuple[str, ...] = ("semgrep", "bandit")
 SCHWEREN: tuple[str, ...] = ("hoch", "mittel", "niedrig", "info")
 #: Quellbäume aller Teilprojekte und die Skripte, die auf den Hosts laufen (`deploy/platform`,
-#: u. a. release_pruefen.py) — Laufzeitcode; Tests (Ordner `test`/`tests` unterhalb eines Ziels)
-#: nicht.
+#: u. a. release_pruefen.py), dazu der API-Client samt Beispielskripten, die Kunden ausführen —
+#: Laufzeitcode; Tests (Ordner `test`/`tests` unterhalb eines Ziels) nicht.
 ZIELE = ("server/src", "mcp-server/src", "nachweise/src", "web/src", "import/src",
-         "deploy/platform")
+         "deploy/platform", "clients/sitebits/src", "clients/sitebits/beispiele")
 _TESTORDNER = frozenset({"test", "tests"})
 #: Fixtures der Negativkontrolle `sast-fund-unregistriert` (absichtlich verwundbar).
 FIXTURE_ORDNER = "nachweise/tests/fixtures/sast"

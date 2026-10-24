@@ -1,0 +1,144 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8">
+<title>Sonne im Garten – $paket</title>
+<style>
+@page { size: A4; margin: 16mm 15mm; }
+:root { --text:#1d2430; --leise:#5b6573; --linie:#d5dae1; --akzent:#2c5d8a; --frei:#c9d7e6; }
+body { font: 10pt/1.45 "DejaVu Sans", "Liberation Sans", sans-serif; color: var(--text);
+  background:#fff; margin:0; }
+h1 { font-size: 17pt; margin: 0 0 2pt; }
+h2 { font-size: 12pt; margin: 16pt 0 5pt; color: var(--akzent); break-after: avoid; }
+.leise { color: var(--leise); font-size: 8.5pt; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { border-bottom: 1px solid var(--linie); padding: 2.5pt 5pt; text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 600; font-size: 8.5pt; }
+.kacheln { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6pt; margin: 8pt 0; }
+.kachel { border: 1px solid var(--linie); border-radius: 4pt; padding: 6pt 8pt; }
+.kachel b { display: block; font-size: 15pt; }
+.kachel span { font-size: 8pt; color: var(--leise); }
+.hinweis { border-left: 3pt solid var(--akzent); padding: 4pt 8pt; background: #f2f5f9; margin: 8pt 0; }
+.balken { width: 100%; height: auto; font-size: 8pt; fill: var(--leise); }
+.balken .gitter { stroke: var(--linie); }
+.balken .frei { fill: var(--frei); }
+.balken .mittel { fill: var(--akzent); }
+.balken .p90 { stroke: var(--text); stroke-width: 2; }
+.zweibild { display: grid; grid-template-columns: 1fr 1fr; gap: 10pt; align-items: start; }
+.karte img { max-width: 100%; max-height: 85mm; border: 1px solid var(--linie); }
+.skala { height: 8pt; width: 60mm; display: inline-block; vertical-align: middle;
+  background: linear-gradient(90deg, rgb(68,1,84), rgb(59,82,139), rgb(33,145,140), rgb(94,201,98),
+  rgb(253,231,37)); }
+.url { word-break: break-all; font-size: 7.5pt; color: var(--leise); }
+.frage { font-size: 11pt; margin: 6pt 0 2pt; }
+.antwort { font-size: 12.5pt; font-weight: 600; margin: 2pt 0 6pt; }
+.vertrauen { display:inline-block; border:1px solid var(--akzent); color: var(--akzent);
+  border-radius: 3pt; padding: 1pt 6pt; font-weight: 600; }
+.fehlt { color: #8a1f1f; font-weight: 600; }
+.seite { break-before: page; }
+.zweispaltig { display: grid; grid-template-columns: 1fr 1fr; gap: 12pt; }
+table, .kacheln, svg, .karte, .zweispaltig > div { break-inside: avoid; }
+.kachel b { font-size: 13pt; }
+.feld { display:inline-block; width:9pt; height:9pt; border:1px solid var(--linie);
+  vertical-align:middle; margin: 0 3pt 0 8pt; }
+</style></head><body>
+<h1>Sonne im Garten</h1>
+<div class="leise">Paket $paket · Fläche $flaeche_datei · erstellt $erstellt · Rechenstand $git</div>
+
+<p class="frage"><b>Frage:</b> $frage</p>
+<p class="antwort">$antwort</p>
+<p>Vertrauen: <span class="vertrauen">$vertrauen</span> <span class="leise">$vertrauen_grund</span></p>
+
+<div class="kacheln">
+<div class="kachel"><span>Sonne je Tag Juni/Juli (Mittel)</span><b>$mittsommer h</b><span>80 % der Fläche: $mittsommer_band h</span></div>
+<div class="kachel"><span>Sonne je Tag April–September (Mittel)</span><b>$vegetation h</b><span>80 % der Fläche: $vegetation_band h</span></div>
+<div class="kachel"><span>Anteil sonnig (ab 6 h im Mittsommer)</span><b>$sonnig</b><span>unsicher: $unsicher der Fläche</span></div>
+<div class="kachel"><span>Himmelssicht (Streulicht, Mittel)</span><b>$himmel</b><span>100 % = unverbaut</span></div>
+</div>
+
+<div class="zweibild">
+<section class="karte">$lagebild
+<div class="leise">Lage: Draufsicht aus dem Paket, Fläche rot umrandet. Pfeil = geografisch Nord.</div>
+</section>
+<section class="karte">$kategorien_bild
+<div class="leise">$legende<br>Lichtlage je Bodenpunkt im Mittsommer mit geschlossenen Kronen (eher zu
+wenig Sonne), Raster $raster cm; aufgehellt = unsicher (Grenzbereich oder je nach Kronen anders). Draufsicht,
+Norden oben (Gitter-Nord), Osten rechts; weiß = kein Boden im Modell.</div></section>
+</div>
+<p class="hinweis"><b>Schätzung, keine zugesicherte Eigenschaft.</b> Gezählt sind Stunden, in denen die
+Sonne den Boden erreichen kann (ohne Wolken), so wie Gärtner „sonnig“ und „Halbschatten“ meinen. Jede Zahl
+ist eine Spanne: Baumkronen haben im 3D-Modell Lücken (obere Zahl), geschlossen gerechnet ergibt sich die
+untere; die Wahrheit liegt dazwischen. Eine
+Pflanzenliste enthält der Bericht noch nicht; Boden und Feuchte müssen vor Ort geklärt werden (Fachteil).</p>
+
+<h1 class="seite">Fachteil</h1>
+<section><h2>Lichtlage</h2>
+<table><tr><th>Lichtlage</th><th>Sonne je Tag im Mittsommer</th><th>Anteil, Kronen geschlossen</th>
+<th>Anteil, Modell wie aufgenommen</th><th>Fläche</th></tr>
+$kategorien
+</table>
+<div class="leise">Anteile beziehen sich auf die Bodenpunkte mit Modell (Abdeckung s. Fläche). Unsicher
+(Grenzbereich oder je nach Kronen andere Lichtlage): $unsicher der Fläche. „80 % der Fläche“ = vom
+10. Perzentil mit geschlossenen Kronen bis zum 90. Perzentil mit dem Modell wie aufgenommen.</div></section>
+
+<section><h2>Sonnenstunden im Mittsommer</h2>
+<div class="zweibild">
+<div class="karte">$stunden_zu_bild<div class="leise">Kronen geschlossen</div></div>
+<div class="karte">$stunden_bild<div class="leise">Modell wie aufgenommen</div></div>
+</div>
+<div class="leise"><span class="skala"></span> $skala h direkte Sonne je Tag (Juni/Juli) je Bodenpunkt,
+Raster $raster cm. Dunkel = weniger Sonne. Norden oben, Osten rechts.</div></section>
+
+<section><h2>Je Monat (Stunden je Tag)</h2>
+<table><tr><th>Monat</th><th>Sonne über dem Horizont</th><th>nach Geländehorizont</th>
+<th>Mittel, Kronen geschlossen</th><th>Mittel, Modell</th><th>80 % der Fläche (Modell)</th>
+<th>Min … Max (Modell)</th></tr>
+$zeilen
+</table>
+<div class="leise">Viertelstunden des Jahres $bezugsjahr mit NREL SPA, je Tag gemittelt. Unsicherheit:
+Schattenkanten auf eine Zelle des Richtungsrasters genau; dünne Hindernisse (Masten, Stämme, Äste) können
+eine Viertelstunde Schatten zu viel oder zu wenig zeigen (synthetische Prüfszene). Die Kronen bestimmen die
+Spanne zwischen den beiden Mittelwerten; eine Unsicherheit aus der übrigen Modellgeometrie ist nicht
+bestimmt.</div></section>
+
+<section class="zweispaltig"><div><h2>Fläche (aus dem Modell)</h2>
+<table>$flaeche</table></div>
+<div><h2>Lage und Maßstab</h2>
+<table>$lage</table></div></section>
+
+<section class="zweispaltig"><div><h2>Aufnahme</h2>
+<table>$aufnahme</table></div>
+<div><h2>Pflanzen</h2>
+<p>Pflanzenliste: $fehlt. Für Gartenstauden und Gemüse gibt es keine offene, frei nutzbare Lichtliste;
+eine eigene Tabelle mit Quelle je Art ist geplant. Vor der Auswahl zu klären:</p>
+<ul>$pflichtfragen</ul></div></section>
+
+<section><h2>Verarbeitungskette</h2>
+<table>$kette</table></section>
+
+<section><h2>Schwellen und Modelle</h2><ul>$schwellen</ul></section>
+
+<section><h2>Gegenproben</h2>
+<table>$gegenprobe</table></section>
+
+<section><h2>Methode</h2><p>Stichpunkte im Raster auf dem Grundriss der gemessenen Fläche; je Punkt der
+Boden aus dem 3D-Modell. Je Bodenpunkt eine Richtungskarte der Verdeckung (Azimut × Höhe, obere Halbkugel,
+ein Raycast je Richtung). Für jede Viertelstunde des Bezugsjahres wird nachgeschlagen, ob die Sonne den
+Punkt erreicht; der Geländehorizont aus PVGIS wird zusätzlich am Sonnenstand angewandt. Die Stunden werden
+je Monat und Tag gemittelt, die Lichtlage folgt aus dem Mittel Juni/Juli. Weil Baumkronen im 3D-Modell
+Lücken haben, wird ein zweites Mal gerechnet, mit einem dichten Kronendach über allem, was mehr als 2 m über
+dem Boden steht; alle Zahlen stehen als Spanne zwischen beiden Rechnungen.</p></section>
+
+<section><h2>Fremddaten</h2><ul>
+<li>Geländehorizont: <b>$quelle</b> (<span class=url>$quelle_url</span>).
+Nutzung frei bei Quellenangabe (Beschluss 2011/833/EU).</li>
+$abrufe
+</ul></section>
+
+<section><h2>Was der Bericht nicht kann</h2><ul>$grenzen</ul></section>
+
+<section><h2>Datenschutz</h2><table>$datenschutz</table>
+<p class="leise">$standard_garten</p></section>
+
+<section><h2>Anhang und Prüfbarkeit</h2><ul>$anhang</ul>
+<p class="leise">Laufzeit $laufzeit s ($schritte), Spitzen-RAM $ram MB. Ergebnis-Prüfsumme (SHA-256 der
+Zahlen in ergebnis.json ohne Laufzeit): <code>$sha</code></p></section>
+</body></html>

@@ -1,0 +1,137 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8">
+<title>Verschattung und Ertrag – $paket</title>
+<style>
+@page { size: A4; margin: 16mm 15mm; }
+:root { --text:#1d2430; --leise:#5b6573; --linie:#d5dae1; --akzent:#2c5d8a; --frei:#c9d7e6; }
+body { font: 10pt/1.45 "DejaVu Sans", "Liberation Sans", sans-serif; color: var(--text);
+  background:#fff; margin:0; }
+h1 { font-size: 17pt; margin: 0 0 2pt; }
+h2 { font-size: 12pt; margin: 16pt 0 5pt; color: var(--akzent); break-after: avoid; }
+.leise { color: var(--leise); font-size: 8.5pt; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { border-bottom: 1px solid var(--linie); padding: 2.5pt 5pt; text-align: right; }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 600; font-size: 8.5pt; }
+.kacheln { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6pt; margin: 8pt 0; }
+.kachel { border: 1px solid var(--linie); border-radius: 4pt; padding: 6pt 8pt; }
+.kachel b { display: block; font-size: 15pt; }
+.kachel span { font-size: 8pt; color: var(--leise); }
+.hinweis { border-left: 3pt solid var(--akzent); padding: 4pt 8pt; background: #f2f5f9; margin: 8pt 0; }
+.balken { width: 100%; height: auto; font-size: 8pt; fill: var(--leise); }
+.balken .gitter { stroke: var(--linie); }
+.balken .frei { fill: var(--frei); }
+.balken .mittel { fill: var(--akzent); }
+.balken .p90 { stroke: var(--text); stroke-width: 2; }
+.zweibild { display: grid; grid-template-columns: 1fr 1fr; gap: 10pt; align-items: start; }
+.karte img { max-width: 100%; max-height: 85mm; border: 1px solid var(--linie); }
+.skala { height: 8pt; width: 60mm; display: inline-block; vertical-align: middle;
+  background: linear-gradient(90deg, rgb(68,1,84), rgb(59,82,139), rgb(33,145,140), rgb(94,201,98),
+  rgb(253,231,37)); }
+.url { word-break: break-all; font-size: 7.5pt; color: var(--leise); }
+.frage { font-size: 11pt; margin: 6pt 0 2pt; }
+.antwort { font-size: 12.5pt; font-weight: 600; margin: 2pt 0 6pt; }
+.vertrauen { display:inline-block; border:1px solid var(--akzent); color: var(--akzent);
+  border-radius: 3pt; padding: 1pt 6pt; font-weight: 600; }
+.fehlt { color: #8a1f1f; font-weight: 600; }
+.seite { break-before: page; }
+.zweispaltig { display: grid; grid-template-columns: 1fr 1fr; gap: 12pt; }
+table, .kacheln, svg, .karte, .zweispaltig > div { break-inside: avoid; }
+</style></head><body>
+<h1>Sonne und Ertrag einer Fläche</h1>
+<div class="leise">Paket $paket · Fläche $flaeche_datei · erstellt $erstellt · Rechenstand $git</div>
+
+<p class="frage"><b>Frage:</b> $frage</p>
+<p class="antwort">$antwort</p>
+<p>Vertrauen: <span class="vertrauen">$vertrauen</span> <span class="leise">$vertrauen_grund</span></p>
+
+<div class="kacheln">
+<div class="kachel"><span>Ertrag je Jahr (Mittel 2005–2023)</span><b>$mittel kWh</b></div>
+<div class="kachel"><span>schwaches Jahr (P90) … Median (P50)</span><b>$p90 … $p50</b></div>
+<div class="kachel"><span>Verlust durch Verschattung</span><b>$verlust</b></div>
+<div class="kachel"><span>Sonnenstunden möglich (ohne Wolken)</span><b>$sonnenstunden h</b></div>
+</div>
+
+<div class="zweibild">
+<section class="karte">$lagebild
+<div class="leise">Lage: Draufsicht aus dem Paket, Fläche rot umrandet. Pfeil = geografisch Nord.</div>
+</section>
+<section class="karte">
+<img alt="Einstrahlung je Stichpunkt" src="data:image/png;base64,$karte">
+<div class="leise"><span class="skala"></span> $skala kWh/m² im Jahr je Stichpunkt (Typjahr), Raster
+$raster cm. Dunkel = weniger Sonne. Blick von vorn auf die Fläche; oben = Gefällelinie aufwärts (bei fast
+waagerechten Flächen: Osten rechts, Norden oben).</div></section>
+</div>
+<p class="hinweis"><b>Schätzung, keine zugesicherte Eigenschaft.</b> Die Zahlen beschreiben, was diese
+Fläche mit der angegebenen Anlage in einem durchschnittlichen Jahr erwarten lässt; einzelne Jahre weichen ab.
+Was der Bericht nicht kann, steht im Fachteil.</p>
+
+<h1 class="seite">Fachteil</h1>
+<section><h2>Ergebnis</h2>
+<table>
+<tr><th>Größe</th><th>Mittel 2005–2023</th><th>Band / Grenze</th></tr>
+<tr><td>Ertrag ohne jede Verschattung</td><td>$frei kWh/a</td><td>P90 $frei_p90 … P50 $frei_p50</td></tr>
+<tr><td>nur Fernhorizont (Gelände)</td><td>$fern kWh/a</td><td>Horizont 7,5°-Schritte, 90-m-DEM</td></tr>
+<tr><td>mit Fernhorizont und Modell (Gebäude, Bäume …)</td><td>$mittel kWh/a</td><td>P90 $p90 … P50 $p50; Jahre $spanne</td></tr>
+<tr><td>davon Nahverschattung aus dem Modell</td><td>$nah kWh/a</td><td>Teilverschattung gemittelt, s. u.</td></tr>
+<tr><td>Verlust durch AC-Kappung ($kappung)</td><td>$kappungsverlust kWh/a</td><td>Stundenwerte, Spitzen
+innerhalb der Stunde fehlen</td></tr>
+<tr><td>Einstrahlung in Modulebene (mit Verschattung)</td><td>$einstrahlung kWh/m²·a</td><td>Mittel; Band wie Ertrag</td></tr>
+<tr><td>Typjahr (PVGIS-TMY) zum Vergleich</td><td>$typjahr kWh/a</td><td>ein Jahr, kein Band</td></tr>
+</table>
+<div class="leise">P50 = Median, P90 = 10. Perzentil der 19 Jahreswerte 2005–2023 (empirisch, ohne
+Verteilungsannahme): In 9 von 10 Jahren lag der Ertrag mindestens beim P90-Wert.</div></section>
+
+<section><h2>Je Monat</h2>
+$balken
+<div class="leise">Balken: Mittel mit Verschattung · Strich: P90 · hell: ohne Verschattung (kWh)</div>
+<table><tr><th>Monat</th><th>Sonne vor der Fläche h</th><th>davon besonnt h</th><th>verschattet</th>
+<th>kWh Mittel</th><th>P50</th><th>P90</th><th>unverschattet</th></tr>
+$zeilen
+</table>
+<div class="leise">Sonnenstunden geometrisch (Sonne über dem Horizont und vor der Fläche, ohne Wetter), in
+Viertelstunden des Jahres $bezugsjahr mit NREL SPA; Mittel über alle Stichpunkte. Unsicherheit:
+Schattenkanten auf eine Zelle des Richtungsrasters genau; dünne Hindernisse (Masten, Stämme, Äste) können
+eine Viertelstunde Schatten zu viel oder zu wenig zeigen (synthetische Prüfszene); eine Unsicherheit aus
+der Modellgeometrie ist nicht bestimmt.</div></section>
+
+<section class="zweispaltig"><div><h2>Fläche (aus dem Modell)</h2>
+<table>$flaeche</table></div>
+<div><h2>Lage und Maßstab</h2>
+<table>$lage</table></div></section>
+
+<section class="zweispaltig"><div><h2>Aufnahme</h2>
+<table>$aufnahme</table></div>
+<div><h2>Anlage und Parameter</h2>
+<table>$anlage</table></div></section>
+
+<section><h2>Verarbeitungskette</h2>
+<table>$kette</table></section>
+
+<section><h2>Schwellen und Modelle</h2><ul>$schwellen</ul></section>
+
+<section><h2>Gegenproben</h2>
+<table>$gegenprobe</table></section>
+
+<section><h2>Methode</h2><p>Stichpunkte im Raster auf der gemessenen Fläche, auf das Modell projiziert und
+entlang der Normalen versetzt. Je Stichpunkt eine Richtungskarte der Verdeckung (Azimut × Höhe, obere
+Halbkugel, ein Raycast je Richtung). Daraus die Direktmaske für jeden Sonnenstand (NREL SPA), die
+kosinusgewichtete Himmelssicht für den isotropen Diffusanteil und das Horizontband für die
+Horizontaufhellung; der zirkumsolare Anteil folgt der Direktmaske. Wetter stündlich aus PVGIS
+(SARAH3/ERA5, 2005–2023) ohne PVGIS-Horizont; der Fernhorizont wird getrennt als Maske angewandt, damit
+nichts doppelt zählt. Modul: Huld-Modell (wie PVGIS), Temperatur Faiman, Wechselrichter PVWatts mit
+AC-Kappung.</p></section>
+
+<section><h2>Fremddaten</h2><ul>
+<li>Strahlungs- und Wetterdaten, Geländehorizont: <b>$quelle</b> (<span class=url>$quelle_url</span>).
+Nutzung frei bei Quellenangabe (Beschluss 2011/833/EU).</li>
+$abrufe
+</ul></section>
+
+<section><h2>Was der Bericht nicht kann</h2><ul>$grenzen</ul></section>
+
+<section><h2>Datenschutz</h2><p>$datenschutz</p></section>
+
+<section><h2>Anhang und Prüfbarkeit</h2><ul>$anhang</ul>
+<p class="leise">Laufzeit $laufzeit s ($schritte), Spitzen-RAM $ram MB. Ergebnis-Prüfsumme (SHA-256 der
+Zahlen in ergebnis.json ohne Laufzeit): <code>$sha</code></p></section>
+</body></html>

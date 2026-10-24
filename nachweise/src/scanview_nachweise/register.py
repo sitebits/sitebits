@@ -320,7 +320,9 @@ CADDY_PRUEFUNG = "deploy/platform/test/caddy-pruefen.sh"
 _CADDY_VERWEIS = re.compile(rf"{re.escape(CADDY_PRUEFUNG)} (?P<punkt>[0-9]+[a-z]?)")
 FREIGABE_DURCH = "Andre"
 #: Release-Artefakte, auf die sich ein Befund beschränken kann (Feld `artefakte`).
-ARTEFAKTE = ("web", "server", "mcp", "import")
+#: Artefakte, auf die ein Befund beschränkt sein kann; `importbilder` ist kein Artefakt, sondern
+#: das nicht ausgelieferte Nachweis-SBOM der Werkzeug-Images des Imports (`sbom.BILDER`).
+ARTEFAKTE = ("web", "server", "mcp", "import", "importbilder")
 #: Befunde aus der SAST-Stufe: `B-SAST-<WERKZEUG>-<Fingerabdruck in Großbuchstaben>`; das Feld
 #: `fingerabdruck` (16 hex, klein) verbindet den Eintrag mit dem Werkzeugfund.
 _SAST_ID = re.compile(r"B-SAST-(?:SEMGREP|BANDIT)-(?P<fp>[0-9A-F]{16})")

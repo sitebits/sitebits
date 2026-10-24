@@ -17,16 +17,27 @@ export function sourceLabel(source: PointSource | null | undefined, layers: read
   const title = layers.find((l) => l.id === source.layerId)?.title ?? source.layerId;
   return `${source.source === 'mesh' ? 'Mesh' : 'Punktwolke'}: ${title}`;
 }
-export function measurementNotes(m: { pointSources?: readonly (PointSource|null)[] }, layers: readonly SourceLayer[]): string[] {
+export type HinweisSprache = 'de' | 'en';
+/** Anzeige folgt der Browsersprache; Exporte (JSON, CSV) bleiben deutsch wie der Server-Spiegel. */
+export const anzeigeSprache = (sprachen: readonly string[] = navigator.languages ?? [navigator.language]): HinweisSprache =>
+  sprachen.some((l) => /^de\b/i.test(l)) ? 'de' : 'en';
+const TEXTE = {
+  de: { modellmass: (q: string) => `Modellmaß — Maßstab nicht belegt (Quelle: ${q})`, unbekannt: 'unbekannt', interpoliert: 'Modelloberfläche (teils interpoliert)' },
+  en: { modellmass: (q: string) => `Model units — scale not verified (source: ${q})`, unbekannt: 'unknown', interpoliert: 'Model surface (partly interpolated)' },
+} as const;
+export function measurementNotes(m: { pointSources?: readonly (PointSource|null)[] }, layers: readonly SourceLayer[], sprache: HinweisSprache = 'de'): string[] {
+  const t = TEXTE[sprache];
   const notes = new Set<string>();
+  // Ebenen ohne belegten Maßstab: eine Meldung mit allen Quellen statt einer je Ebene.
+  const quellen = new Set<string>(); const MODELLMASS = '\u0000modellmass';
   for (const s of m.pointSources ?? []) {
     if (!s) continue; const p = layers.find((l) => l.id === s.layerId)?.provenance;
     // Mit Nachweis (F15) sagt der genauer, was am Maßstab belegt oder geprüft ist.
     if (p?.accuracy) for (const n of messhinweise(p.accuracy)) notes.add(n);
-    else if (p?.scaleVerified === false) notes.add(`Modellmaß — Maßstab nicht belegt (Quelle: ${p.scaleSource ?? 'unbekannt'})`);
-    if (s.source === 'mesh' && p?.interpolated) notes.add('Modelloberfläche (teils interpoliert)');
+    else if (p?.scaleVerified === false) { quellen.add(p.scaleSource ?? t.unbekannt); notes.add(MODELLMASS); }
+    if (s.source === 'mesh' && p?.interpolated) notes.add(t.interpoliert);
   }
-  return [...notes];
+  return [...notes].map((n) => n === MODELLMASS ? t.modellmass([...quellen].join(', ')) : n);
 }
 
 /** Im Panorama dürfen gespeicherte Mesh-Eckpunkte den Wolken-Picker nicht umgehen. */

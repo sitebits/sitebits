@@ -15,7 +15,7 @@ from .mesh_surface import SurfaceIndex
 # Teil-Meshes (z. B. ein Gebäude in einer Geländewolke): Kandidaten überzählig ziehen, dann nur die
 # im Grundriss des Meshes behalten (Raster ZELLE_M, belegt durch die xy-Rechtecke der Dreiecke).
 # Unter MIN_IM_BEREICH Punkten ist die Prüfung nicht aussagekräftig. Voraussetzung: Das Mesh deckt
-# alles ab, was die Wolke in seinem Grundriss hat (Region samt Boden, wie Metashape-Regionen).
+# alles ab, was die Wolke in seinem Grundriss hat (Region samt Boden, wie Rekonstruktionsregionen).
 UEBERZIEHEN = 20
 MIN_IM_BEREICH = 1000
 ZELLE_M = 1.0

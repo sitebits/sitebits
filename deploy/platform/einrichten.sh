@@ -41,6 +41,19 @@
 # scanview-backup.timer und scanview-git-export.timer (Letzterer nur aktiv bei
 # SCANVIEW_GIT_EXPORT=1 in der Umgebung; gepusht wird nur mit SCANVIEW_GIT_REMOTE und dem
 # Netz-Drop-in aus docs/public/betrieb.md — nie von selbst). Pakete kommen getrennt per paket-bereitstellen.sh.
+# JOBLAEUFER_BEGIN
+#
+# Jobläufer (optional, ab Werk aus): /etc/scanview/scanview-joblaeufer.env wird aus dem Beispiel
+# angelegt, wenn sie fehlt. Mit SCANVIEW_JOBLAEUFER=1 darin prüft das Skript VOR jeder Änderung
+# systemd ≥ 257, cgroup v2 mit memory, logind, dbus-user-session, Arbeitsspeicher und die
+# Import-Umgebung und bricht sonst ab. Dann legt es an: Nutzer scanview-import (Systemnutzer, kein
+# Login, Home /var/lib/scanview-import für den User-Manager, Linger an), Gruppe scanview-jobs,
+# /srv/scanview/jobs (jobs.db) und /srv/scanview/berichte, die Unit scanview-import-worker und
+# Drop-ins für scanview-server, scanview-backup und user@<uid>.service (RAM aller Aufträge).
+# Mit 0 hält es einen vorhandenen Worker an und entfernt Unit, Drop-ins und Linger; Nutzer und
+# Daten bleiben. Benannte Instanzen erhalten keinen Jobläufer (instanz_rendern.py entfernt die
+# Abschnitte zwischen diesen Markierungen).
+# JOBLAEUFER_END
 set -euo pipefail
 
 fehler() { echo "Fehler: $*" >&2; exit 1; }
@@ -207,6 +220,146 @@ done
 command -v uv >/dev/null ||
 	fehler "uv fehlt im PATH von root. uv bewusst installieren (gepinnte Version, Prüfsumme), dann erneut starten."
 id caddy >/dev/null 2>&1 || fehler "Nutzer caddy fehlt — Caddy muss auf diesem Host laufen (liest Pakete und web/dist)."
+# JOBLAEUFER_BEGIN
+# Jobläufer: Schalter und Vorbedingungen — nur lesen, nichts verändern. Ist der Schalter an und
+# fehlt etwas, bricht der ganze Lauf hier ab (laut, vor der Sicherung): lieber kein Update als ein
+# Host, auf dem Aufträge still liegen bleiben oder ohne Grenzen rechnen.
+JL_ENV=/etc/scanview/scanview-joblaeufer.env
+JL_NUTZER=scanview-import
+JL_GRUPPE=scanview-jobs
+JL_HOME=/var/lib/scanview-import
+JL_JOBS=/srv/scanview/jobs
+JL_BERICHTE=/srv/scanview/berichte
+JL_UNITS=/etc/systemd/system
+JL_UNIT=$JL_UNITS/scanview-import-worker.service
+JL_SYSTEMD_MIN=257   # PrivatePIDs in den Auftrags-Units
+JL_CGROUP=/sys/fs/cgroup
+JL_MEMINFO=/proc/meminfo
+JL_DBUS_SOCKET=/usr/lib/systemd/user/dbus.socket   # Paket dbus-user-session
+JL_LINGER=/var/lib/systemd/linger/$JL_NUTZER
+# Import-Umgebung (legt dieses Skript selbst an): uv-verwaltetes Python in fester Version unter
+# /opt/scanview/python, Umgebung aus dem gelockten import/uv.lock unter /opt/scanview/import.
+JL_IMPORT=/opt/scanview/import
+JL_IMPORT_BIN=$JL_IMPORT/.venv/bin
+JL_PYTHON_DIR=/opt/scanview/python
+JL_PYTHON_VERSION=3.12.13
+JL_BAU_NUTZER=nobody
+# Import neuer Projekte (Upload im Browser): zweiter Schalter, nur zusammen mit dem Jobläufer.
+JL_UPLOAD_GRUPPE=scanview-upload
+JL_UEBERGABE_NUTZER=scanview-uebergabe
+JL_UPLOADS=/srv/scanview/uploads
+JL_UEBERGABE=/srv/scanview/uebergabe
+JL_MELDUNGEN=/srv/scanview/uebergabe-meldungen
+JL_UEBERGABE_SKRIPT=/usr/local/sbin/scanview-import-uebergabe
+for f in scanview-import-worker.service scanview-joblaeufer.env.beispiel \
+	scanview-server.service.d/joblaeufer.conf scanview-backup.service.d/joblaeufer.conf \
+	import-bau-einschraenkungen.txt scanview-import-uebergabe scanview-import-uebergabe.service \
+	scanview-import-uebergabe.timer scanview-server.service.d/import.conf \
+	scanview-import-worker.service.d/import.conf; do
+	[[ -f $HIER/$f ]] || fehler "$HIER/$f fehlt."
+done
+# Letzter Wert NAME=… aus $JL_ENV; Anführungszeichen und Leerraum ringsum wie systemd entfernt.
+jl_wert() {
+	local zeile
+	zeile=$(grep -E "^[[:space:]]*$1=" "$JL_ENV" 2>/dev/null | tail -n 1) || true
+	zeile=${zeile#*=}
+	printf '%s' "$zeile" | sed -E "s/^[[:space:]]+//; s/[[:space:]]+\$//; s/^\"(.*)\"\$/\\1/; s/^'(.*)'\$/\\1/"
+}
+[[ ! -L $JL_ENV ]] || fehler "$JL_ENV ist ein Symlink — nichts verändert."
+JOBLAEUFER=0
+JL_IMPORT_AN=0
+if [[ -f $JL_ENV && $(jl_wert SCANVIEW_JOBLAEUFER) == 1 ]]; then
+	JOBLAEUFER=1
+fi
+if [[ $JOBLAEUFER -eq 1 ]]; then
+	echo "== 0. Jobläufer: Vorbedingungen"
+	jl_systemd=$(systemctl --version 2>/dev/null | sed -nE '1s/^systemd ([0-9]+)([^0-9].*)?$/\1/p') || true
+	if [[ ! $jl_systemd =~ ^[0-9]+$ ]] || ((10#$jl_systemd < JL_SYSTEMD_MIN)); then
+		fehler "Jobläufer: systemd ${jl_systemd:-unbekannt} — nötig ≥ $JL_SYSTEMD_MIN (Debian 13). Host aktualisieren oder SCANVIEW_JOBLAEUFER=0 in $JL_ENV. Nichts verändert."
+	fi
+	# cgroup v2: nur die vereinheitlichte Hierarchie hat cgroup.controllers in der Wurzel.
+	if [[ ! -f $JL_CGROUP/cgroup.controllers ]] || ! grep -qw memory "$JL_CGROUP/cgroup.controllers"; then
+		fehler "Jobläufer: cgroup v2 mit Controller memory fehlt ($JL_CGROUP/cgroup.controllers) — ohne ihn greift keine RAM-Grenze. Nichts verändert."
+	fi
+	command -v loginctl >/dev/null ||
+		fehler "Jobläufer: loginctl fehlt (systemd-logind, für Linger von $JL_NUTZER). Nichts verändert."
+	[[ -e $JL_DBUS_SOCKET ]] ||
+		fehler "Jobläufer: $JL_DBUS_SOCKET fehlt (apt install dbus-user-session) — systemd-run --user --wait braucht den Bus des User-Managers. Nichts verändert."
+	jl_ram=$(jl_wert SCANVIEW_JOBS_RAM_GB)
+	jl_ram=${jl_ram:-2}
+	if [[ ! $jl_ram =~ ^[0-9]{1,2}$ ]] || ((10#$jl_ram < 2 || 10#$jl_ram > 40)); then
+		fehler "Jobläufer: SCANVIEW_JOBS_RAM_GB muss eine ganze Zahl von 2 bis 40 sein (Prüfen braucht 2). Nichts verändert."
+	fi
+	jl_ram=$((10#$jl_ram))
+	jl_reserve=$(jl_wert SCANVIEW_JOBS_RESERVE_GB)
+	[[ -z $jl_reserve || $jl_reserve =~ ^[0-9]{1,4}$ ]] ||
+		fehler "Jobläufer: SCANVIEW_JOBS_RESERVE_GB muss eine ganze Zahl ab 0 sein. Nichts verändert."
+	# Gesamtspeicher statt „frei“: beim Update rechnet womöglich gerade ein Auftrag. Budget plus
+	# 1 GB für Webdienst (512 MB), Worker, User-Manager und System. Im LXC zeigt /proc/meminfo die
+	# Grenze des Containers.
+	jl_kb=$(awk '$1 == "MemTotal:" {print $2}' "$JL_MEMINFO" 2>/dev/null) || true
+	if [[ ! $jl_kb =~ ^[0-9]+$ ]] || ((jl_kb < (jl_ram + 1) * 1024 * 1024)); then
+		fehler "Jobläufer: zu wenig Arbeitsspeicher — MemTotal ${jl_kb:-?} kB, nötig $((jl_ram + 1)) GB (SCANVIEW_JOBS_RAM_GB=$jl_ram plus 1 GB). Nichts verändert."
+	fi
+	# Die Units geben genau diese Pfade frei; andere Werte liefen in „Read-only file system“.
+	[[ $(jl_wert SCANVIEW_JOBS_DB) == "$JL_JOBS/jobs.db" && $(jl_wert SCANVIEW_BERICHTE) == "$JL_BERICHTE" ]] ||
+		fehler "Jobläufer: in $JL_ENV muss SCANVIEW_JOBS_DB=$JL_JOBS/jobs.db und SCANVIEW_BERICHTE=$JL_BERICHTE stehen. Nichts verändert."
+	# Import-Umgebung: legt dieses Skript an (Schritt 7a); hier nur, ob alles dafür da ist.
+	[[ $(jl_wert SCANVIEW_IMPORT_BIN) == "$JL_IMPORT_BIN" ]] ||
+		fehler "Jobläufer: in $JL_ENV muss SCANVIEW_IMPORT_BIN=$JL_IMPORT_BIN stehen (einrichten.sh legt die Import-Umgebung dort an). Nichts verändert."
+	[[ -f $REPO/import/uv.lock && -f $REPO/import/pyproject.toml ]] ||
+		fehler "Jobläufer: $REPO/import/uv.lock bzw. pyproject.toml fehlt — ohne Import-Code keine Import-Umgebung. Nichts verändert."
+	id "$JL_BAU_NUTZER" >/dev/null 2>&1 ||
+		fehler "Jobläufer: Nutzer $JL_BAU_NUTZER fehlt (baut die Import-Umgebung ohne root-Rechte). Nichts verändert."
+	JL_RAM_MB=$((jl_ram * 1024 + 256))
+	# Import neuer Projekte: Pflichtwert Quote (kein Standard — der Betreiber entscheidet), feste
+	# Pfade (die Units geben genau sie frei).
+	jl_import=$(jl_wert SCANVIEW_IMPORT)
+	[[ -z $jl_import || $jl_import == 0 || $jl_import == 1 ]] ||
+		fehler "Jobläufer: SCANVIEW_IMPORT muss 0 oder 1 sein. Nichts verändert."
+	if [[ $jl_import == 1 ]]; then
+		JL_IMPORT_AN=1
+		jl_quote=$(jl_wert SCANVIEW_UPLOAD_QUOTE_GB)
+		if [[ ! $jl_quote =~ ^[0-9]{1,6}$ ]] || ((10#$jl_quote < 1)); then
+			fehler "Import: SCANVIEW_UPLOAD_QUOTE_GB fehlt oder ist keine ganze Zahl ab 1 — Pflicht bei SCANVIEW_IMPORT=1, ohne Standard (Platz für Uploads, GB). Nichts verändert."
+		fi
+		# Die Pfade setzen die Drop-ins fest; ein Wert in der Datei hätte Vorrang (EnvironmentFile).
+		for v in SCANVIEW_UPLOADS SCANVIEW_UEBERGABE SCANVIEW_UEBERGABE_MELDUNGEN; do
+			! grep -qE "^[[:space:]]*$v=" "$JL_ENV" ||
+				fehler "Import: $v nicht in $JL_ENV setzen (fester Pfad aus den Drop-ins). Nichts verändert."
+		done
+		# Der Übergabe-Nutzer ist für das Freischalt-Skript der „Hochladende“: nie in einer Gruppe,
+		# die Pakete, Uploads oder Aufträge erreicht.
+		if id "$JL_UEBERGABE_NUTZER" >/dev/null 2>&1; then
+			for g in $(id -nG -- "$JL_UEBERGABE_NUTZER"); do
+				case $g in
+				scanview | "$JL_UPLOAD_GRUPPE" | "$JL_GRUPPE" | "$JL_NUTZER")
+					fehler "Import: $JL_UEBERGABE_NUTZER ist Mitglied von $g — nicht erlaubt (nur $JL_UEBERGABE_NUTZER und scanview-deploy; gpasswd -d $JL_UEBERGABE_NUTZER $g). Nichts verändert." ;;
+				esac
+			done
+		fi
+		echo "   Import an: Quote $jl_quote GB."
+	fi
+	[[ $JL_IMPORT_AN -eq 1 ]] || echo "   Import neuer Projekte aus (SCANVIEW_IMPORT=1 in $JL_ENV schaltet ihn ein)."
+	echo "   systemd $jl_systemd, cgroup v2 mit memory, ${jl_kb} kB Arbeitsspeicher, Budget $jl_ram GB."
+fi
+# Nach dem Start des Webdienstes: meldet der Worker sich in /api/gesundheit als „aktiv“? Er läuft
+# zuerst seinen Selbsttest (Netz, Bus, Schreiben außerhalb, RAM-Grenze); scheitert der, endet er
+# mit Exit 3 und startet nicht neu.
+joblaeufer_aktiv() {
+	local antwort
+	for _ in $(seq 1 60); do
+		antwort=$(curl -fsS --max-time 5 http://127.0.0.1:8803/api/gesundheit 2>/dev/null) || antwort=
+		if grep -qE '"worker"[[:space:]]*:[[:space:]]*"aktiv"' <<<"$antwort"; then
+			echo "   Jobläufer aktiv (Selbsttest bestanden)."
+			return 0
+		fi
+		sleep 1
+	done
+	systemctl --no-pager status scanview-import-worker.service || true
+	fehler "Jobläufer meldet sich nicht als aktiv — journalctl -u scanview-import-worker prüfen (Selbsttest der Isolation?)."
+}
+# JOBLAEUFER_END
 
 echo "== 0. Sicherung vor dem Update"
 # Update oder Ersteinrichtung? Ein fehlender Mount oder verlorener Datenbestand darf nie als
@@ -366,11 +519,234 @@ if [[ ! -e $INSTALLIERT ]]; then
 fi
 [[ -f $INSTALLIERT && ! -L $INSTALLIERT && $(stat -c %u -- "$INSTALLIERT") == 0 ]] ||
 	fehler "$INSTALLIERT ist keine root-eigene reguläre Datei."
+# JOBLAEUFER_BEGIN
+echo "== 7a. Jobläufer"
+if [[ ! -e $JL_ENV && ! -L $JL_ENV ]]; then
+	# root:root 0640: nur systemd (EnvironmentFile) und dieses Skript lesen sie.
+	install -o root -g root -m 0640 "$HIER/scanview-joblaeufer.env.beispiel" "$JL_ENV"
+	echo "   $JL_ENV aus Beispiel angelegt (SCANVIEW_JOBLAEUFER=0)."
+fi
+JL_DROPINS=("$JL_UNITS/scanview-server.service.d/joblaeufer.conf"
+	"$JL_UNITS/scanview-backup.service.d/joblaeufer.conf"
+	"$JL_UNITS/scanview-import-worker.service.d/laufzeit.conf")
+# Import neuer Projekte: Units und Drop-ins, die nur mit SCANVIEW_IMPORT=1 liegen.
+JL_IMPORT_UNITS=("$JL_UNITS/scanview-import-uebergabe.service" "$JL_UNITS/scanview-import-uebergabe.timer"
+	"$JL_UNITS/scanview-server.service.d/import.conf" "$JL_UNITS/scanview-import-worker.service.d/import.conf")
+# Import ausschalten: Timer anhalten, Units, Drop-ins und Root-Skript weg, Gruppe des Workers
+# entziehen; Uploads, Übergabe und Nutzer bleiben (Daten löscht nur der Betreiber).
+import_ausschalten() {
+	if [[ -e ${JL_IMPORT_UNITS[0]} || -e ${JL_IMPORT_UNITS[1]} || -e $JL_UEBERGABE_SKRIPT ]]; then
+		systemctl disable --now scanview-import-uebergabe.timer 2>/dev/null || true
+		systemctl stop scanview-import-uebergabe.service 2>/dev/null || true
+		rm -f -- "${JL_IMPORT_UNITS[@]}" "$JL_UEBERGABE_SKRIPT"
+		echo "   Import ausgeschaltet: Übergabe-Timer, Units und Drop-ins entfernt (Uploads bleiben)."
+	fi
+	if id -nG -- "$JL_NUTZER" 2>/dev/null | tr ' ' '\n' | grep -qx "$JL_UPLOAD_GRUPPE"; then
+		gpasswd -d "$JL_NUTZER" "$JL_UPLOAD_GRUPPE" >/dev/null
+	fi
+}
+if [[ $JOBLAEUFER -eq 1 ]]; then
+	# Rechte (so eng wie möglich; Tabelle auch in deploy/platform/README.md „Jobläufer“):
+	# - scanview-import: Systemnutzer ohne Login, eigene Gruppe; Home nur für den User-Manager.
+	# - Mitglied in scanview: liest die Pakete wie der Webdienst (/srv/scanview/data root:scanview
+	#   0750, Dateien 0640) — schreiben kann dort nur root (Freischalt-Skript unverändert).
+	# - Mitglied in scanview-jobs: gemeinsam mit dem Webdienst (der die Gruppe nur per Drop-in
+	#   bekommt, nicht in /etc/group) auf jobs.db und die Berichte.
+	getent group "$JL_GRUPPE" >/dev/null || groupadd --system "$JL_GRUPPE"
+	if ! id "$JL_NUTZER" >/dev/null 2>&1; then
+		useradd --system --user-group --home-dir "$JL_HOME" --no-create-home \
+			--shell /usr/sbin/nologin "$JL_NUTZER"
+	fi
+	usermod -a -G "scanview,$JL_GRUPPE" "$JL_NUTZER"
+	JL_UID=$(id -u "$JL_NUTZER")
+	[[ $JL_UID =~ ^[0-9]+$ && $JL_UID -ne 0 ]] || fehler "$JL_NUTZER hat keine gültige uid ($JL_UID)."
+	# Nie Deploy-Nutzer: der erreicht sonst über scanview die Datenwurzel (wie oben bei Schritt 1).
+	if id -nG -- "$JL_NUTZER" 2>/dev/null | tr ' ' '\n' | grep -qx scanview-deploy; then
+		fehler "$JL_NUTZER ist in scanview-deploy UND scanview — aus scanview-deploy entfernen."
+	fi
+	for d in "$JL_HOME" "$JL_JOBS" "$JL_BERICHTE" "$JL_JOBS/jobs.db"; do
+		[[ ! -L $d ]] || fehler "$d ist ein Symlink."
+	done
+	# Home 0700: Zustand des User-Managers, sonst niemand.
+	install -d -o "$JL_NUTZER" -g "$JL_NUTZER" -m 0700 "$JL_HOME"
+	# jobs/ 3770 root:scanview-jobs: beide Dienste legen dort -wal/-shm an (setgid hält die
+	# Gruppe), Fremde nichts. Sticky und root als Eigentümer von Ordner und jobs.db: keiner der
+	# beiden Dienste kann jobs.db umbenennen oder durch einen Symlink ersetzen (SQLite folgt einem
+	# Symlink an der Datenbankdatei — gemessen; so könnte der Worker die Schreibzugriffe des
+	# Webdienstes auf dessen scanview.db umlenken).
+	install -d -o root -g "$JL_GRUPPE" -m 3770 "$JL_JOBS"
+	# berichte/ 2750 scanview-import:scanview-jobs: nur der Worker schreibt (Ordner 0750, Dateien
+	# 0640 dank UMask 0027), der Webdienst liest über die Gruppe; setgid vererbt sie an alles darin.
+	install -d -o "$JL_NUTZER" -g "$JL_GRUPPE" -m 2750 "$JL_BERICHTE"
+	# jobs.db root:scanview-jobs 0660 (Gruppe aus dem setgid-Ordner). Ohne Vorab-Anlage hätte sie
+	# 0600 von dem, der zuerst öffnet. noclobber öffnet mit O_EXCL: ein untergeschobener Symlink
+	# lässt das Anlegen scheitern, statt dass root ihm folgt.
+	if [[ ! -e $JL_JOBS/jobs.db && ! -L $JL_JOBS/jobs.db ]]; then
+		(umask 0117 && set -C && : >"$JL_JOBS/jobs.db")
+	fi
+	[[ -f $JL_JOBS/jobs.db && ! -L $JL_JOBS/jobs.db &&
+		$(stat -c '%U:%G %a %h' -- "$JL_JOBS/jobs.db") == "root:$JL_GRUPPE 660 1" ]] ||
+		fehler "$JL_JOBS/jobs.db: erwartet root:$JL_GRUPPE 0660, ein Name — ist $(stat -c '%U:%G %a %h' -- "$JL_JOBS/jobs.db" 2>/dev/null || echo fehlt). Von Hand prüfen, nichts geändert."
+	install -d -m 0755 "$JL_UNITS/scanview-server.service.d" "$JL_UNITS/scanview-backup.service.d" \
+		"$JL_UNITS/scanview-import-worker.service.d" "$JL_UNITS/user@$JL_UID.service.d"
+	install -m 0644 "$HIER/scanview-server.service.d/joblaeufer.conf" "${JL_DROPINS[0]}"
+	install -m 0644 "$HIER/scanview-backup.service.d/joblaeufer.conf" "${JL_DROPINS[1]}"
+	install -m 0644 "$HIER/scanview-import-worker.service" "$JL_UNIT"
+	# uid-abhängig, darum hier geschrieben (%U wäre in einer System-Unit 0): Weg zum User-Manager.
+	(umask 0022 && printf '%s\n' \
+		'# Von einrichten.sh geschrieben: Weg des Workers zu seinem User-Manager (Linger).' \
+		'[Unit]' "Requires=user@$JL_UID.service" "After=user@$JL_UID.service" \
+		'[Service]' "Environment=XDG_RUNTIME_DIR=/run/user/$JL_UID" \
+		"BindReadOnlyPaths=/run/user/$JL_UID" >"${JL_DROPINS[2]}")
+	# RAM aller Aufträge zusammen: sie laufen im User-Manager, nicht in der Worker-Unit.
+	(umask 0022 && printf '%s\n' \
+		'# Von einrichten.sh geschrieben: RAM aller Aufträge des Jobläufers (SCANVIEW_JOBS_RAM_GB + 256 MB).' \
+		'[Service]' "MemoryMax=${JL_RAM_MB}M" 'MemorySwapMax=0' \
+		>"$JL_UNITS/user@$JL_UID.service.d/scanview-joblaeufer.conf")
+	echo "   Nutzer $JL_NUTZER (uid $JL_UID), $JL_JOBS, $JL_BERICHTE, Unit und Drop-ins installiert."
+
+	# Import-Umgebung: Code root-eigen nach /opt/scanview/import, dann baut uv als
+	# $JL_BAU_NUTZER (ohne root-Rechte: Quellpakete führen beim Bauen fremden Code aus) eine frische
+	# Umgebung mit uv-verwaltetem Python $JL_PYTHON_VERSION aus dem gelockten uv.lock (inkl. Extra
+	# sonne, ohne Entwicklungswerkzeuge). Fremdpakete nur als Wheel (import/pyproject.toml
+	# no-build-package), Bauabhängigkeiten fest (import-bau-einschraenkungen.txt). Geladen wird nur
+	# hier; Aufträge laufen ohne Netz. Danach gehört alles root und ist für niemanden sonst
+	# beschreibbar — der Worker startet daraus Prozesse und darf sie nicht verändern können.
+	echo "   Import-Umgebung (Python $JL_PYTHON_VERSION, import/uv.lock)"
+	for d in "$JL_IMPORT" "$JL_IMPORT/.venv" "$JL_PYTHON_DIR"; do
+		[[ ! -L $d ]] || fehler "$d ist ein Symlink."
+	done
+	# Kein Auftrag soll aus einer halb gebauten Umgebung starten (der Worker startet unten neu).
+	systemctl stop scanview-import-worker.service 2>/dev/null || true
+	install -d -o root -g root -m 0755 "$JL_IMPORT"
+	rsync -a --delete \
+		--exclude .venv --exclude __pycache__ --exclude .pytest_cache --exclude .mypy_cache --exclude .ruff_cache \
+		"$REPO/import/" "$JL_IMPORT/"
+	chown -R root:root "$JL_IMPORT"
+	chmod -R u+rwX,go=rX "$JL_IMPORT"
+	rm -rf -- "$JL_IMPORT/.venv" "$JL_PYTHON_DIR"
+	jl_bau=$(mktemp -d /var/tmp/scanview-import-bau.XXXXXXXX)
+	chmod 0711 "$jl_bau"  # $JL_BAU_NUTZER darf hindurch (nicht auflisten)
+	install -m 0644 "$HIER/import-bau-einschraenkungen.txt" "$jl_bau/einschraenkungen.txt"
+	# uv selbst als Kopie: root findet es womöglich unter /root, das $JL_BAU_NUTZER nicht erreicht.
+	install -m 0755 "$(command -v uv)" "$jl_bau/uv"
+	install -d -o "$JL_BAU_NUTZER" -m 0700 "$jl_bau/cache" "$jl_bau/home"
+	install -d -o "$JL_BAU_NUTZER" -m 0755 "$JL_IMPORT/.venv" "$JL_PYTHON_DIR"
+	if ! (cd "$JL_IMPORT" && runuser -u "$JL_BAU_NUTZER" -- env -i PATH=/usr/bin:/bin \
+		HOME="$jl_bau/home" UV_CACHE_DIR="$jl_bau/cache" UV_PYTHON_INSTALL_DIR="$JL_PYTHON_DIR" \
+		UV_PYTHON_PREFERENCE=only-managed UV_PYTHON="$JL_PYTHON_VERSION" \
+		UV_BUILD_CONSTRAINT="$jl_bau/einschraenkungen.txt" \
+		"$jl_bau/uv" sync --locked --no-dev --extra sonne); then
+		rm -rf -- "$jl_bau"
+		fehler "Import-Umgebung: uv sync gescheitert (Netz beim Einrichten, uv.lock, Bau von meshoptimizer?) — Jobläufer nicht gestartet."
+	fi
+	rm -rf -- "$jl_bau"
+	# chown/chmod folgen keinem Symlink (-R ohne -L); chown löscht setuid/setgid-Bits.
+	chown -R root:root "$JL_IMPORT/.venv" "$JL_PYTHON_DIR"
+	chmod -R u+rwX,go=rX "$JL_IMPORT/.venv" "$JL_PYTHON_DIR"
+	# Prüfung danach: root-eigen, für niemanden sonst beschreibbar, ausführbarer Prüfer; der
+	# Interpreter der Umgebung liegt im root-eigenen Python-Ordner.
+	jl_py=$(readlink -f -- "$JL_IMPORT_BIN/python" 2>/dev/null) || jl_py=
+	[[ -d $JL_IMPORT_BIN && ! -L $JL_IMPORT_BIN && -f $JL_IMPORT_BIN/scanview-pruefen && ! -L $JL_IMPORT_BIN/scanview-pruefen &&
+		-x $JL_IMPORT_BIN/scanview-pruefen && $jl_py == "$JL_PYTHON_DIR"/* &&
+		$(find "$JL_IMPORT" "$JL_IMPORT_BIN" "$JL_IMPORT_BIN/scanview-pruefen" "$JL_PYTHON_DIR" -maxdepth 0 -user 0 ! -perm /0022 -printf x 2>/dev/null) == xxxx &&
+		-z $(find "$JL_IMPORT" "$JL_PYTHON_DIR" \( ! -user 0 -o -perm /0022 \) ! -type l -print -quit 2>/dev/null) ]] ||
+		fehler "Jobläufer: SCANVIEW_IMPORT_BIN ($JL_IMPORT_BIN) muss ein root-eigener, nur für root beschreibbarer Ordner mit ausführbarem scanview-pruefen sein, Python unter $JL_PYTHON_DIR (Import-Umgebung, docs/public/betrieb.md, Abschnitt Jobläufer)."
+
+	if [[ $JL_IMPORT_AN -eq 1 ]]; then
+		# Rechte (Tabelle in deploy/platform/README.md „Import neuer Projekte“):
+		# - scanview-upload: Webdienst (nur per Drop-in) schreibt Uploads, Worker liest sie.
+		# - scanview-uebergabe: Systemnutzer ohne Login, nur in scanview-deploy. Er kopiert das
+		#   fertige Paket aus der Übergabe in den Eingang und ist damit für das unveränderte
+		#   Freischalt-Skript der Hochladende (nie in scanview: sonst bricht es ab).
+		getent group "$JL_UPLOAD_GRUPPE" >/dev/null || groupadd --system "$JL_UPLOAD_GRUPPE"
+		if ! id "$JL_UEBERGABE_NUTZER" >/dev/null 2>&1; then
+			useradd --system --user-group --home-dir /nonexistent --no-create-home \
+				--shell /usr/sbin/nologin "$JL_UEBERGABE_NUTZER"
+		fi
+		usermod -a -G scanview-deploy "$JL_UEBERGABE_NUTZER"
+		JL_GRUPPEN_NEU=0
+		if ! id -nG -- "$JL_NUTZER" | tr ' ' '\n' | grep -qx "$JL_UPLOAD_GRUPPE"; then
+			usermod -a -G "$JL_UPLOAD_GRUPPE" "$JL_NUTZER"
+			JL_GRUPPEN_NEU=1
+		fi
+		# Gegenprobe nach dem Anlegen (der Betreiber könnte Gruppen von Hand ergänzt haben).
+		for g in $(id -nG -- "$JL_UEBERGABE_NUTZER"); do
+			[[ $g == "$JL_UEBERGABE_NUTZER" || $g == scanview-deploy ]] ||
+				fehler "$JL_UEBERGABE_NUTZER ist Mitglied von $g — erlaubt sind nur $JL_UEBERGABE_NUTZER und scanview-deploy."
+		done
+		for g in $(id -nG -- "$JL_NUTZER"); do
+			[[ $g != "$JL_UEBERGABE_NUTZER" && $g != scanview-deploy ]] ||
+				fehler "$JL_NUTZER ist Mitglied von $g — nicht erlaubt (der Worker schaltet nie selbst frei)."
+		done
+		for d in "$JL_UPLOADS" "$JL_UEBERGABE" "$JL_MELDUNGEN"; do
+			[[ ! -L $d ]] || fehler "$d ist ein Symlink."
+		done
+		# uploads/ 2750 scanview:scanview-upload: der Webdienst schreibt (Ordner 2750, Dateien
+		# 0640), der Worker liest über die Gruppe, sonst niemand. Außerhalb der Paketwurzel.
+		install -d -o scanview -g "$JL_UPLOAD_GRUPPE" -m 2750 "$JL_UPLOADS"
+		# uebergabe/ 2750 scanview-import:scanview-uebergabe: Worker und Aufträge schreiben, der
+		# Übergabe-Nutzer liest über die Gruppe (setgid vererbt sie an alles darin).
+		install -d -o "$JL_NUTZER" -g "$JL_UEBERGABE_NUTZER" -m 2750 "$JL_UEBERGABE"
+		# uebergabe-meldungen/ 2750 scanview-uebergabe:scanview-import: ein Wort je Paket zurück.
+		install -d -o "$JL_UEBERGABE_NUTZER" -g "$JL_NUTZER" -m 2750 "$JL_MELDUNGEN"
+		install -o root -g root -m 0755 "$HIER/scanview-import-uebergabe" "$JL_UEBERGABE_SKRIPT"
+		install -m 0644 "$HIER/scanview-import-uebergabe.service" "${JL_IMPORT_UNITS[0]}"
+		install -m 0644 "$HIER/scanview-import-uebergabe.timer" "${JL_IMPORT_UNITS[1]}"
+		install -m 0644 "$HIER/scanview-server.service.d/import.conf" "${JL_IMPORT_UNITS[2]}"
+		install -m 0644 "$HIER/scanview-import-worker.service.d/import.conf" "${JL_IMPORT_UNITS[3]}"
+		echo "   Import: $JL_UPLOADS, $JL_UEBERGABE, $JL_MELDUNGEN, Nutzer $JL_UEBERGABE_NUTZER, Übergabe-Timer installiert."
+	else
+		import_ausschalten
+	fi
+elif [[ -e $JL_UNIT || -e $JL_LINGER ]]; then
+	# Ausschalten: Dienst anhalten, Unit, Drop-ins und Linger weg; Nutzer, jobs.db und Berichte
+	# bleiben (Daten löscht nur der Betreiber).
+	systemctl disable --now scanview-import-worker.service 2>/dev/null || true
+	rm -f -- "$JL_UNIT" "${JL_DROPINS[@]}"
+	import_ausschalten
+	if id "$JL_NUTZER" >/dev/null 2>&1; then
+		rm -f -- "$JL_UNITS/user@$(id -u "$JL_NUTZER").service.d/scanview-joblaeufer.conf"
+		loginctl disable-linger "$JL_NUTZER" || true
+	fi
+	echo "   Jobläufer ausgeschaltet: Dienst, Unit, Drop-ins und Linger entfernt (Daten bleiben)."
+else
+	echo "   Jobläufer aus (SCANVIEW_JOBLAEUFER=1 in $JL_ENV schaltet ihn ein)."
+fi
+# JOBLAEUFER_END
 systemctl daemon-reload
 systemctl enable scanview-server.service scanview-backup.timer
 # restart statt `enable --now`: bei einem erneuten Lauf soll der neue Code auch geladen werden.
 systemctl restart scanview-server.service
 systemctl start scanview-backup.timer
+# JOBLAEUFER_BEGIN
+if [[ $JOBLAEUFER -eq 1 ]]; then
+	# Linger: der User-Manager von scanview-import läuft ohne Anmeldung, ab dem Systemstart.
+	loginctl enable-linger "$JL_NUTZER"
+	systemctl start "user@$JL_UID.service"
+	# Neue Gruppe (scanview-upload) sieht der User-Manager erst nach einem Neustart — sonst lesen
+	# die Aufträge die Uploads nicht.
+	if [[ ${JL_GRUPPEN_NEU:-0} -eq 1 ]]; then systemctl restart "user@$JL_UID.service"; fi
+	jl_bus=/run/user/$JL_UID/bus
+	for _ in $(seq 1 20); do
+		[[ -S $jl_bus ]] && break
+		sleep 0.5
+	done
+	[[ -S $jl_bus ]] ||
+		fehler "Jobläufer: $jl_bus fehlt — der User-Manager von $JL_NUTZER hat keinen Bus (dbus-user-session, systemctl status user@$JL_UID)."
+	jl_cg=$JL_CGROUP/user.slice/user-$JL_UID.slice/user@$JL_UID.service
+	grep -qw memory "$jl_cg/cgroup.controllers" 2>/dev/null ||
+		fehler "Jobläufer: memory ist nicht an user@$JL_UID.service delegiert ($jl_cg/cgroup.controllers) — RAM-Grenzen der Aufträge würden nicht greifen (Delegate=, Container-Konfiguration prüfen)."
+	[[ $(cat "$jl_cg/memory.max" 2>/dev/null) == $((JL_RAM_MB * 1024 * 1024)) ]] ||
+		fehler "Jobläufer: RAM-Grenze von user@$JL_UID.service nicht wirksam ($jl_cg/memory.max ≠ ${JL_RAM_MB} MB)."
+	systemctl enable scanview-import-worker.service
+	# restart: ein erneuter Lauf lädt neuen Code; der Worker bricht einen laufenden Auftrag ab.
+	systemctl restart scanview-import-worker.service
+	if [[ $JL_IMPORT_AN -eq 1 ]]; then
+		systemctl enable --now scanview-import-uebergabe.timer
+	fi
+fi
+# JOBLAEUFER_END
 # Git-Export: aus, bis SCANVIEW_GIT_EXPORT=1 in der Umgebung steht. Ein erneuter
 # Lauf nach dem Ausschalten hält den Timer wieder an. Ob gepusht wird, entscheidet allein
 # SCANVIEW_GIT_REMOTE (plus Netz-Drop-in, docs/public/betrieb.md) — dieses Skript pusht nie.
@@ -444,6 +820,9 @@ for _ in $(seq 1 20); do
 	if curl -fsS http://127.0.0.1:8803/api/gesundheit; then
 		echo
 		barrierefreiheit_pruefen
+		# JOBLAEUFER_BEGIN
+		if [[ $JOBLAEUFER -eq 1 ]]; then joblaeufer_aktiv; fi
+		# JOBLAEUFER_END
 		ERGEBNIS=ok
 		rm -f -- "$MARKER"
 		echo "Fertig ($VERSION). Protokoll: $PROTOKOLL. Nächste Schritte: docs/public/betrieb.md (Caddy, Pakete bereitstellen, Konten)."

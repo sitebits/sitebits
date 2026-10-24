@@ -26,7 +26,7 @@ def _tabelle() -> list[dict[str, str]]:
 
 def test_endpunkte_tabelle_vorhanden_und_eindeutig() -> None:
     tabelle = _tabelle()
-    assert len(tabelle) == 21
+    assert len(tabelle) == 26
     namen = [e["werkzeug"] for e in tabelle]
     assert len(set(namen)) == len(namen)
 
@@ -44,5 +44,6 @@ def test_kein_mcp_endpunkt_ausserhalb_des_token_bereichs() -> None:
         pfad = e["pfad"]
         assert not pfad.startswith(VERBOTEN), f"{e['werkzeug']}: {pfad} ist nicht für Tokens"
         # Platzhalter durch echte Werte ersetzt — so prüft bearer_pfad es zur Laufzeit.
-        konkret = pfad.replace("{pid}", "ost").replace("{eid}", "P-1")
+        konkret = (pfad.replace("{pid}", "ost").replace("{eid}", "P-1")
+                   .replace("{aid}", "0123456789abcdef"))
         assert bearer_pfad(konkret), f"{e['werkzeug']}: {pfad} nimmt keinen Bearer an"

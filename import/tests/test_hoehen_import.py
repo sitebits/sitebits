@@ -87,11 +87,11 @@ def test_nur_deklarieren_ohne_umrechnung(tmp_path: Path) -> None:
     assert float(np.mean(las.z)) == pytest.approx(float(np.mean(xyz[:, 2])), abs=0.001)
 
 
-def test_panos_metashape_rechnet_kamerahoehe_ins_paket_um(tmp_path: Path) -> None:
+def test_panos_kameras_rechnet_kamerahoehe_ins_paket_um(tmp_path: Path) -> None:
     import json
 
-    from tests.test_metashape import camera_file
-    from tests.test_metashape_cli import package
+    from tests.test_kameras import camera_file
+    from tests.test_kameras_cli import package
 
     source = camera_file(tmp_path)
     data = json.loads(source.read_text())
@@ -103,26 +103,26 @@ def test_panos_metashape_rechnet_kamerahoehe_ins_paket_um(tmp_path: Path) -> Non
     manifest["frame"]["originWorld"] = [368000.0, 5807000.0, 0.0]
     (pkg / "project.json").write_text(json.dumps(manifest))
 
-    rc = cli.main(["panos-metashape", "--kameras", str(source), str(pkg), "--levels", "32"])
+    rc = cli.main(["panos-kameras", "--kameras", str(source), str(pkg), "--levels", "32"])
 
     assert rc == 0
     station = json.loads((pkg / "stations.json").read_text())["stations"][0]
     assert station["pose"]["translation"][2] == pytest.approx(59.841306648269935, abs=1e-6)
 
 
-def test_panos_metashape_ohne_umrechenbares_system_bricht_ab(tmp_path: Path) -> None:
-    from tests.test_metashape import camera_file
-    from tests.test_metashape_cli import package
+def test_panos_kameras_ohne_umrechenbares_system_bricht_ab(tmp_path: Path) -> None:
+    from tests.test_kameras import camera_file
+    from tests.test_kameras_cli import package
 
     source = camera_file(tmp_path)  # EPSG:32632, ellipsoidisch
     pkg = package(tmp_path, wkt="EPSG:32632", datum="dhhn92")
-    rc = cli.main(["panos-metashape", "--kameras", str(source), str(pkg), "--levels", "32"])
+    rc = cli.main(["panos-kameras", "--kameras", str(source), str(pkg), "--levels", "32"])
     assert rc != 0
     assert not (pkg / "stations.json").exists()
 
 
 def test_frame_export_tie_points_werden_mit_umgerechnet() -> None:
-    from scanview_import.metashape import FrameCamera, FrameExport, TieProjection, hoehen_umrechnen
+    from scanview_import.kameras import FrameCamera, FrameExport, TieProjection, hoehen_umrechnen
 
     kamera = FrameCamera(
         "A", "", Path("/x.jpg"), 10, 10, (368000.0, 5807000.0, 100.0), np.eye(3), 0

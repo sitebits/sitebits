@@ -214,7 +214,7 @@
     "/etc/scanview/scanview-server.env": "60d983bb466f5028ffacd07e1f9651b45a78ab1d110f4674672156f2efe41e26",
     "/usr/local/sbin/scanview-paket-freischalten": "11daab3fe5dc19b3e36f6fd5b71fd0a2e0077e77ef4dcf7af76d80ad9cef9eb4",
     "/etc/sudoers.d/scanview-deploy": "26d37d27befbd135beef1b15ec1e2003ef2dc7286ef593f6f9367c21218d9d84",
-    "/etc/caddy/scanview.caddy": "3e88cdce828dfff14f57fbfec26539db636d82a05d76e1b9151e58a66f33079a",
+    "/etc/caddy/scanview.caddy": "954e5503f25a49e8707e3467dda5b41753bdbecc6ed4bb76dfb68ca5aced1617",
     "/etc/fail2ban/filter.d/scanview.conf": "c76fa73cfe97bf93392242bb9024c9a2653db8d8bb563bde4da1d5fa263c1c97",
     "/etc/fail2ban/jail.d/scanview.local": "4e15ea8035eb625022b959917e1fa7d81a9ab5430ac6f1c1952b266795c7a884"
   }

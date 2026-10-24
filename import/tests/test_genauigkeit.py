@@ -37,7 +37,7 @@ def _daten(**ueber: Any) -> dict[str, Any]:
         "formatVersion": 1,
         "crs": {"epsg": 25833, "verticalDatum": "dhhn2016"},
         "source": {
-            "software": "Agisoft Metashape Professional",
+            "software": "Photogrammetrie-Werkzeug",
             "version": "2.3.1",
             "created": "2026-10-09T20:00:00Z",
             "projectSha256": "a" * 64,

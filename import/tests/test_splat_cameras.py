@@ -1,4 +1,4 @@
-"""Bekannte COLMAP-Zentren, identische Namen und lokale Metashape-Transformation."""
+"""Bekannte COLMAP-Zentren, identische Namen und lokale Chunk-Transformation der Kamera-XML."""
 
 import struct
 from pathlib import Path

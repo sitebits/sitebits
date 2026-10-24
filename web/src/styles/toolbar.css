@@ -1,6 +1,6 @@
 /* Werkzeugleiste und Messliste — nur Variablen aus tokens.css. Messliste links unter der
    Meldungszeile: rechts oben liegt lil-gui (Sichtprüfung — dort war die Liste verdeckt). */
-#toolbar { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); display: flex; gap: var(--sv-gap);
+#toolbar { position: absolute; top: calc(var(--sv-sa-oben) + 8px); left: 50%; transform: translateX(-50%); display: flex; gap: var(--sv-gap);
   padding: var(--sv-gap); background: var(--sv-surface); border: 1px solid var(--sv-border); border-radius: var(--sv-radius); font: var(--sv-font); }
 #toolbar button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 32px; height: 32px;
   padding: 0 var(--sv-pad); background: none; color: var(--sv-fg); border: 0; border-radius: calc(var(--sv-radius) - 2px); cursor: pointer; font: inherit; }
@@ -22,43 +22,56 @@
    index.html), die sonst denselben Platz beansprucht. #view rendert eine deckende Leinwand über
    den ganzen Body; ohne z-index läge der Link darunter. Feste Breite statt auto, damit die
    Verschiebung von #msg unten ein fester, kein aus dem Text errechneter Wert bleibt. */
-.sv-zurueck { position: absolute; top: 8px; left: 8px; z-index: 5; box-sizing: border-box; width: 100px; height: 32px;
+.sv-zurueck { position: absolute; top: calc(var(--sv-sa-oben) + 8px); left: calc(var(--sv-sa-links) + 8px); z-index: 5; box-sizing: border-box; width: 100px; height: 32px;
   display: flex; align-items: center; justify-content: center; background: var(--sv-surface); color: var(--sv-fg);
   border: 1px solid var(--sv-border); border-radius: var(--sv-radius); font: var(--sv-font); text-decoration: none; white-space: nowrap; }
 .sv-zurueck:hover { background: var(--sv-surface-hover); }
 .sv-zurueck:focus-visible { outline: none; box-shadow: var(--sv-focus); }
 /* Einzige Regeln, die ein bestehendes Element (index.html) betreffen — greifen nur, wenn .sv-zurueck
    tatsächlich als vorheriges Geschwister im DOM sitzt (Plattformmodus), sonst wirkungslos. */
-.sv-zurueck ~ #msg { left: 116px; }
-/* Mobil (MOBILE_MAX_W=700, layoutModel.ts/panels.ts): der zentrierte #toolbar füllt auf schmalen
-   Fenstern (< ca. 560px, Messwerkzeug-Knöpfe eingeblendet) die ganze obere Zeile — #toolbar liegt
-   ohne z-index unter dem Link (der wegen #view welches braucht) und würde teils unklickbar. Gleiche
-   Zeile wie #panel-menu (panels.css: "#panels[data-mobile='true'] + #panel-menu { top: 56px; }"),
-   nur mit :has(), weil .sv-zurueck (main.ts prepend) vor #panels statt direkt danach im DOM sitzt. */
-body:has(#panels[data-mobile='true']) .sv-zurueck { top: 56px; }
-body:has(#panels[data-mobile='true']) .sv-zurueck ~ #msg { left: 8px; }
-
+.sv-zurueck ~ #msg { left: calc(var(--sv-sa-links) + 116px); }
 /* Gast-Ansicht (Nur-Lese-Link, F28): dauerhafte Kennzeichnung unten mittig, klickt nicht durch. */
-.sv-gast { position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%); z-index: 5; max-width: calc(100vw - 32px);
+.sv-gast { position: fixed; bottom: calc(var(--sv-sa-unten) + 8px); left: 50%; transform: translateX(-50%); z-index: 5; max-width: calc(100vw - 32px);
   padding: 4px 10px; background: var(--sv-surface); color: var(--sv-fg); border: 1px solid var(--sv-border);
   border-radius: var(--sv-radius); font: var(--sv-font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 
-/* Mobil: Die Leiste war breiter als ein iPhone (390 px). Seltenere Knöpfe liegen hinter „Mehr“ (toolbar.ts) und
-   erscheinen aufgeklappt in einer zweiten Zeile; die Texte „Markieren“/„Teilen“ entfallen (Name bleibt per
-   aria-label). Beim Zeichnen stehen ✓ und ✗ vorn, damit Abschließen immer sichtbar ist (17.10.). */
+/* Handy (body.sv-handy aus panels.ts; die Empfängeransicht hat eigene Regeln in empfang.css). Grundsatz: weniger
+   gleichzeitig, das Modell bleibt frei. Oben eine Zeile — „← Projekte“ als Pfeil, Werkzeugleiste links, Fenster-Menü
+   rechts —, alle Tippziele 44 px. In der Leiste stehen Navigieren, Strecke, Markieren, Begehen und „Mehr“; der Rest
+   klappt unter „Mehr“ in weitere Zeilen auf, ein dort gewähltes Werkzeug bleibt sichtbar. Beim Zeichnen nur das
+   Werkzeug, ✓ und ✗. Darunter Ausgang aus dem Panorama und Meldungen; unten über dem Blatt Scan-Hinweis,
+   Koordinate und Tastenhinweis — der Tastenhinweis (dieselben Angaben stehen im Dialog „Bedienung“) weicht jedem
+   anderen Element dort und jedem offenen Blatt. --sv-blatt-rechts: Breite des Blatts im Querformat. */
 #toolbar .sv-mehr { display: none; }
-body:has(#panels[data-mobile='true']) #toolbar { left: 0; right: 0; transform: none; width: fit-content; margin-inline: auto;
-  max-width: calc(100vw - 16px); box-sizing: border-box; flex-wrap: wrap; justify-content: center; z-index: 7; }
-body:has(#panels[data-mobile='true']) #toolbar .sv-mehr { display: inline-flex; }
-body:has(#panels[data-mobile='true']) #toolbar .sv-ueberlauf { display: none; }
-body:has(#panels[data-mobile='true']) #toolbar.sv-mehr-offen .sv-ueberlauf { display: inline-flex; }
-body:has(#panels[data-mobile='true']) #toolbar .sv-knopf-text { display: none; }
-body:has(#panels[data-mobile='true']) #toolbar.drawing [data-drawing] { order: -1; }
-body:has(#panels[data-mobile='true']) #toolbar.drawing .sv-abschliessen { background: var(--sv-accent); color: var(--sv-accent-fg); }
-/* Mobil: Dauerhinweis (Scan-Filter) oben unter der Meldungszeile statt unten über dem Panel; antippen blendet aus. */
-body:has(#panels[data-mobile='true']) #scan-hint { bottom: calc(var(--sv-panel-unten, 0px) + 8px); max-width: calc(100% - 16px);
-  cursor: pointer; z-index: 6; }
-body:has(#panels[data-mobile='true']):not(.sv-empfang) .sv-hinweise { bottom: calc(var(--sv-panel-unten, 0px) + 8px); }
-/* Mobil: die Meldungszeile lag oben links unter der Werkzeugleiste und war nicht lesbar — eine Zeile tiefer als
-   „Fenster“ und der Portal-Link (beide top: 56px), über die ganze Breite. Empfang setzt sie eigens nach unten. */
-body:has(#panels[data-mobile='true']):not(.sv-empfang) #msg { top: 104px; left: 8px; right: 8px; z-index: 6; }
+body.sv-handy:not(.sv-empfang) { --sv-leiste-links: calc(var(--sv-sa-links) + 8px); --sv-blatt-rechts: var(--sv-sa-rechts);
+  --sv-zone-unten: max(var(--sv-panel-unten, 0px), var(--sv-sa-unten)); }
+body.sv-handy:not(.sv-empfang):has(.sv-zurueck) { --sv-leiste-links: calc(var(--sv-sa-links) + 8px + var(--sv-tippziel) + 6px); }
+body.sv-handy-quer:not(.sv-empfang):is(:has(#panels .sv-frame), :has(#poi-form:not([hidden])), :has(.sv-entwurf:not([hidden]))) {
+  --sv-blatt-rechts: calc(min(42vw, 340px) + var(--sv-sa-rechts)); }
+body.sv-handy:not(.sv-empfang) .sv-zurueck { width: var(--sv-tippziel); height: var(--sv-tippziel); font-size: 18px; }
+body.sv-handy:not(.sv-empfang) .sv-zurueck .sv-knopf-text { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body.sv-handy:not(.sv-empfang) #panel-menu { right: calc(var(--sv-blatt-rechts) + 8px); }
+body.sv-handy:not(.sv-empfang) #toolbar { left: var(--sv-leiste-links); right: auto; transform: none; z-index: 7; box-sizing: border-box;
+  max-width: calc(100vw - var(--sv-leiste-links) - var(--sv-blatt-rechts) - var(--sv-tippziel) - 22px); flex-wrap: wrap; padding: 0; gap: 0; }
+body.sv-handy:not(.sv-empfang) #toolbar button { min-width: var(--sv-tippziel); height: var(--sv-tippziel); padding: 0 10px; }
+body.sv-handy:not(.sv-empfang) #toolbar .sep { margin: 8px 2px; }
+body.sv-handy:not(.sv-empfang) #toolbar .sv-mehr { display: inline-flex; }
+body.sv-handy:not(.sv-empfang) #toolbar .sv-ueberlauf:not([aria-pressed='true']) { display: none; }
+body.sv-handy:not(.sv-empfang) #toolbar.sv-mehr-offen .sv-ueberlauf { display: inline-flex; }
+body.sv-handy:not(.sv-empfang) #toolbar .sv-knopf-text { display: none; }
+body.sv-handy:not(.sv-empfang) #toolbar.drawing button:not([data-drawing]):not([aria-pressed='true']),
+body.sv-handy:not(.sv-empfang) #toolbar.drawing .sep { display: none; }
+body.sv-handy:not(.sv-empfang) #toolbar.drawing [data-drawing] { order: -1; }
+body.sv-handy:not(.sv-empfang) #toolbar.drawing .sv-abschliessen { background: var(--sv-accent); color: var(--sv-accent-fg); }
+body.sv-handy:not(.sv-empfang) .sv-pano-aus { top: calc(var(--sv-zeile) + 8px); left: calc(var(--sv-sa-links) + 8px); transform: none; z-index: 6; }
+body.sv-handy:not(.sv-empfang) #msg { top: calc(var(--sv-zeile) + 8px); left: calc(var(--sv-sa-links) + 8px); right: calc(var(--sv-blatt-rechts) + 8px); z-index: 6; }
+body.sv-handy:not(.sv-empfang):has(.sv-pano-aus:not([hidden])) #msg { top: calc(var(--sv-zeile) + 8px + var(--sv-tippziel) + 8px); }
+body.sv-handy:not(.sv-empfang) #scan-hint { bottom: calc(var(--sv-zone-unten) + 8px); left: calc(var(--sv-sa-links) + 8px); right: calc(var(--sv-blatt-rechts) + 8px);
+  transform: none; max-width: none; cursor: pointer; z-index: 6; }
+body.sv-handy:not(.sv-empfang) .sv-koordinaten { left: calc(var(--sv-sa-links) + 8px); bottom: calc(var(--sv-zone-unten) + 8px); min-height: 32px; }
+body.sv-handy:not(.sv-empfang):has(#scan-hint:not([hidden])) .sv-koordinaten { bottom: calc(var(--sv-zone-unten) + 8px + 3.4em); }
+body.sv-handy:not(.sv-empfang) .sv-hinweise { left: auto; right: calc(var(--sv-blatt-rechts) + 8px); bottom: calc(var(--sv-zone-unten) + 8px);
+  max-width: calc(100vw - var(--sv-sa-links) - var(--sv-blatt-rechts) - 16px); box-sizing: border-box; }
+body.sv-handy:not(.sv-empfang):is(:has(#panels .sv-frame), :has(#scan-hint:not([hidden])), :has(.sv-koordinaten:not([hidden])),
+  :has(#poi-form:not([hidden])), :has(.sv-entwurf:not([hidden]))) .sv-hinweise { display: none; }
+body.sv-handy:not(.sv-empfang) .sv-gast { bottom: calc(var(--sv-zone-unten) + 8px); }

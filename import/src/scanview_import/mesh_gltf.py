@@ -323,8 +323,9 @@ def write_glb(
                 np.asarray(mesh.uv, dtype="<f4"), "VEC2", g.FLOAT, g.ARRAY_BUFFER
             )
     # Sind alle Materialien texturiert, entfallen die Vertexfarben: glTF multipliziert COLOR_0 mit
-    # der Textur, und Metashapes Vertexfarben sind nur eine grobe Kopie der Texturfarben — das
-    # Produkt dunkelte die Textur doppelt ab. Untexturierte Materialien brauchen sie weiter.
+    # der Textur, und die Vertexfarben der Mesh-Exporte sind nur eine grobe Kopie der
+    # Texturfarben — das Produkt dunkelte die Textur doppelt ab. Untexturierte Materialien
+    # brauchen sie weiter.
     alle_texturiert = all(int(m) in encoded for m in np.unique(material_ids))
     if mesh.colors is not None and not alle_texturiert:
         colors = np.full((len(positions), 4), 255, dtype=np.uint8)

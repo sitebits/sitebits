@@ -14,8 +14,9 @@ aus festen Stufen.
   Einzige Ausnahme ist der Vertrauensanker der Commit-Signatur: er kommt aus dem Archiv
   (`vertrauensanker/`), nie aus dem geprüften Commit.
 - Scan-Gate und Lizenzabgleich gelten den ausgelieferten Artefakten
-  (`manifest.AUSGELIEFERT`); SBOM und Scan des Imports entstehen weiter und werden mit
-  `ausgeliefert: false` archiviert, ihre Treffer stehen informativ im Bericht.
+  (`manifest.AUSGELIEFERT`, ab Schema /3 web, server, mcp und import). Nicht ausgelieferte
+  Artefakte (bis Schema /2 der Import) werden mit `ausgeliefert: false` archiviert, ihre Treffer
+  stehen informativ im Bericht.
 - Die Nachweisschlüssel `manifest` und `archiv` werden nicht in der Stufe `matrix`,
   sondern nach Signaturprüfung bzw. Archivierung (vor dem Tag) bestätigt.
 - `--trocken`: alles außer Archiv, Tag und Abschluss; das Manifest trägt `"trockenlauf": true`,
@@ -488,6 +489,10 @@ def stufe_register(lauf: Lauf) -> dict[str, Any]:
 #: demselben Werkzeug ab (shellcheck der Betriebsskripte) bzw. die Stufe selbst (gitleaks im
 #: Export).
 QUALITAETSTOR_VARIABLE = "SCANVIEW_QUALITAETSTOR"
+#: Schaltet die Server-Tests mit Marker `oom_live` ein (Unit endet mit `Result=oom-kill`, der
+#: KDE-Melder zeigt das an; lokal daher übersprungen). Die Kette setzt sie verpflichtend, damit
+#: der Live-Beleg „Speichermangel → speicher“ je Release läuft.
+OOM_LIVE_VARIABLE = "SCANVIEW_OOM_LIVE"
 
 
 def stufe_qualitaetstor(lauf: Lauf) -> dict[str, Any]:
@@ -512,7 +517,8 @@ def stufe_qualitaetstor(lauf: Lauf) -> dict[str, Any]:
             # kein stilles Überspringen.
             nur_tests = "pytest" in befehl
             _befehl(befehl, "qualitaetstor", cwd=wt / teil,
-                    umgebung={**_umgebung(), QUALITAETSTOR_VARIABLE: "1"} if nur_tests else None)
+                    umgebung={**_umgebung(), QUALITAETSTOR_VARIABLE: "1",
+                              OOM_LIVE_VARIABLE: "1"} if nur_tests else None)
             gelaufen.append(f"{teil}: {' '.join(befehl)}")
     _bestanden(lauf, "qualitaetstor")
     return {"befehle": gelaufen}
@@ -625,8 +631,9 @@ def stufe_scan(lauf: Lauf) -> dict[str, Any]:
     e = _sbom_ergebnis(lauf)
     wt = lauf.worktree
     vex_pfad = wt / "docs" / "compliance" / "vex.openvex.json"
-    scan.pruefe_sbom_vollstaendig(e.sboms, {a.name for a in e.bau.artefakte}
-                                  | manifest.AUSGELIEFERT)
+    gebaut = {a.name for a in e.bau.artefakte}
+    scan.pruefe_sbom_vollstaendig(e.sboms, gebaut | manifest.AUSGELIEFERT
+                                  | ({sbom.BILDER} if "import" in gebaut else set()))
     osv_stand = osv.stand_falls_noetig(e.sboms.values(), lauf.cache, scan.jetzt())
     erg = scan.scanne_alle(e.sboms, lauf.cache, vex_pfad, lauf.werkzeuge, uhr=scan.jetzt(),
                            osv=osv_stand)

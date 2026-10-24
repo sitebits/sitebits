@@ -94,9 +94,10 @@ def einladung_pruefen(body: TokenIn, conn: sqlite3.Connection = Depends(db)) -> 
 @router.post("/auth/einladung/passwort", dependencies=[Depends(csrf)])
 async def einladung_passwort(body: PasswortEinladungIn, request: Request) -> JSONResponse:
     # async + eigener Thread-Pool (WB-M3): argon2 wartet nie im gemeinsamen Pool von /api/authz.
-    return await request.app.state.rechenplaetze.ausfuehren(
+    antwort: JSONResponse = await request.app.state.rechenplaetze.ausfuehren(
         lambda: _einladung_passwort(body, request),
     )
+    return antwort
 
 
 def _einladung_passwort(body: PasswortEinladungIn, request: Request) -> JSONResponse:
@@ -141,9 +142,10 @@ async def passwort_anmelden(body: AnmeldenIn, request: Request) -> JSONResponse:
     if request.app.state.anmeldebremse.gebremst():
         return fehler(429, UEBERLASTET)
     client_ip = request.client.host if request.client else None
-    return await request.app.state.rechenplaetze.ausfuehren(
+    antwort: JSONResponse = await request.app.state.rechenplaetze.ausfuehren(
         lambda: _passwort_anmelden(body, request, client_ip),
     )
+    return antwort
 
 
 def _passwort_anmelden(

@@ -26,7 +26,7 @@ aktiv = [
 ]
 
 [pruefungen.aus]
-status_code_conformance = "Die OpenAPI des Dienstes beschreibt je Operation nur 200/201/204 und 422; 401, 403, 404, 409 und 429 sind gewollte Antworten (Anmeldung, Rechte, verborgene Ressourcen, Drossel), aber nicht dokumentiert — Dokumentationslücke, erfasst als Befund B-FUZZ-3"
+status_code_conformance = "Bis C1 (7cfc6c9) beschrieb die OpenAPI je Operation nur 200/201/204 und 422; gewollte 401, 403, 404, 409 und 429 fehlten. Seit C1 sind 4xx App-weit als Bereich 4XX mit dem Fehler-Modell beschrieben, FastAPIs 422-Schema ist ersetzt — dieser Teil der Lücke ist geschlossen. Ob der Check jetzt ohne Funde läuft, ist nicht geprüft; Einschalten ist eine eigene Entscheidung, bis dahin aus (Befund B-FUZZ-3)"
 positive_data_acceptance = "Der Dienst prüft Eingaben strenger als das Schema (E-Mail-Form, Namenslänge, Projekt-ID-Muster) und antwortet dann mit 422; schemakonforme, aber fachlich ungültige Daten abzulehnen ist gewollt — Dokumentationslücke, erfasst als Befund B-FUZZ-3"
 allow_header_conformance = "405-Antworten tragen keinen Allow-Kopf (Starlette-Fehlerpfad des Dienstes); kein Sicherheitsbezug, erfasst als Befund B-FUZZ-3"
 

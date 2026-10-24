@@ -312,6 +312,13 @@ export function zeigeStart(
     verwaltung.className = 'sv-kopf-link';
     aktionen.appendChild(verwaltung);
   }
+  if (nutzer.importAn) {
+    const uploads = document.createElement('a');
+    uploads.href = '/uploads';
+    uploads.textContent = 'Neues Projekt';
+    uploads.className = 'sv-kopf-link';
+    aktionen.appendChild(uploads);
+  }
   const hilfeBtn = el('button', undefined, '?');
   hilfeBtn.type = 'button';
   hilfeBtn.setAttribute('aria-label', 'Hilfe anzeigen');

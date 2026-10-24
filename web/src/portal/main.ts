@@ -11,6 +11,7 @@ import { zeigeProjektEinstellungen } from './projektEinstellungen';
 import { zeigeMaengelliste } from './maengelliste';
 import { zeigeTeilen } from './teilen';
 import { zeigeVerlauf } from './verlauf';
+import { zeigeUploads } from './uploads';
 import { zeigeVerwaltung } from './verwaltung';
 import { zielPfad } from './weiter';
 
@@ -123,6 +124,17 @@ async function start(): Promise<void> {
       return;
     }
     await zeigeVerwaltung(root, n);
+    await fusszeile(instanzP, n);
+    return;
+  }
+
+  if (location.pathname === '/uploads') {
+    const n = await sitzung();
+    if (!n) {
+      zuAnmelden();
+      return;
+    }
+    await zeigeUploads(root, { importAn: n.importAn === true });
     await fusszeile(instanzP, n);
     return;
   }

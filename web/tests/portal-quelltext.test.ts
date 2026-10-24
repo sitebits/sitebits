@@ -33,10 +33,15 @@ describe('Quelltext-Link', () => {
     });
     const nutzer = { name: 'N', email: 'n@b.de', admin: false };
     vi.stubGlobal('fetch', vi.fn(async () => antwort({ dienst: 'scanview', nutzer, quelltext_url: URL })));
-    expect(await sitzung()).toEqual({ ...nutzer, quelltextUrl: URL });
+    expect(await sitzung()).toEqual({ ...nutzer, quelltextUrl: URL, importAn: false });
     vi.stubGlobal('fetch', vi.fn(async () => antwort({ dienst: 'scanview', nutzer, quelltext_url: null })));
-    expect(await sitzung()).toEqual({ ...nutzer, quelltextUrl: null });
+    expect(await sitzung()).toEqual({ ...nutzer, quelltextUrl: null, importAn: false });
     vi.stubGlobal('fetch', vi.fn(async () => antwort({ dienst: 'scanview', nutzer })));
-    expect(await sitzung()).toEqual({ ...nutzer, quelltextUrl: null });
+    expect(await sitzung()).toEqual({ ...nutzer, quelltextUrl: null, importAn: false });
+    // Hochladen/neues Projekt nur, wenn der Server es ausdrücklich meldet.
+    vi.stubGlobal('fetch', vi.fn(async () => antwort({ dienst: 'scanview', nutzer, import: true })));
+    expect((await sitzung())?.importAn).toBe(true);
+    vi.stubGlobal('fetch', vi.fn(async () => antwort({ dienst: 'scanview', nutzer, import: 'ja' })));
+    expect((await sitzung())?.importAn).toBe(false);
   });
 });

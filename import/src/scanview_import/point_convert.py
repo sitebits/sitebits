@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import shutil
 import tempfile
@@ -24,7 +25,7 @@ from .pdal_runner import (
     run_untwine,
 )
 from .point_source import PointSource, resolve_source
-from .source_points import inspect_points
+from .source_points import SourceStats, inspect_points
 from .tiled_thinning import thin_tiles
 
 
@@ -56,6 +57,7 @@ def convert_points(
     *,
     hoehe: tuple[str | None, str | None] = (None, None),
     lage_: lage.Lage | None = None,
+    rgb_8bit: bool = False,
 ) -> dict[str, Any]:
     from .convert import CLOUD_NAME, _read_json_or_none, _sha256, carry_over_blocks, choose_mode
 
@@ -65,6 +67,9 @@ def convert_points(
         raise ValueError("Quelldatei darf nicht die COPC-Ausgabedatei sein")
     source = resolve_source(path, crs, unit, up, columns)
     info = inspect_points(source, max_points)
+    if rgb_8bit:
+        pruefe_rgb_8bit(source, info)
+        info = dataclasses.replace(info, rgb_8bit=True)
     chosen = choose_mode(info.count, mode)
     offset = compute_origin(*info.bounds)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -213,6 +218,24 @@ def convert_points(
         )
     )
     return m
+
+
+def pruefe_rgb_8bit(source: PointSource, info: SourceStats) -> None:
+    """`--rgb-8bit` nur für LAS/LAZ mit Farbe, und nur wenn wirklich jeder Wert ≤ 255 ist.
+
+    LAS kennt nur 16-bit-Farbe; ODM und andere schreiben trotzdem 0 bis 255 hinein. Aus den Zahlen
+    wird das nicht geraten (Angabe des Menschen), aber geprüft: PDAL verwirft eine Zuweisung über
+    65535 still, statt abzubrechen — ein Wert über 255 ergäbe sonst falsche Farben ohne Meldung.
+    """
+    if source.reader != "readers.las" or "rgb" not in info.attributes:
+        raise ValueError("--rgb-8bit gilt nur für LAS/LAZ mit Farbe")
+    with laspy.open(source.path) as reader:
+        for chunk in reader.chunk_iterator(5_000_000):
+            groesster = max(int(chunk.red.max()), int(chunk.green.max()), int(chunk.blue.max()))
+            if groesster > 255:
+                raise ValueError(
+                    f"--rgb-8bit: Farbwert {groesster} über 255 — die Datei hat 16-bit-Farbe"
+                )
 
 
 def _rgb_auf_16_bit(stage: Path, rel: str, mounts: dict[Path, str]) -> RunStats:

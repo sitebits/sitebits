@@ -1,0 +1,14 @@
+# Bauabhängigkeiten der Import-Umgebung (einrichten.sh, UV_BUILD_CONSTRAINT): uv.lock legt nur die
+# installierten Pakete fest, nicht das, was zum Bauen gebraucht wird. Gebaut werden genau zwei
+# Pakete: scanview-import selbst (hatchling) und meshoptimizer (nur als Quellpaket auf PyPI,
+# setuptools). Alle Versionen fest, jede mindestens sieben Tage öffentlich (Stichtag 01.10.2026).
+hatchling==1.32.3
+packaging==26.3
+pathspec==1.1.1
+pluggy==1.6.0
+trove-classifiers==2026.9.21.13
+tomlkit==0.15.1
+setuptools==84.0.0
+setuptools-scm==9.2.2
+wheel==0.48.0
+numpy==2.5.3

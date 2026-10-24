@@ -43,7 +43,7 @@ def _versionsdateien(ordner: Path, version: str) -> None:
     (ordner / "web" / "package-lock.json").write_text(json.dumps(
         {"name": "scanview-web", "version": version,
          "packages": {"": {"name": "scanview-web", "version": version}}}), encoding="utf-8")
-    for teil in ("server", "mcp-server", "nachweise"):
+    for teil in ("server", "mcp-server", "import", "nachweise"):
         (ordner / teil).mkdir(exist_ok=True)
         (ordner / teil / "pyproject.toml").write_text(
             f'[project]\nname = "{teil}"\nversion = "{version}"\n', encoding="utf-8")
@@ -415,7 +415,7 @@ def worktree(lauf) -> Any:
 
 def test_worktree_unveraendert_besteht(lauf, worktree):
     wt, kopf = worktree
-    assert release.pruefe_worktree(lauf.repo, wt, kopf) == 10
+    assert release.pruefe_worktree(lauf.repo, wt, kopf) == 11  # mit import/pyproject.toml (ab /3)
 
 
 @pytest.mark.parametrize("fall", ["inhalt-assume-unchanged", "skip-worktree", "zusatzdatei",
@@ -741,7 +741,30 @@ def test_einfrieren_liest_anker_nie_aus_dem_worktree(signierter_lauf, tmp_path):
 
 # --- Stufe „register“ -----------------------------------------------------------------------------
 
+def test_register_import_befund_blockiert_ab_schema_3(lauf, monkeypatch):
+    """Ab Schema /3 wird import ausgeliefert: ein offener hoher import-Befund blockiert."""
+    from scanview_nachweise import register as reg
+    from scanview_nachweise.register import Befund
+    befunde = [Befund(id="B-IMG", quelle="q", titel="t", schwere="hoch", kategorie="lieferkette",
+                      status="offen", staende=("abc1234",), fix_commit=None, retest=None,
+                      akzeptanz_begruendung=None, frist=None, entdeckt=date(2026, 9, 27),
+                      artefakte=("import",))]
+    monkeypatch.setattr(release.register, "lade_register",
+                        lambda wt: reg.Register([], None, befunde, []))  # type: ignore[arg-type]
+    monkeypatch.setattr(release.darstellung, "fassungen", lambda r: {})
+    monkeypatch.setattr(release.gate, "negativtests_details", lambda wt, **kw: {})
+    monkeypatch.setattr(release.gate, "retests_details",
+                        lambda wt, b, **kw: release.gate.KategorieErgebnis(True, 0))
+    with pytest.raises(NachweisFehler) as e:
+        release.stufe_register(lauf)
+    assert e.value.regel == "befund-gate" and "B-IMG" in e.value.text
+
+
 def test_register_nur_import_befund_informativ_andere_blockieren(lauf, monkeypatch):
+    """Mechanismus „nicht ausgeliefert → informativ“ (wie unter /2, als import nicht ausgeliefert
+    wurde): mit der /2-Auslieferungsmenge."""
+    monkeypatch.setattr(release.manifest, "AUSGELIEFERT",
+                        release.manifest.AUSGELIEFERT_JE_SCHEMA[release.manifest.SCHEMA_2])
     from scanview_nachweise import register as reg
     from scanview_nachweise.register import Befund
 
@@ -1077,11 +1100,12 @@ def _scan_lauf(lauf: release.Lauf, monkeypatch: pytest.MonkeyPatch,
     sboms = lauf.ausgabe / "sbom"
     sboms.mkdir(parents=True)
     namen = ("web", "server", "mcp", "import")
-    for n in namen:
+    for n in (*namen, "importbilder"):
         (sboms / f"scanview-{n}-0.1.0.cdx.json").write_text("{}", encoding="utf-8")
     lauf.sbom = SbomErgebnis(Bauergebnis([Artefakt(n, Path(f"/x/{n}.tar.gz"), "0" * 64, "0" * 128,
                                                    []) for n in namen], []),
-                             {n: sboms / f"scanview-{n}-0.1.0.cdx.json" for n in namen},
+                             {n: sboms / f"scanview-{n}-0.1.0.cdx.json"
+                              for n in (*namen, "importbilder")},
                              sboms / "scanview-0.1.0.cdx.json", sboms / "werkzeugbefunde.json",
                              [], [])
     lauf.werkzeuge = {"trivy": Werkzeug("trivy", "aquasec/trivy@sha256:" + "1" * 64, "0.74.0",
@@ -1091,7 +1115,31 @@ def _scan_lauf(lauf: release.Lauf, monkeypatch: pytest.MonkeyPatch,
         stand, treffer, {"web": {"treffer": {}}}))
 
 
+def test_scan_gate_image_treffer_informativ(lauf, monkeypatch):
+    """Treffer im Nachweis-SBOM der Werkzeug-Images (importbilder) blockieren nicht: die Images
+    werden nicht ausgeliefert. Sie stehen informativ im Ergebnis."""
+    _scan_lauf(lauf, monkeypatch, [_treffer("importbilder")])
+    bericht = release.stufe_scan(lauf)
+    assert lauf.pruefungen["scan"] == "bestanden"
+    assert bericht["gate_artefakte"] == ["import", "mcp", "server", "web"]
+    assert any("CVE-2099-importbilder" in z for z in bericht["informativ_blockierend"])
+
+
+def test_scan_verlangt_bilder_sbom_wenn_import_gebaut(lauf, monkeypatch):
+    _scan_lauf(lauf, monkeypatch, [])
+    assert lauf.sbom is not None
+    lauf.sbom = SbomErgebnis(lauf.sbom.bau, {n: p for n, p in lauf.sbom.sboms.items()
+                                            if n != "importbilder"},
+                             lauf.sbom.gesamt, lauf.sbom.werkzeugbefunde, [], [])
+    with pytest.raises(NachweisFehler) as e:
+        release.stufe_scan(lauf)
+    assert e.value.regel == "scan-sbom" and "importbilder" in e.value.text
+
+
 def test_scan_gate_nur_auf_ausgelieferte_artefakte(lauf, monkeypatch):
+    """Mechanismus mit der /2-Auslieferungsmenge (import nicht ausgeliefert)."""
+    monkeypatch.setattr(release.manifest, "AUSGELIEFERT",
+                        release.manifest.AUSGELIEFERT_JE_SCHEMA[release.manifest.SCHEMA_2])
     _scan_lauf(lauf, monkeypatch, [_treffer("import")])
     bericht = release.stufe_scan(lauf)
     assert lauf.pruefungen["scan"] == "bestanden"
@@ -1132,11 +1180,12 @@ def test_scan_verlangt_ausgelieferte_sboms_auch_wenn_nicht_gebaut(lauf, monkeypa
 
 
 def test_scan_gate_blockiert_ausgeliefertes_artefakt(lauf, monkeypatch):
+    """Ab /3 blockieren auch Treffer im import-SBOM (import wird ausgeliefert)."""
     _scan_lauf(lauf, monkeypatch, [_treffer("web"), _treffer("import")])
     with pytest.raises(NachweisFehler) as e:
         release.stufe_scan(lauf)
     assert e.value.regel == "scan-gate" and "CVE-2099-web" in e.value.text
-    assert "CVE-2099-import" not in e.value.text
+    assert "CVE-2099-import" in e.value.text
     assert "scan" not in lauf.pruefungen
     ergebnis = json.loads((lauf.ausgabe / "sbom" / "scan-ergebnis.json").read_text("utf-8"))
     assert ergebnis["ergebnis"] == "blockiert"
@@ -1689,24 +1738,26 @@ _HEIM = "/" + "home" + "/nutzer"
 _SAUBER = {"web": {"web/dist/index.html": "<html/>"},
            "server": {"server/pyproject.toml": "[project]\n"},
            "mcp": {"mcp-server/pyproject.toml": "[project]\n"},
-           "import": {"import/x.py": f"kunde-x {_HEIM}\n"}}
+           "import": {"import/pyproject.toml": "[project]\n"}}
 
 
-def test_ausgelieferte_inhalte_alle_drei_geprueft(lauf, monkeypatch):
+def test_ausgelieferte_inhalte_alle_vier_geprueft(lauf, monkeypatch):
     geheim: list[Path] = []
     monkeypatch.setattr(release.export, "pruefe_geheimnisse",
                         lambda ordner, w, k: geheim.append(ordner))
     _ausgeliefert_lauf(lauf, _SAUBER)
     geprueft = release._ausgelieferte_inhalte(lauf, ["kunde-x"])
-    assert geprueft == ["scanview-mcp-0.1.0.tar.gz", "scanview-server-0.1.0.tar.gz",
-                        "scanview-web-0.1.0.tar.gz"]  # import: nicht ausgeliefert
-    assert sorted(p.name for p in geheim) == ["mcp", "server", "web"]
+    assert geprueft == ["scanview-import-0.1.0.tar.gz", "scanview-mcp-0.1.0.tar.gz",
+                        "scanview-server-0.1.0.tar.gz", "scanview-web-0.1.0.tar.gz"]
+    assert sorted(p.name for p in geheim) == ["import", "mcp", "server", "web"]
 
 
 @pytest.mark.parametrize(("name", "datei", "inhalt", "regel"), [
     ("server", "deploy/platform/README.md", "Betrieb für kunde-x\n", "export-begriffe"),
     ("mcp", "mcp-server/README.md", f"siehe {_HEIM}/notizen\n", "export-privater-pfad"),
     ("web", "web/dist/assets/a.js", 'const p="VITE:kunde-x";\n', "export-begriffe"),
+    ("import", "import/x.py", f"kunde-x {_HEIM}\n", "export-begriffe"),
+    ("import", "import/y.py", f"siehe {_HEIM}/notizen\n", "export-privater-pfad"),
 ])
 def test_ausgelieferte_inhalte_privates_bricht_ab(lauf, monkeypatch, name, datei, inhalt, regel):
     monkeypatch.setattr(release.export, "pruefe_geheimnisse", lambda *a: None)
@@ -1849,6 +1900,28 @@ def test_qualitaetstor_setzt_die_variable_fuer_pytest(tmp_path, monkeypatch):
     assert tests and all(u is not None and u["SCANVIEW_QUALITAETSTOR"] == "1" for _, u in tests)
     assert all(u is None for b, u in aufrufe if "pytest" not in b)
 
+
+
+def test_qualitaetstor_schaltet_oom_live_fuer_den_servertest_ein(tmp_path, monkeypatch):
+    """Drift-Schutz: Der Live-Beleg „Speichermangel → speicher“ (Server-Marker `oom_live`) läuft
+    lokal nicht; die Kette setzt `SCANVIEW_OOM_LIVE=1` ausdrücklich für den pytest-Lauf von
+    `server/`, unabhängig vom Aufrufer. Name und Marker müssen zu server/tests passen."""
+    from types import SimpleNamespace
+    monkeypatch.setenv("SCANVIEW_OOM_LIVE", "0")
+    aufrufe: list[tuple[list[str], Path | None, dict[str, str] | None]] = []
+
+    def befehl(b: list[str], regel: str, **kw: Any) -> str:
+        aufrufe.append((b, kw.get("cwd"), kw.get("umgebung")))
+        return ""
+    monkeypatch.setattr(release, "_befehl", befehl)
+    monkeypatch.setattr(release, "_bestanden", lambda *a, **k: None)
+    release.stufe_qualitaetstor(SimpleNamespace(worktree=tmp_path))  # type: ignore[arg-type]
+    [server] = [u for b, cwd, u in aufrufe if "pytest" in b and cwd == tmp_path / "server"]
+    assert server is not None and server[release.OOM_LIVE_VARIABLE] == "1"
+    wurzel = Path(__file__).resolve().parents[2] / "server"
+    conftest = (wurzel / "tests" / "conftest.py").read_text()
+    assert f'OOM_LIVE_VARIABLE = "{release.OOM_LIVE_VARIABLE}"' in conftest
+    assert "@pytest.mark.oom_live" in (wurzel / "tests" / "test_isolation.py").read_text()
 
 def test_ohne_werkzeug_im_kettenlauf_ein_fehlschlag(monkeypatch):
     """Mit der Variablen aus der Kette wird fehlendes gpg/Docker zum Fehlschlag."""

@@ -14,18 +14,17 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from . import fotos_tor, konten, lesezugriff, paket, projektverwaltung, protokoll
+from .api_modelle import Projekt, ProjektBasis, Version, antwort
 from .db import transaktion
 from .katalog import PaketFehler
+from .openapi_v1 import sichtbare_pfade, token_pfade, v1_schemas
 from .routen_api import karte_json
 from .web import (
     COOKIE,
-    LESEZUGRIFF_PFADE,
-    LESEZUGRIFF_PROJEKT_RE,
     SQLITE_GANZZAHL_MAX,
     Konflikt,
     Ungueltig,
     api_token,
-    bearer_pfad,
     csrf,
     db,
     fehler,
@@ -57,51 +56,6 @@ def _meta(conn: sqlite3.Connection, pid: str) -> sqlite3.Row | None:
     return row
 
 
-def _ref_namen(node: Any) -> set[str]:
-    """Alle Schema-Namen, auf die `$ref` in diesem Teilbaum verweist (rekursiv über dict/list)."""
-    gefunden: set[str] = set()
-    if isinstance(node, dict):
-        ref = node.get("$ref")
-        if isinstance(ref, str) and ref.startswith("#/components/schemas/"):
-            gefunden.add(ref.rsplit("/", 1)[1])
-        for v in node.values():
-            gefunden |= _ref_namen(v)
-    elif isinstance(node, list):
-        for v in node:
-            gefunden |= _ref_namen(v)
-    return gefunden
-
-
-def _v1_schemas(pfade: dict[str, Any], alle: dict[str, Any]) -> dict[str, Any]:
-    """Nur die Schemas, die von den v1-Pfaden erreichbar sind (transitiv über `$ref`) —
-    `/auth/*`-Schemas (AnmeldenIn, TokenIn, …) sollen im v1-Dokument nicht auftauchen."""
-    namen = _ref_namen(pfade)
-    rand = set(namen)
-    while rand:
-        weiter: set[str] = set()
-        for name in rand:
-            weiter |= _ref_namen(alle.get(name, {}))
-        rand = weiter - namen
-        namen |= rand
-    return {n: alle[n] for n in namen if n in alle}
-
-
-def _sichtbare_pfade(pfade: dict[str, Any], ist_admin: bool) -> dict[str, Any]:
-    """`/api/v1/admin/*`, das globale Protokoll (`/api/v1/protokoll`, `.../protokoll.jsonl`) und
-    das Lesezugriffsprotokoll tauchen im OpenAPI-Dokument für Nicht-Admins nicht auf — sonst
-    verrät das Dokument genau die Routennamen, die die 404-Antwort sonst verbirgt. Der
-    projektbezogene Verlauf (`/api/v1/projekte/{pid}/protokoll…`) bleibt sichtbar, er ist nicht
-    admin-exklusiv (Bearbeiter/Admin je Projekt)."""
-    if ist_admin:
-        return pfade
-    return {
-        k: v for k, v in pfade.items()
-        if not k.startswith("/api/v1/admin/")
-        and k not in ("/api/v1/protokoll", "/api/v1/protokoll.jsonl")
-        and k not in LESEZUGRIFF_PFADE and not LESEZUGRIFF_PROJEKT_RE.match(k)
-    }
-
-
 # Beide Anmeldewege beschreiben (neue Dicts — das von FastAPI zwischengespeicherte
 # `app.openapi()` wird nie verändert). Global gilt „eins von beiden“.
 _SICHERHEIT = {
@@ -118,11 +72,11 @@ def openapi(request: Request, conn: sqlite3.Connection = Depends(db)) -> JSONRes
     per_token = api_token(request) is not None
     if per_token:
         # E-T3: per Token nur, was per Token erreichbar ist (keine Verwaltung, Statistik, Konto).
-        pfade = {k: v for k, v in pfade.items() if bearer_pfad(k)}
-    pfade = _sichtbare_pfade(pfade, n.is_admin and not per_token)
+        pfade = token_pfade(schema)
+    pfade = sichtbare_pfade(pfade, n.is_admin and not per_token)
     komponenten = {
         **schema.get("components", {}),
-        "schemas": _v1_schemas(pfade, schema.get("components", {}).get("schemas", {})),
+        "schemas": v1_schemas(pfade, schema.get("components", {}).get("schemas", {})),
         "securitySchemes": dict(_SICHERHEIT),
     }
     return JSONResponse(
@@ -132,7 +86,7 @@ def openapi(request: Request, conn: sqlite3.Connection = Depends(db)) -> JSONRes
     )
 
 
-@router.get("/version", summary="Produktversion (nur angemeldet)")
+@router.get("/version", summary="Produktversion (nur angemeldet)", responses=antwort(Version))
 def version(request: Request, conn: sqlite3.Connection = Depends(db)) -> JSONResponse:
     """Version des installierten Pakets `scanview-server`, wie alle API-Routen nur für
     Angemeldete (401 sonst). Das ausgelieferte Web-Bundle trägt die Version ohnehin für die
@@ -146,7 +100,8 @@ def _karte(conn: sqlite3.Connection, z: Zugriff, meta: sqlite3.Row | None) -> di
     return karte_json(z.karte, meta, z.rolle, projektverwaltung.einstellungen(conn, z.karte.id))
 
 
-@router.get("/projekte/{pid}", summary="Ein Projekt: Karte, eigene Rolle, Metadaten-Version")
+@router.get("/projekte/{pid}", summary="Ein Projekt: Karte, eigene Rolle, Metadaten-Version",
+            responses=antwort(Projekt))
 def projekt_lesen(pid: str, request: Request,
                   conn: sqlite3.Connection = Depends(db)) -> JSONResponse:
     z = projekt(request, conn, pid)
@@ -170,7 +125,8 @@ def paket_lesen(pid: str, request: Request, conn: sqlite3.Connection = Depends(d
 
 
 @router.patch("/projekte/{pid}", dependencies=[Depends(csrf)],
-              summary="Titel/Beschreibung ändern (Bearbeiter; version = zuletzt gelesene)")
+              summary="Titel/Beschreibung ändern (Bearbeiter; version = zuletzt gelesene)",
+              responses=antwort(ProjektBasis))
 def projekt_aendern(pid: str, body: MetaIn, request: Request,
                     conn: sqlite3.Connection = Depends(db)) -> JSONResponse:
     z = projekt(request, conn, pid, mindestens="bearbeiter")

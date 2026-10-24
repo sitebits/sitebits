@@ -12,6 +12,7 @@ from typing import Any
 
 import pytest
 import signierhilfe
+from pflicht import auf_schema_2
 from test_archiv import _manifest
 from test_betrieb import _schluessel
 
@@ -66,18 +67,21 @@ class Welt:
             f'versionen = [{liste}]\nstand = {{L = "0.1.0", S = "nicht ausgewertet"}}\n'
             "aktualisiert = 2026-10-01\n", encoding="utf-8")
 
-    def release(self, version: str) -> Path:
+    def release(self, version: str, *, schema_2: bool = False) -> Path:
         ordner = self.archiv / "releases" / version
-        (ordner / "sbom").mkdir(parents=True)
+        (ordner / "sbom").mkdir(parents=True, exist_ok=True)
         daten = _manifest(version)
         daten["quellcommit"] = self.commit
-        for name in ("web", "server", "mcp"):
+        if schema_2:
+            auf_schema_2(daten)
+        for name in ("web", "server", "mcp", "import"):
             roh = f'{{"sbom":"{name}"}}'.encode()
             (ordner / "sbom" / f"scanview-{name}-{version}.cdx.json").write_bytes(roh)
             daten["sboms"][f"scanview-{name}-{version}.cdx.json"] = hashlib.sha256(  # type: ignore[index]
                 roh).hexdigest()
         self.manifest = ordner / "manifest.json"
         self.manifest.write_bytes(kanonisch(daten))
+        self.manifest.with_name("manifest.json.sig").unlink(missing_ok=True)
         subprocess.run(["ssh-keygen", "-q", "-Y", "sign", "-f", str(self.key), "-n",
                         "scanview-release", str(self.manifest)], check=True,
                        stdin=subprocess.DEVNULL, capture_output=True)
@@ -193,7 +197,7 @@ def test_db_25_stunden_alt_fehler(welt):
 def test_sauber(welt):
     erg = welt.lauf()
     assert erg.versionen == ["0.1.0"] and erg.blockierend == {} and erg.neu == []
-    assert welt.gescannt == ["mcp", "server", "web"]
+    assert welt.gescannt == ["import", "mcp", "server", "web"]
 
 
 def test_treffer_ohne_vex_blockiert_und_ist_neu(welt):
@@ -210,9 +214,19 @@ def test_bekannter_treffer_ist_nicht_neu(welt):
     assert list(erg.blockierend) == ["0.1.0"] and erg.neu == []
 
 
+def test_import_treffer_blockiert_ab_schema_3(welt):
+    """Ab /3 wird import ausgeliefert: seine Treffer blockieren wie die der anderen."""
+    welt.treffer = [_treffer(artefakt="import")]
+    assert list(welt.lauf().blockierend) == ["0.1.0"]
+
+
 def test_nicht_ausgelieferte_artefakte_blockieren_nicht(welt):
+    """Ein /2-Release lieferte import nicht aus: dessen SBOM wird nicht gescannt, ein
+    import-Treffer blockiert dort nicht."""
+    welt.release("0.1.0", schema_2=True)
     welt.treffer = [_treffer(artefakt="import")]
     assert welt.lauf().blockierend == {}
+    assert welt.gescannt == ["mcp", "server", "web"]
 
 
 def test_lock_hash_stammt_aus_dem_release_commit(welt):

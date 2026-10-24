@@ -1,122 +1,187 @@
+// Eingabeschicht Stufe 1: Totzone, Ansprechkurve, Auslöser, Aktionen und Flanken, Controllertyp.
 import { describe, expect, it } from 'vitest';
-import { controllerTyp, kanten, lies, PAD_VORGABE, stickSchritt, TOTZONE, totzone } from '../src/gamepad';
+import {
+  ausloeser, AUSSEN, controllerTyp, kanten, KNOPF_TOUCHPAD, kurve, lies, PAD_AKTIONEN, PAD_KNOPF_MAX, PAD_VORGABE, stick, stickSchritt,
+  TOTZONE, totzone, TRIGGER_TOTZONE,
+} from '../src/gamepad';
 import type { PadAktion, PadRoh } from '../src/gamepad';
 
-const pad = (axes: number[] = [0, 0, 0, 0], gedrueckt: Record<number, number> = {}): PadRoh => ({
+const pad = (axes: number[] = [0, 0, 0, 0], gedrueckt: Record<number, number> = {}, n = 18): PadRoh => ({
   id: 'Test Pad (STANDARD GAMEPAD)',
   axes,
-  buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: gedrueckt[i] === 1, value: gedrueckt[i] ?? 0 })),
+  buttons: Array.from({ length: n }, (_, i) => ({ pressed: (gedrueckt[i] ?? 0) >= 0.5, value: gedrueckt[i] ?? 0 })),
 });
 const O = { invertY: false };
 
 describe('Totzone', () => {
-  it('ist 0,15', () => expect(TOTZONE).toBe(0.15));
-  it('Werte innerhalb der Totzone ergeben 0', () => {
+  it('ist radial 0,15 mit Sättigung ab 0,95', () => {
+    expect(TOTZONE).toBe(0.15);
+    expect(AUSSEN).toBe(0.95);
+  });
+  it('Werte innerhalb der Totzone ergeben 0, auch diagonal', () => {
     expect(totzone(0.1, 0)).toEqual([0, 0]);
-    expect(totzone(0, -0.14)).toEqual([0, 0]);
+    expect(totzone(0.1, 0.1)).toEqual([0, 0]); // Betrag 0,141
   });
-  it('voller Ausschlag bleibt 1', () => {
-    expect(totzone(1, 0)).toEqual([1, 0]);
-    expect(totzone(0, -1)[1]).toBeCloseTo(-1, 10);
+  it('radial statt je Achse: diagonal knapp außerhalb wirkt in beide Richtungen', () => {
+    const [x, y] = totzone(0.12, 0.12); // Betrag 0,17
+    expect(x).toBeGreaterThan(0);
+    expect(y).toBeCloseTo(x, 12);
   });
-  it('diagonal unter 0,15 Betrag ergibt 0', () => {
-    expect(totzone(0.1, 0.1)).toEqual([0, 0]);
-  });
-  it('skaliert radial neu auf 0…1', () => {
-    const [x, y] = totzone(0.575, 0);
-    expect(x).toBeCloseTo(0.5, 10);
-    expect(y).toBe(0);
+  it('skaliert neu: Rand der Totzone 0, ab 0,95 voll', () => {
+    expect(totzone(0.15 + 1e-9, 0)[0]).toBeCloseTo(0, 6);
+    expect(totzone(0.55, 0)[0]).toBeCloseTo(0.5, 12);
+    expect(totzone(0.95, 0)[0]).toBeCloseTo(1, 12);
+    expect(totzone(1, 0)[0]).toBeCloseTo(1, 12);
   });
   it('klemmt Beträge über 1 und ignoriert nicht endliche Werte', () => {
-    expect(Math.hypot(...totzone(1, 1))).toBeCloseTo(1, 10);
+    const [x, y] = totzone(1, 1);
+    expect(Math.hypot(x, y)).toBeCloseTo(1, 12);
     expect(totzone(NaN, 0.5)).toEqual([0, 0]);
     expect(totzone(Infinity, 0)).toEqual([0, 0]);
   });
 });
 
+describe('Ansprechkurve', () => {
+  it('0 → 0, 1 → 1, monoton, unter der Diagonale (fein in der Mitte)', () => {
+    expect(kurve(0)).toBe(0);
+    expect(kurve(1)).toBe(1);
+    let vorher = -1;
+    for (let m = 0; m <= 1.0001; m += 0.05) {
+      const f = kurve(m);
+      expect(f).toBeGreaterThan(vorher);
+      expect(f).toBeLessThanOrEqual(m + 1e-12);
+      vorher = f;
+    }
+    expect(kurve(0.5)).toBeCloseTo(0.2 * 0.5 + 0.8 * 0.25, 12); // 0,3
+  });
+  it('kleiner linearer Anteil: knapp über der Totzone reagiert der Stick schon', () => {
+    expect(kurve(0.05)).toBeGreaterThan(0.01);
+  });
+  it('klemmt und verträgt Unsinn', () => {
+    expect(kurve(2)).toBe(1);
+    expect(kurve(-1)).toBe(0);
+    expect(kurve(NaN)).toBe(0);
+  });
+  it('stick(): Richtung bleibt, Betrag = Kurve des Betrags nach der Totzone', () => {
+    const s = stick(0.55 / Math.SQRT2, 0.55 / Math.SQRT2);
+    expect(Math.hypot(s.x, s.y)).toBeCloseTo(kurve(0.5), 12);
+    expect(s.x).toBeCloseTo(s.y, 12);
+    expect(stick(0.1, 0)).toEqual({ x: 0, y: 0 });
+  });
+});
+
+describe('Auslöser', () => {
+  it('analog mit eigener Totzone 0,08 und Kurve', () => {
+    expect(TRIGGER_TOTZONE).toBe(0.08);
+    expect(ausloeser(0.05)).toBe(0);
+    expect(ausloeser(1)).toBe(1);
+    expect(ausloeser(0.54)).toBeCloseTo(kurve(0.5), 12);
+    expect(ausloeser(NaN)).toBe(0);
+  });
+});
+
 describe('lies', () => {
-  it('LY −1 ergibt vor 1', () => {
-    expect(lies(pad([0, -1, 0, 0]), PAD_VORGABE, O).vor).toBeCloseTo(1, 10);
+  it('linker Stick oben = y +1, rechts = x +1 (Achse oben ist in der API negativ)', () => {
+    const l = lies(pad([1, -1, 0, 0]), PAD_VORGABE, O);
+    expect(l.links.x).toBeGreaterThan(0.69);
+    expect(l.links.y).toBeGreaterThan(0.69);
+    expect(lies(pad([0, -1, 0, 0]), PAD_VORGABE, O).links.y).toBe(1);
   });
-  it('LX rechts ergibt seit 1', () => {
-    expect(lies(pad([1, 0, 0, 0]), PAD_VORGABE, O).seit).toBeCloseTo(1, 10);
+  it('rechter Stick: oben schauen = y positiv, invertY kehrt nur den rechten Stick um', () => {
+    expect(lies(pad([0, 0, 0, -1]), PAD_VORGABE, O).rechts.y).toBe(1);
+    expect(lies(pad([0, 0, 0, -1]), PAD_VORGABE, { invertY: true }).rechts.y).toBe(-1);
+    expect(lies(pad([0, -1, 0, 0]), PAD_VORGABE, { invertY: true }).links.y).toBe(1);
   });
-  it('rechter Stick nach rechts dreht nach rechts (dreh negativ), nach oben schaut nach oben', () => {
-    const l = lies(pad([0, 0, 1, 0]), PAD_VORGABE, O);
-    expect(l.dreh).toBeCloseTo(-1, 10);
-    expect(lies(pad([0, 0, 0, -1]), PAD_VORGABE, O).neig).toBeCloseTo(1, 10);
+  it('Auslöser sind die Höhen-/Zoomachse: R2 hoch, L2 runter, analog', () => {
+    expect(lies(pad([0, 0, 0, 0], { 7: 1 }), PAD_VORGABE, O).hochAchse).toBe(1);
+    expect(lies(pad([0, 0, 0, 0], { 6: 1 }), PAD_VORGABE, O).hochAchse).toBe(-1);
+    const halb = lies(pad([0, 0, 0, 0], { 7: 0.54 }), PAD_VORGABE, O).hochAchse;
+    expect(halb).toBeCloseTo(kurve(0.5), 12);
+    expect(lies(pad([0, 0, 0, 0], { 6: 1, 7: 1 }), PAD_VORGABE, O).hochAchse).toBe(0);
   });
-  it('invertY kehrt das Neigen um', () => {
-    expect(lies(pad([0, 0, 0, -1]), PAD_VORGABE, { invertY: true }).neig).toBeCloseTo(-1, 10);
+  it('Knöpfe als Aktionen: Vorgabe nach Spielkonvention', () => {
+    const g = (i: number): ReadonlySet<PadAktion> => lies(pad([0, 0, 0, 0], { [i]: 1 }), PAD_VORGABE, O).gedrueckt;
+    expect([...g(0)]).toEqual(['bestaetigen']);
+    expect([...g(1)]).toEqual(['zurueck']);
+    expect([...g(2)]).toEqual(['zielen']);
+    expect([...g(3)]).toEqual(['kontext']);
+    expect([...g(9)]).toEqual(['menue']);
+    expect([...g(8)]).toEqual(['belegung']);
+    expect([...g(10)]).toEqual(['schnell']);
+    expect([...g(11)]).toEqual(['ausrichten']);
   });
-  it('Stick in der Totzone bewegt nichts', () => {
-    const l = lies(pad([0.1, -0.1, 0.1, 0.1]), PAD_VORGABE, O);
-    expect([l.vor, l.seit, l.dreh, l.neig]).toEqual([0, 0, 0, 0]);
+  it('Touchpad-Klick (17) zeigt die Belegung, solange er nicht umbelegt ist', () => {
+    expect(KNOPF_TOUCHPAD).toBe(17);
+    expect([...lies(pad([0, 0, 0, 0], { 17: 1 }), PAD_VORGABE, O).gedrueckt]).toEqual(['belegung']);
+    const um = { ...PAD_VORGABE, menue: 17 };
+    expect([...lies(pad([0, 0, 0, 0], { 17: 1 }), um, O).gedrueckt]).toEqual(['menue']);
   });
-  it('RT mit value 0,8 zählt als setzen gedrückt, 0,4 nicht', () => {
-    expect(lies(pad([0, 0, 0, 0], { 7: 0.8 }), PAD_VORGABE, O).gedrueckt.has('setzen')).toBe(true);
-    expect(lies(pad([0, 0, 0, 0], { 7: 0.4 }), PAD_VORGABE, O).gedrueckt.has('setzen')).toBe(false);
-  });
-  it('folgt einer geänderten Belegung', () => {
-    const b: Record<PadAktion, number> = { ...PAD_VORGABE, 'werkzeug-naechstes': 2 };
-    const l = lies(pad([0, 0, 0, 0], { 2: 1 }), b, O);
-    expect(l.gedrueckt.has('werkzeug-naechstes')).toBe(true);
-    expect(lies(pad([0, 0, 0, 0], { 5: 1 }), b, O).gedrueckt.has('werkzeug-naechstes')).toBe(false);
-  });
-  it('nicht belegte Aktionen (−1) werden nie ausgelöst', () => {
-    const b = { ...PAD_VORGABE, zurueck: -1 };
-    const g = lies(pad(), b, O).gedrueckt;
-    expect(g.has('zurueck')).toBe(false);
+  it('folgt einer geänderten Belegung, nicht belegte Aktionen (−1) lösen nie aus', () => {
+    const b = { ...PAD_VORGABE, kontext: 2, zielen: -1 };
+    expect(lies(pad([0, 0, 0, 0], { 2: 1 }), b, O).gedrueckt.has('kontext')).toBe(true);
+    expect(lies(pad([0, 0, 0, 0], { 2: 1 }), b, O).gedrueckt.has('zielen')).toBe(false);
   });
   it('zu kurze Achsen- und Knopflisten liefern Ruhe statt Fehler', () => {
     const l = lies({ id: 'x', axes: [], buttons: [] }, PAD_VORGABE, O);
-    expect([l.vor, l.seit, l.dreh, l.neig]).toEqual([0, 0, 0, 0]);
+    expect(l.links).toEqual({ x: 0, y: 0 });
+    expect(l.rechts).toEqual({ x: 0, y: 0 });
+    expect(l.hochAchse).toBe(0);
     expect(l.gedrueckt.size).toBe(0);
   });
 });
 
 describe('Vorgabe', () => {
-  it('entspricht dem Standard-Mapping, X bleibt frei', () => {
-    expect(PAD_VORGABE).toEqual({
-      zielen: 6, setzen: 7, 'werkzeug-voriges': 4, 'werkzeug-naechstes': 5, befund: 3,
-      'standpunkt-voriger': 14, 'standpunkt-naechster': 15, hoch: 12, runter: 13, bestaetigen: 0, zurueck: 1, karte: 9,
-    });
-    expect(Object.values(PAD_VORGABE)).not.toContain(2);
+  it('jede Aktion auf einem eigenen Knopf 0–15', () => {
+    const k = PAD_AKTIONEN.map((a) => PAD_VORGABE[a]);
+    expect(new Set(k).size).toBe(k.length);
+    for (const n of k) expect(n >= 0 && n <= 15).toBe(true);
+    expect(PAD_KNOPF_MAX).toBe(17);
   });
 });
 
 describe('kanten', () => {
-  const s = (...a: PadAktion[]): ReadonlySet<PadAktion> => new Set(a);
   it('liefert Drücken und Loslassen genau einmal', () => {
-    expect(kanten(s(), s('setzen'))).toEqual({ runter: ['setzen'], hoch: [] });
-    expect(kanten(s('setzen'), s('setzen'))).toEqual({ runter: [], hoch: [] });
-    expect(kanten(s('setzen'), s())).toEqual({ runter: [], hoch: ['setzen'] });
+    const a = new Set<PadAktion>();
+    const b = new Set<PadAktion>(['bestaetigen']);
+    expect(kanten(a, b)).toEqual({ runter: ['bestaetigen'], hoch: [] });
+    expect(kanten(b, b)).toEqual({ runter: [], hoch: [] });
+    expect(kanten(b, a)).toEqual({ runter: [], hoch: ['bestaetigen'] });
   });
 });
 
 describe('controllerTyp', () => {
-  it('erkennt Xbox, PlayStation und andere', () => {
-    expect(controllerTyp('Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)')).toBe('xbox');
-    expect(controllerTyp('DualSense Wireless Controller')).toBe('playstation');
+  it('DualSense in Chrome und Firefox, Edge, DualShock 4', () => {
+    expect(controllerTyp('DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)')).toBe('playstation');
     expect(controllerTyp('Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)')).toBe('playstation');
-    expect(controllerTyp('Test Pad (STANDARD GAMEPAD)')).toBe('generisch');
-    expect(controllerTyp('')).toBe('generisch');
+    expect(controllerTyp('054c-0ce6-Sony Interactive Entertainment DualSense Wireless Controller')).toBe('playstation');
+    expect(controllerTyp('054c-0df2-DualSense Edge Wireless Controller')).toBe('playstation');
+    expect(controllerTyp('Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 09cc)')).toBe('playstation');
+  });
+  it('Xbox in Chrome und Firefox', () => {
+    expect(controllerTyp('Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)')).toBe('xbox');
+    expect(controllerTyp('045e-02ea-Microsoft X-Box One S pad')).toBe('xbox');
+    expect(controllerTyp('xinput')).toBe('xbox');
+  });
+  it('andere (auch Nintendo mit vertauschtem A/B) neutral', () => {
+    expect(controllerTyp('Pro Controller (STANDARD GAMEPAD Vendor: 057e Product: 2009)')).toBe('neutral');
+    expect(controllerTyp('Test Pad (STANDARD GAMEPAD)')).toBe('neutral');
+    expect(controllerTyp('')).toBe('neutral');
   });
 });
 
 describe('stickSchritt', () => {
   it('löst einmal aus und erst nach Rückkehr unter 0,3 wieder', () => {
-    let r = stickSchritt(0.6, true);
+    let r = stickSchritt(0.8, true);
     expect(r).toEqual({ schritt: 1, bereit: false });
     r = stickSchritt(0.9, r.bereit);
-    expect(r).toEqual({ schritt: 0, bereit: false });
-    r = stickSchritt(0.4, r.bereit); // zwischen 0,3 und 0,5: noch nicht scharf
+    expect(r.schritt).toBe(0);
+    r = stickSchritt(0.4, r.bereit);
     expect(r).toEqual({ schritt: 0, bereit: false });
     r = stickSchritt(0.2, r.bereit);
-    expect(r).toEqual({ schritt: 0, bereit: true });
-    expect(stickSchritt(-0.7, r.bereit)).toEqual({ schritt: -1, bereit: false });
+    expect(r.bereit).toBe(true);
+    expect(stickSchritt(-0.6, true).schritt).toBe(-1);
   });
   it('unter 0,5 löst nichts aus', () => {
-    expect(stickSchritt(0.49, true)).toEqual({ schritt: 0, bereit: true });
+    expect(stickSchritt(0.45, true)).toEqual({ schritt: 0, bereit: true });
   });
 });

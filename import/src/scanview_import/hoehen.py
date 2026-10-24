@@ -27,7 +27,7 @@ ELLIPSOIDISCH = "ellipsoidal-etrs89"
 DHHN92 = "dhhn92"
 HOEHENSYSTEME = (DHHN2016, ELLIPSOIDISCH, DHHN92)
 
-# Ältere Schreibweisen aus Paketen, Metashape-Exporten und der CLI → Normwert.
+# Ältere Schreibweisen aus Paketen, Kameraexporten und der CLI → Normwert.
 _SCHREIBWEISEN = {
     "dhhn2016": DHHN2016,
     "nhn": DHHN2016,

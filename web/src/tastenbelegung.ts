@@ -83,12 +83,15 @@ export const AKTIONEN: readonly AktionDef[] = [
 ];
 const NACH_ID = new Map(AKTIONEN.map((a) => [a.id, a] as const));
 
-/** `pad`: umbelegte Controller-Knöpfe (0–16, −1 = nicht belegt); fehlende Aktionen gelten mit der Vorgabe. */
+/** `pad`: umbelegte Controller-Knöpfe (0–17, −1 = nicht belegt); fehlende Aktionen gelten mit der Vorgabe.
+ *  `padSchema` 2 = ansichtsübergreifende Aktionen (seit der neuen Controller-Steuerung); Umbelegungen des alten
+ *  Schemas (nur Begehen, andere Bedeutungen derselben Namen) werden beim Laden verworfen. */
 export interface Belegung {
   schema: 1;
   einzeltastenAus: boolean;
   tasten: Partial<Record<AktionId, Akkord | null>>;
   pad?: Partial<Record<PadAktion, number>>;
+  padSchema?: 2;
 }
 export const BELEGUNG_SCHLUESSEL = 'sv-tastenbelegung';
 export const vorgabeBelegung = (): Belegung => ({ schema: 1, einzeltastenAus: false, tasten: {} });
@@ -219,7 +222,7 @@ export function belegePad(b: Belegung, a: PadAktion, knopf: number): BelegePadEr
     const mit = PAD_AKTIONEN.find((x) => x !== a && k[x] === knopf);
     if (mit) return { ok: false, grund: 'konflikt', mit };
   }
-  return { ok: true, belegung: { ...b, pad: { ...b.pad, [a]: knopf } } };
+  return { ok: true, belegung: { ...b, pad: { ...b.pad, [a]: knopf }, padSchema: 2 } };
 }
 
 export const speichereBelegung = (b: Belegung): string => JSON.stringify(b);
@@ -281,7 +284,8 @@ export function ladeBelegung(raw: string | null): Belegung {
 
 /** Knopfbelegung laden: nur gültige Ganzzahlen, Konflikte lösen wie bei den Tasten (spätere Aktion fällt auf
  *  ihre Vorgabe zurück, kollidiert auch die, wird sie abgeschaltet). */
-function ladePad(roh: unknown): { pad?: Partial<Record<PadAktion, number>> } {
+function ladePad(roh: unknown): { pad?: Partial<Record<PadAktion, number>>; padSchema?: 2 } {
+  if ((roh as { padSchema?: unknown }).padSchema !== 2) return {};
   const quelle = (roh as { pad?: unknown }).pad;
   if (typeof quelle !== 'object' || quelle === null || Array.isArray(quelle)) return {};
   const pad: Partial<Record<PadAktion, number>> = {};
@@ -299,5 +303,5 @@ function ladePad(roh: unknown): { pad?: Partial<Record<PadAktion, number>> } {
     const frei = !PAD_AKTIONEN.some((x) => x !== zurueck && padBelegung(b)[x] === vorgabe);
     b = { ...b, pad: { ...b.pad, [zurueck]: frei ? vorgabe : PAD_NICHT_BELEGT } };
   }
-  return Object.keys(b.pad ?? {}).length > 0 ? { pad: b.pad } : {};
+  return Object.keys(b.pad ?? {}).length > 0 ? { pad: b.pad, padSchema: 2 } : {};
 }

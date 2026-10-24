@@ -1,0 +1,47 @@
+# scanview-import-uebergabe — schaltet fertige, mit verify geprüfte Import-Pakete frei.
+# Nur mit SCANVIEW_IMPORT=1 installiert (einrichten.sh), gestartet vom Timer gleichen Namens.
+#
+# Der Import-Worker kann nicht selbst freischalten (kein sudo, NoNewPrivileges, kein Eingang) und
+# soll es auch nicht. Dieser Dienst läuft als root, liest aber nie Dateiinhalte aus der Übergabe:
+# Er prüft nur Ordnernamen, lässt das Kopieren in den Eingang den Nutzer scanview-uebergabe tun
+# (runuser) und ruft dann das unveränderte Freischalt-Skript auf — wie ein Deploy-Nutzer.
+[Unit]
+Description=scanview: geprüfte Import-Pakete freischalten
+After=scanview-server.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/scanview-import-uebergabe
+# Ein großes Paket wird zweimal kopiert (Eingang, dann neue root-Inodes im Freischalt-Skript).
+TimeoutStartSec=6h
+UMask=0077
+ProtectSystem=strict
+# Eingang (Kopie des Übergabe-Nutzers), Datenwurzel (Freischalt-Skript), Meldungen.
+ReadWritePaths=/srv/scanview/eingang /srv/scanview/data /srv/scanview/uebergabe-meldungen
+ReadOnlyPaths=/srv/scanview/uebergabe
+InaccessiblePaths=-/srv/scanview/state -/srv/scanview/jobs -/srv/scanview/uploads -/srv/scanview/berichte
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+IPAddressDeny=any
+# Nur der Weg zum System-Manager (systemctl reload scanview-server im Freischalt-Skript).
+RestrictAddressFamilies=AF_UNIX
+NoNewPrivileges=yes
+# Freischalt-Skript: chown/chmod/setfacl, Lesen fremder Dateien; runuser: Nutzerwechsel.
+CapabilityBoundingSet=CAP_CHOWN CAP_FOWNER CAP_FSETID CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH CAP_SETUID CAP_SETGID CAP_AUDIT_WRITE
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+MemoryMax=1G
+TasksMax=64

@@ -1,7 +1,7 @@
-"""Metashape-Rahmenkameramodell: Verzeichnung, Inversion, Zuschnitt, Entzerrung.
+"""Rahmenkameramodell des Austauschformats: Verzeichnung, Inversion, Zuschnitt, Entzerrung.
 
-Vorwärtsmodell nach Agisoft Metashape Professional 2.x User Manual, Anhang „Camera models“,
-Abschnitt „Frame cameras“ (Kamera-KS: X rechts, Y unten, Z Blickrichtung)::
+Vorwärtsmodell (Brown-Conrady mit vier Radial-, zwei Tangentialtermen und Affinität/Scherung
+b1/b2; Kamera-KS: X rechts, Y unten, Z Blickrichtung)::
 
     x = X/Z, y = Y/Z, r² = x² + y²
     x' = x(1 + K1r² + K2r⁴ + K3r⁶ + K4r⁸) + (P1(r² + 2x²) + 2P2xy)
@@ -9,11 +9,12 @@ Abschnitt „Frame cameras“ (Kamera-KS: X rechts, Y unten, Z Blickrichtung)::
     u = w/2 + cx + x'f + x'B1 + y'B2
     v = h/2 + cy + y'f
 
-Bildkoordinaten wie Metashape: Ursprung in der linken oberen Ecke des Bildes, die Mitte des
+Bildkoordinaten des Austauschformats: Ursprung in der linken oberen Ecke des Bildes, die Mitte des
 Pixels (i, j) liegt bei (i + 0,5, j + 0,5). Die Koeffizienten werden **nicht** nach Namen auf
 OpenCV abgebildet (andere Reihenfolge der Tangentialterme, K4 rational, B1/B2 fehlen dort).
-Maßgeblich ist nicht das Handbuch, sondern `pruefe_referenzpaare`: Der Export schreibt je Sensor
-Pixel aus Metashapes eigenem `camera.project()`, und dieses Modell muss sie auf 0,1 px treffen.
+Maßgeblich ist nicht die Formel, sondern `pruefe_referenzpaare`: Der Export schreibt je Sensor
+Pixel aus der eigenen Projektion der Photogrammetrie-Software, und dieses Modell muss sie auf
+0,1 px treffen.
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ NEWTON_TOLERANZ_PX = 0.01
 
 
 class VerzeichnungFehler(ValueError):
-    """Kalibrierung unbrauchbar oder Modell weicht von Metashape ab."""
+    """Kalibrierung unbrauchbar oder Modell weicht von den Referenzpaaren ab."""
 
 
 @dataclass(frozen=True)
@@ -72,7 +73,7 @@ class Kalibrierung:
         if any(float(werte.get(n, 0.0)) != 0.0 for n in ("p3", "p4")):
             raise VerzeichnungFehler(
                 "Kalibrierung mit p3/p4 ≠ 0 wird nicht unterstützt (höhere Tangentialterme) — "
-                "in Metashape ohne p3/p4 neu kalibrieren"
+                "ohne p3/p4 neu kalibrieren"
             )
         return cls(width=int(width), height=int(height), **{n: float(werte[n]) for n in namen})
 
@@ -137,7 +138,7 @@ def unverzeichnen(k: Kalibrierung, u: Array, v: Array) -> tuple[Array, Array]:
 
 
 def pruefe_referenzpaare(k: Kalibrierung, paare: list[dict[str, Any]]) -> float:
-    """Modell gegen Metashapes `camera.project()` prüfen; liefert die größte Abweichung in px."""
+    """Modell gegen die Referenzpaare des Exports prüfen; liefert die größte Abweichung in px."""
     if len(paare) < MIN_REFERENZPAARE:
         raise VerzeichnungFehler(
             f"Zu wenige Referenzpaare ({len(paare)} < {MIN_REFERENZPAARE}) — Export zu alt?"
@@ -150,7 +151,7 @@ def pruefe_referenzpaare(k: Kalibrierung, paare: list[dict[str, Any]]) -> float:
     if not math.isfinite(groesste) or groesste > REFERENZ_TOLERANZ_PX:
         i = int(np.argmax(abweichung))
         raise VerzeichnungFehler(
-            f"Referenzpaar {i} weicht {groesste:.3f} px von Metashape ab "
+            f"Referenzpaar {i} weicht {groesste:.3f} px von der exportierten Projektion ab "
             f"(Grenze {REFERENZ_TOLERANZ_PX} px) — Verzeichnungsmodell passt nicht"
         )
     return groesste
@@ -196,7 +197,7 @@ def zielkamera(k: Kalibrierung) -> Lochkamera:
 def remap_gitter(
     k: Kalibrierung, ziel: Lochkamera
 ) -> tuple[NDArray[np.float32], NDArray[np.float32]]:
-    """Je Zielpixelmitte die Quellkoordinate (Metashape-Pixelkoordinaten), float32."""
+    """Je Zielpixelmitte die Quellkoordinate (Pixelkoordinaten des Austauschformats), float32."""
     gu = np.empty((ziel.height, ziel.width), np.float32)
     gv = np.empty((ziel.height, ziel.width), np.float32)
     x = (np.arange(ziel.width) + 0.5 - ziel.width / 2) / ziel.f

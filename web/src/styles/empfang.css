@@ -70,29 +70,32 @@ body.sv-empfang .sv-befundkarte { position: fixed; top: 0; bottom: 0; right: 0; 
 /* Mobil (schmal oder Touch, Klasse sv-mobil aus empfang.ts): Karte als Leiste unten, eingeklappt nur Titel und
    Klappknöpfe; ausgeklappt höchstens 60 % der Höhe. Die Befundliste klappt oben auf. Beide schieben die Ansicht:
    #view liegt zwischen ihnen (Höhen als --sv-oben/--sv-unten aus empfang.ts), nichts überdeckt die Leinwand.
-   Knöpfe mindestens 44 × 44 px; kein waagerechtes Scrollen, Hoch- und Querformat. */
+   Knöpfe mindestens 44 × 44 px; kein waagerechtes Scrollen, Hoch- und Querformat. Ränder halten Notch/Insel und
+   Home-Indikator frei (--sv-sa-*, tokens.css); dvh statt vh, weil 100vh in iOS Safari unter die Adressleiste reicht. */
 body.sv-empfang.sv-mobil { --sv-links: 0px; --sv-rechts: 0px; }
 body.sv-mobil .sv-befundkarte .sv-nur-mobil { display: flex; }
 body.sv-empfang.sv-mobil #view { position: fixed; left: 0; right: var(--sv-seite, 0px); top: var(--sv-oben, 0px); bottom: var(--sv-unten, 0px); height: auto; }
 body.sv-empfang.sv-mobil #panels, body.sv-empfang.sv-mobil:not(.sv-liste-offen) .sv-befundliste { display: none; }
-body.sv-empfang.sv-mobil .sv-befundliste { position: fixed; top: 0; bottom: auto; left: 0; right: 0; width: auto; max-height: 45vh;
+body.sv-empfang.sv-mobil .sv-befundliste { position: fixed; top: 0; bottom: auto; left: 0; right: 0; width: auto; max-height: 45vh; max-height: 45dvh; box-sizing: border-box;
+  padding-top: var(--sv-sa-oben); padding-left: var(--sv-sa-links); padding-right: var(--sv-sa-rechts);
   border-right: 0; border-bottom: 1px solid var(--sv-border); }
-body.sv-empfang.sv-mobil .sv-befundkarte { position: fixed; top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 60vh;
+body.sv-empfang.sv-mobil .sv-befundkarte { position: fixed; top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 60vh; max-height: 60dvh; box-sizing: border-box;
+  padding-bottom: var(--sv-sa-unten); padding-left: var(--sv-sa-links); padding-right: var(--sv-sa-rechts);
   border-left: 0; border-top: 1px solid var(--sv-border); }
 body.sv-empfang.sv-mobil .sv-befundkarte:not(.sv-offen) .sv-karte-inhalt { display: none; }
 body.sv-empfang.sv-mobil .sv-befundkarte button, body.sv-empfang.sv-mobil .sv-befundliste button { min-width: 44px; min-height: 44px; }
-body.sv-empfang.sv-mobil #toolbar { position: fixed; top: calc(var(--sv-oben, 0px) + 8px); left: auto; right: calc(var(--sv-seite, 0px) + 8px); transform: none; }
+body.sv-empfang.sv-mobil #toolbar { position: fixed; top: calc(max(var(--sv-oben, 0px), var(--sv-sa-oben)) + 8px); left: auto; right: calc(max(var(--sv-seite, 0px), var(--sv-sa-rechts)) + 8px); transform: none; }
 body.sv-empfang.sv-mobil #toolbar button { min-width: 44px; height: 44px; }
-body.sv-empfang.sv-mobil .sv-zurueck { position: fixed; top: calc(var(--sv-oben, 0px) + 8px); height: 44px; }
-body.sv-empfang.sv-mobil #msg { position: fixed; top: auto; bottom: calc(var(--sv-unten, 0px) + 8px); left: 8px; right: calc(var(--sv-seite, 0px) + 8px); }
+body.sv-empfang.sv-mobil .sv-zurueck { position: fixed; top: calc(max(var(--sv-oben, 0px), var(--sv-sa-oben)) + 8px); left: calc(var(--sv-sa-links) + 8px); height: 44px; }
+body.sv-empfang.sv-mobil #msg { position: fixed; top: auto; bottom: calc(max(var(--sv-unten, 0px), var(--sv-sa-unten)) + 8px); left: calc(var(--sv-sa-links) + 8px); right: calc(var(--sv-seite, 0px) + 8px); }
 body.sv-empfang.sv-mobil #scan-hint { position: fixed; bottom: calc(var(--sv-unten, 0px) + 56px); left: calc((100% - var(--sv-seite, 0px)) / 2);
   max-width: calc(100% - var(--sv-seite, 0px) - 16px); }
-body.sv-empfang.sv-mobil .sv-hinweise { position: fixed; top: calc(var(--sv-oben, 0px) + 64px); bottom: auto; right: calc(var(--sv-seite, 0px) + 8px); left: auto; }
+body.sv-empfang.sv-mobil .sv-hinweise { position: fixed; top: calc(max(var(--sv-oben, 0px), var(--sv-sa-oben)) + 64px); bottom: auto; right: calc(var(--sv-seite, 0px) + 8px); left: auto; }
 body.sv-empfang.sv-mobil .sv-hinweise.sv-links { left: 8px; right: auto; }
-body.sv-empfang.sv-mobil .sv-teilen, body.sv-empfang.sv-mobil .sv-entwurf { position: fixed; top: calc(var(--sv-oben, 0px) + 64px);
+body.sv-empfang.sv-mobil .sv-teilen, body.sv-empfang.sv-mobil .sv-entwurf { position: fixed; top: calc(max(var(--sv-oben, 0px), var(--sv-sa-oben)) + 64px);
   left: calc((100% - var(--sv-seite, 0px)) / 2); max-width: calc(100% - var(--sv-seite, 0px) - 16px); max-height: calc(100% - var(--sv-oben, 0px) - var(--sv-unten, 0px) - 72px); overflow: auto; }
-body.sv-empfang.sv-mobil #poi-form.sv-inspektor { position: fixed; z-index: 9; top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 60vh;
-  border-radius: 0; }
+body.sv-empfang.sv-mobil #poi-form.sv-inspektor { position: fixed; z-index: 9; top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 60vh; max-height: 60dvh;
+  border-radius: 0; padding-bottom: calc(var(--sv-sa-unten) + 12px); }
 body.sv-empfang.sv-mobil #poi-form button { min-width: 44px; min-height: 44px; }
 
 /* Trenner zwischen Ansicht und Karte (empfang.ts, aufteilung.ts): nur mobil mit ausgeklappter Karte (sv-geteilt).

@@ -102,8 +102,9 @@ async def austausch(body: AustauschIn, request: Request) -> JSONResponse:
     if not d.austausch_ip.erlaubt(client_ip) or not d.austausch_global.erlaubt("alle"):
         return fehler(429, UEBERLASTET)
     # argon2 (Link-Passwort) läuft wie die Anmeldung in den eigenen Rechenplätzen.
-    return await request.app.state.rechenplaetze.ausfuehren(
+    antwort: JSONResponse = await request.app.state.rechenplaetze.ausfuehren(
         lambda: _austausch(body, request, client_ip))
+    return antwort
 
 
 def _austausch(body: AustauschIn, request: Request, client_ip: str | None) -> JSONResponse:

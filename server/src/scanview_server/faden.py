@@ -624,7 +624,8 @@ def _vorschlag(conn: sqlite3.Connection, pid: str, poi: str, schluessel: str,
         raise Ungueltig(KEIN_VORSCHLAG_EINTRAG)
     if not v["offen"]:
         raise StarletteHTTPException(status_code=409, detail=VORSCHLAG_ERLEDIGT)
-    return v
+    zeile: sqlite3.Row = v
+    return zeile
 
 
 def vorschlag_annehmen(conn: sqlite3.Connection, pid: str, poi: str, schluessel: str, s: Sicht,

@@ -6,17 +6,31 @@
 |---|---|---|---|
 | pye57 | 0.4.19 | MIT | Python-Import, bindet libE57Format (Boost-1.0) |
 | numpy | 2.5.3 | BSD-3-Clause (Teilkomponenten: 0BSD, MIT, Zlib, CC0-1.0) | Python-Import |
-| Pillow | 12.3.0 | MIT-CMU (HPND) | Python-Import |
+| Pillow | 13.0.0 | MIT-CMU (HPND) | Python-Import |
 | laspy | 2.7.0 | BSD-2-Clause | Python-Import |
 | lazrs | 0.8.2 | MIT | Python-Import, laspy-Extra `[lazrs]` (LAZ-Codec) |
 | pyproj | 3.8.0 | MIT (Wheel bündelt PROJ 9.8 MIT, libtiff libtiff, SQLite Public Domain, curl curl, zlib Zlib) | Python-Import, Höhenumrechnung `hoehen.py` (explizite PROJ-Pipeline, kein Netzzugriff) |
-| certifi | 2026.7.22 | MPL-2.0 | transitive Abhängigkeit von pyproj, unverändert |
+| certifi | 2026.10.19 | MPL-2.0 | transitive Abhängigkeit von pyproj und requests, unverändert |
 | GCG2016 (`de_bkg_gcg2016.tif`, aus PROJ-data) | 2016, sha256 `598f1832…f7ac` | CC-BY-4.0, © Bundesamt für Kartographie und Geodäsie | Datendatei in `import/src/scanview_import/gitter/`, Quasigeoid für ellipsoidisch ↔ DHHN2016 |
 | pyquaternion | 0.9.9 | MIT | Python-Import, transitive Abhängigkeit von pye57 |
 | PDAL | 2.10.2 (Docker `pdal/pdal:2.10.2@sha256:8e0eb32d…2883`, per Digest gepinnt in `pdal_runner.IMAGE`) | BSD | **externer Prozess**, nicht gelinkt |
 | untwine | 1.5.1 (conda-forge, im Image `scanview-untwine`) | GPL-3.0 | **externer Prozess** (Docker), nicht gelinkt; nur Modus `staged` (LAZ → COPC) |
 | scanview-untwine (Image) | `condaforge/miniforge3@sha256:3a41fcca…1901` (per Digest gepinnt) + conda-forge `untwine=1.5.1`, gebaut aus `import/docker/untwine.Dockerfile` | Basis BSD-3-Clause (Miniforge), Inhalt s. untwine | lokal gebautes Werkzeug-Image, **externer Prozess**, wird nicht verteilt |
 | pygltflib | 1.16.5 | MIT | **Laufzeitabhängigkeit von `scanview-import`** (`import/pyproject.toml`, direkte `dependencies`, kein Spike-/Dev-Extra) — glb/glTF lesen/schreiben; aktuell genutzt vom Spike-Vertragsprüfer `import/scripts/spike/tiles_contract.py`, der in Teil 5 nach `scanview_import` wechselt |
+| pvlib | 0.16.1 | BSD-3-Clause | Extra `[sonne]` von `scanview-import` (`scanview-sonne`): Sonnenstand, Transposition, Ertragsmodell |
+| meshoptimizer | 0.2.30a0 | MIT (Klassifikator „OSI Approved :: MIT License“; bindet die meshoptimizer-Bibliothek, MIT) | Laufzeitabhängigkeit von `scanview-import` (Mesh-Kompression); nur als Quellpaket auf PyPI, auf dem Host ohne root aus dem per Hash gelockten Quellpaket gebaut (`nachweise/nur-sdist.toml`) |
+| packaging | 26.3 | Apache-2.0 OR BSD-2-Clause | transitive Laufzeitabhängigkeit der Import-Umgebung (`import/uv.lock`, ohne Entwicklungswerkzeuge) |
+| embreex | 4.4.0 | BSD-2-Clause AND Apache-2.0 — festgestellt aus dem Lizenztext im Wheel (Metadaten ohne Lizenzangabe; Feststellung in `nachweise/lizenzen.toml`); Wheel bündelt Embree 4 und oneTBB, beide Apache-2.0 | Extra `[sonne]`: Raycast |
+| pandas | 3.0.6 | BSD-3-Clause | Extra `[sonne]`, Abhängigkeit von pvlib |
+| h5py | 3.16.0 | BSD-3-Clause (Wheel bündelt HDF5 BSD-3-Clause-artig, libaec BSD-2-Clause) | Extra `[sonne]`, Abhängigkeit von pvlib, nicht genutzt |
+| requests | 2.34.2 | Apache-2.0 | Extra `[sonne]`, Abhängigkeit von pvlib; der PVGIS-Abruf nutzt `urllib` der Standardbibliothek |
+| urllib3 | 2.8.0 | MIT | Extra `[sonne]`, Abhängigkeit von requests |
+| charset-normalizer | 3.5.2 | MIT | Extra `[sonne]`, Abhängigkeit von requests |
+| idna | 3.20 | BSD-3-Clause | Extra `[sonne]`, Abhängigkeit von requests |
+| python-dateutil | 2.9.0.post0 | Apache-2.0 OR BSD-3-Clause | Extra `[sonne]`, Abhängigkeit von pandas |
+| six | 1.17.0 | MIT | Extra `[sonne]`, Abhängigkeit von python-dateutil |
+| pytz | 2026.5 | MIT | Extra `[sonne]`, Abhängigkeit von pandas |
+| tzdata | 2026.5 | Apache-2.0 | Extra `[sonne]`, Abhängigkeit von pandas |
 | dataclasses-json | 0.6.7 | MIT | transitive Abhängigkeit von pygltflib |
 | marshmallow | 3.26.2 | MIT | transitive Abhängigkeit von pygltflib → dataclasses-json |
 | typing-inspect | 0.9.0 | MIT | transitive Abhängigkeit von pygltflib → dataclasses-json |
@@ -72,7 +86,7 @@ verifizierten Lizenzen (`License-Expression: MIT` bzw. `License-Expression: PSF-
 | @giro3d/giro3d | 2.0.4 | MIT | npm-Abhängigkeit, Viewer-Kern (Punktwolken-Rendering) |
 | three | 0.180.0 | MIT | npm-Abhängigkeit, Peer von Giro3D (WebGL), GLTFLoader und MeshoptDecoder |
 | BinomialLLC/basis_universal (Basis Universal, Transcoder als Eigenbau) | 1.50.0 | Apache-2.0 AND BSD-3-Clause | KTX2-Transcoder, aus Commit `051ad6d8` (Tag v1_50_0, wie three 0.180.0) ohne dynamische Codeerzeugung selbst gebaut (`web/vendor/basis/`, SBOM-Erklärung `nachweise/eigenbau.toml`), lokal als JavaScript/Wasm unter wasm/basis ausgeliefert; BSD-3-Clause für das enthaltene Zstandard (gewählt aus „BSD-3-Clause OR GPL-2.0-only“) |
-| facebook/zstd (Zstandard, im Basis-Transcoder enthalten) | 1.4.9 | BSD-3-Clause | nur der Decoder `zstd/zstddeclib.c` aus dem Quellbaum von basis_universal, mitgebaut im Eigenbau; gewählt aus „BSD-3-Clause OR GPL-2.0-only“, Text `web/licenses/zstd-BSD-3-Clause.txt` |
+| facebook/zstd (Zstandard, im Basis-Transcoder enthalten) | 1.5.7 | BSD-3-Clause | nur der Decoder `zstd/zstddeclib.c`, von `web/vendor/basis/bauen.sh` aus zstd v1.5.7 (Commit `f8745da6`) erzeugt und statt des in basis_universal mitgelieferten 1.4.9 mitgebaut; gewählt aus „BSD-3-Clause OR GPL-2.0-only“, Text `web/licenses/zstd-BSD-3-Clause.txt` |
 | proj4 | 2.22.0 | MIT | npm-Abhängigkeit, CRS-Umrechnung |
 | ol (OpenLayers) | 10.10.0 | BSD-2-Clause | npm-Abhängigkeit, Peer von Giro3D (Kartenkomponenten) |
 | lil-gui | 0.17.0 | MIT | npm-Abhängigkeit, Debug-/Steuer-UI |
@@ -281,7 +295,7 @@ Lokaler MCP-Server (`scanview-mcp`, stdio), läuft beim Nutzer. Laufzeit-Abhäng
 | anyio | 4.15.1 | MIT | transitiv |
 | h11 | 0.16.0 | MIT | transitiv |
 | idna | 3.20 | BSD-3-Clause | transitiv |
-| certifi | 2026.7.22 | MPL-2.0 | transitiv (httpx), unverändert |
+| certifi | 2026.10.19 | MPL-2.0 | transitiv (httpx), unverändert |
 | pydantic / pydantic-core | 2.13.5 / 2.46.5 | MIT | transitiv (mcp) |
 | annotated-types | 0.8.0 | MIT | transitiv |
 | typing-extensions | 4.16.0 | PSF-2.0 | transitiv |
@@ -309,6 +323,31 @@ erschien 2026-09-07), Lizenzen per `importlib.metadata` gegen die installierten 
 gezogenen Pakete per PyPI-Metadaten (27.09.2026). **Alle permissiv bzw. MPL-2.0 (F10-verträglich),
 kein GPL/AGPL.** Der MCP-Server wird nicht als Binärpaket verteilt; wer ihn installiert, bezieht
 die Pakete selbst von PyPI.
+
+## clients/sitebits/ (TypeScript, API-Client)
+
+Client für die API v1 (`sitebits`), läuft beim Nutzer (Node ≥ 22.18, Deno, Browser). **Keine
+Laufzeit-Abhängigkeiten** (`dependencies` leer): er nutzt nur das eingebaute `fetch`, die Typen
+sind erzeugter Quelltext (`src/schema.d.ts`). Nicht Teil der Release-Artefakte (web, server,
+mcp, import).
+
+Entwicklung (nicht ausgeliefert, exakt gepinnt in `clients/sitebits/package.json` und
+`package-lock.json`, `.npmrc` mit denselben Lieferkettenregeln wie `web/`: Mindestalter 7 Tage,
+keine Install-Skripte):
+
+| Komponente | Version | Lizenz | Zweck |
+|---|---|---|---|
+| openapi-typescript | 7.13.0 | MIT | TypeScript-Typen aus `docs/public/api/openapi.json` (`npm run typen`, Drift-Test) |
+| @redocly/openapi-core | 1.34.21 | MIT | transitiv (openapi-typescript), Einlesen der OpenAPI-Datei |
+| typescript | 5.9.3 | Apache-2.0 | Typprüfung (`tsc --noEmit`), wie in `web/` |
+| eslint / typescript-eslint | 9.39.5 / 8.70.1 | MIT | Lint, wie in `web/` |
+| @types/node | 22.20.4 | MIT | Typen für Tests und Beispiele |
+
+Transitiv insgesamt 136 Pakete, Lizenzen laut `package-lock.json` (22.10.2026): MIT, ISC,
+Apache-2.0, BSD-2-Clause, BSD-3-Clause, dazu `argparse` 2.0.1 (Python-2.0), `minimatch` 10.2.6
+(BlueOak-1.0.0, über typescript-eslint) und `type-fest` 4.41.0 (MIT OR CC0-1.0). **Alle in der
+Positivliste `nachweise/lizenzen.toml`, kein Copyleft.** Tests laufen mit dem eingebauten
+`node:test`, ohne Testframework.
 
 ## Import-Spike Kachler (externe Werkzeuge, nur Docker)
 

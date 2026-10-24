@@ -1,7 +1,7 @@
 // Portal-Rahmen (WCAG 2.4.2 Seitentitel, 3.2.6 einheitliche Hilfe): Seitentitel je Route, eine
 // gemeinsame Fußzeile für jede Portal-Seite (auch ohne Anmeldung) und die Instanz-Angaben aus
 // /api/barrierefreiheit. Reine Funktionen oben (Vitest), DOM unten — nur createElement/textContent.
-import { ENTWURF_DB } from '../entwurfKonstanten';
+import { ENTWURF_DB, kpEntwuerfeLoeschen } from '../entwurfKonstanten';
 import { post } from './api';
 import { fussLinks } from './karten';
 
@@ -27,6 +27,7 @@ const TITEL: Record<string, string> = {
   '/befunde': 'Befunde',
   '/zu-pruefen': 'Zu prüfen',
   '/verwaltung': 'Verwaltung',
+  '/uploads': 'Uploads',
   '/projekt-einstellungen': 'Projekt-Einstellungen',
   '/barrierefreiheit': 'Erklärung zur Barrierefreiheit',
 };
@@ -131,8 +132,14 @@ export async function ladeInstanz(): Promise<Instanz | null> {
 }
 
 /** Lokale Befundentwürfe dieses Browsers löschen (alle Konten): fertig nach Erfolg, Fehler, Blockade oder
- *  spätestens nach einer Sekunde — Abmelden hängt nie daran. Ein offener Viewer gibt seine Verbindung dabei frei. */
-export function entwuerfeLoeschen(idb: IDBFactory | undefined = globalThis.indexedDB): Promise<void> {
+ *  spätestens nach einer Sekunde — Abmelden hängt nie daran. Ein offener Viewer gibt seine Verbindung dabei frei.
+ *  Dazu die Kontrollpunkt-Entwürfe im localStorage (synchron, vorab). */
+export function entwuerfeLoeschen(idb: IDBFactory | undefined = globalThis.indexedDB, speicher: () => Storage | undefined = () => globalThis.localStorage): Promise<void> {
+  try {
+    kpEntwuerfeLoeschen(speicher());
+  } catch {
+    /* Zugriff auf localStorage gesperrt */
+  }
   return new Promise((fertig) => {
     const frist = setTimeout(fertig, 1000);
     const ende = (): void => {

@@ -11,10 +11,10 @@ from scipy.spatial.transform import Rotation
 
 from scanview_import.cli import main
 from scanview_import.fotos import kachel_raster, stufen_fuer, write_images
-from scanview_import.metashape import read_frame_cameras
+from scanview_import.kameras import read_frame_cameras
 from scanview_import.verzeichnung import Kalibrierung, verzeichnen, zielkamera
-from tests.test_metashape_cli import package
-from tests.test_metashape_frames import CALIB, export_v2
+from tests.test_kameras_cli import package
+from tests.test_kameras_frames import CALIB, export_v2
 
 GPS_EXIF = Image.Exif()
 GPS_EXIF[0x010F] = "DJI"  # Make
@@ -89,7 +89,7 @@ def test_images_json_und_posen(tmp_path):
     assert f1["intrinsics"] == {"focalPx": ziel.f, "width": ziel.width, "height": ziel.height}
     assert f1["levels"] == [max(ziel.width, ziel.height)]
     assert f1["tiles"] is None
-    # Metashape (X rechts, Y unten, Z vorn) → Naht (+Y oben, -Z Blick): R @ diag(1, -1, -1).
+    # Austauschbasis (X rechts, Y unten, Z vorn) → Naht (+Y oben, -Z Blick): R @ diag(1, -1, -1).
     w, x, y, z = f1["pose"]["rotationQuat"]
     np.testing.assert_allclose(
         Rotation.from_quat([x, y, z, w]).as_matrix(), np.diag([1.0, -1.0, -1.0]), atol=1e-12
@@ -237,7 +237,7 @@ def _wolke_schreiben(pkg: Path, punkte: np.ndarray) -> None:
 
 
 def projektionen_json(path: Path, n: int = 30, seed: int = 0) -> list[dict]:
-    """Tie-Point-Projektionen exakt aus Pose + Metashape-Modell (wie Metashape sie liefert)."""
+    """Tie-Point-Projektionen exakt aus Pose + Kameramodell (wie der Kameraexport sie liefert)."""
     export = read_frame_cameras(path)
     rng = np.random.default_rng(seed)
     out = []
@@ -270,7 +270,7 @@ def _cli_paket(tmp_path, versatz=(0.0, 0.0, 0.0)):
 
 def test_cli_fotos_mit_rahmenpruefung(tmp_path, capsys):
     path, pkg = _cli_paket(tmp_path)
-    assert main(["fotos-metashape", "--kameras", str(path), str(pkg)]) == 0
+    assert main(["fotos-kameras", "--kameras", str(path), str(pkg)]) == 0
     bericht = json.loads(capsys.readouterr().out)
     assert bericht["exportiert"] == 2
     assert bericht["rahmenpruefung"]["n"] == 400
@@ -281,7 +281,7 @@ def test_cli_fotos_mit_rahmenpruefung(tmp_path, capsys):
 
 def test_cli_anderer_ausrichtungsstand_schreibt_nichts(tmp_path, capsys):
     path, pkg = _cli_paket(tmp_path, versatz=(0.0, 0.8, 0.0))
-    assert main(["fotos-metashape", "--kameras", str(path), str(pkg)]) == 1
+    assert main(["fotos-kameras", "--kameras", str(path), str(pkg)]) == 1
     assert "Ausrichtungsstand" in capsys.readouterr().err
     assert not (pkg / "images.json").exists() and not (pkg / "fotos").exists()
 
@@ -290,13 +290,13 @@ def test_cli_crs_passt_nicht(tmp_path, capsys):
     path, _ = _cli_paket(tmp_path)
     (tmp_path / "x").mkdir()
     falsch = package(tmp_path / "x", wkt="EPSG:32632", datum="DHHN2016")
-    assert main(["fotos-metashape", "--kameras", str(path), str(falsch)]) == 1
+    assert main(["fotos-kameras", "--kameras", str(path), str(falsch)]) == 1
     assert "CRS" in capsys.readouterr().err
 
 
 def test_cli_gruppenauswahl(tmp_path, capsys):
     path, pkg = _cli_paket(tmp_path)
-    assert main(["fotos-metashape", "--kameras", str(path), str(pkg), "--gruppe", "Nadir"]) == 0
+    assert main(["fotos-kameras", "--kameras", str(path), str(pkg), "--gruppe", "Nadir"]) == 0
     images = json.loads((pkg / "images.json").read_text())
     assert [b["label"] for b in images["images"]] == ["F1"]
     capsys.readouterr()
@@ -362,7 +362,7 @@ def test_schema1_paket_frueh_und_verstaendlich(tmp_path, capsys):
     path, _ = _cli_paket(tmp_path)
     (tmp_path / "s1").mkdir()
     alt = package(tmp_path / "s1", schema=1, wkt="EPSG:32633", datum="DHHN2016")
-    assert main(["fotos-metashape", "--kameras", str(path), str(alt)]) == 1
+    assert main(["fotos-kameras", "--kameras", str(path), str(alt)]) == 1
     assert "Schema-2-Paket" in capsys.readouterr().err
     assert not any(p.name.startswith(".fotos") for p in alt.iterdir())
 
@@ -373,15 +373,15 @@ def test_exif_drehung_ignorieren_nimmt_sensorpixel(tmp_path, capsys):
     ohne_dir.mkdir()
     mit_dir.mkdir()
     path, pkg = _cli_paket(ohne_dir)
-    assert main(["fotos-metashape", "--kameras", str(path), str(pkg)]) == 0
+    assert main(["fotos-kameras", "--kameras", str(path), str(pkg)]) == 0
     capsys.readouterr()
     path_mit, pkg_mit = _cli_paket(mit_dir)
     _mit_exif(mit_dir / "F1.jpg", (240, 160), orientation=6)
     _mit_exif(mit_dir / "F2.jpg", (160, 240), orientation=8)
-    assert main(["fotos-metashape", "--kameras", str(path_mit), str(pkg_mit)]) == 1
+    assert main(["fotos-kameras", "--kameras", str(path_mit), str(pkg_mit)]) == 1
     assert "--exif-drehung-ignorieren" in capsys.readouterr().err
     assert not (pkg_mit / "images.json").exists()
-    args = ["fotos-metashape", "--kameras", str(path_mit), str(pkg_mit)]
+    args = ["fotos-kameras", "--kameras", str(path_mit), str(pkg_mit)]
     assert main([*args, "--exif-drehung-ignorieren"]) == 0
     bericht = json.loads(capsys.readouterr().out)
     assert bericht["exifDrehungIgnoriert"] == 2
@@ -421,10 +421,10 @@ def test_cli_rueckprojektion_grenze_im_nachweis(tmp_path, capsys):
         if p["camera"] == "F1":
             p["pixel"][0] += 3.0
     path.write_text(json.dumps(data))
-    assert main(["fotos-metashape", "--kameras", str(path), str(pkg)]) == 1
+    assert main(["fotos-kameras", "--kameras", str(path), str(pkg)]) == 1
     assert "Rückprojektion: 1 Foto(s) über 2.0 px" in capsys.readouterr().err
     assert not (pkg / "images.json").exists()
-    args = ["fotos-metashape", "--kameras", str(path), str(pkg), "--rueckprojektion-grenze", "4"]
+    args = ["fotos-kameras", "--kameras", str(path), str(pkg), "--rueckprojektion-grenze", "4"]
     assert main(args) == 0
     bericht = json.loads(capsys.readouterr().out)
     assert bericht["rueckprojektion"]["limitPx"] == 4.0

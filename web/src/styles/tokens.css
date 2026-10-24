@@ -18,4 +18,12 @@
   --sv-icon: 20px;
   --sv-font: 13px/1.3 system-ui, sans-serif;
   --sv-focus: 0 0 0 2px var(--sv-accent);
+  /* Sichere Ränder (Notch/Insel, Home-Indikator; index.html: viewport-fit=cover). Am Desktop 0. */
+  --sv-sa-oben: env(safe-area-inset-top, 0px);
+  --sv-sa-unten: env(safe-area-inset-bottom, 0px);
+  --sv-sa-links: env(safe-area-inset-left, 0px);
+  --sv-sa-rechts: env(safe-area-inset-right, 0px);
+  /* Handy: Mindestgröße der Tippziele in den Leisten (iOS-Empfehlung), Höhe der oberen Leistenzeile. */
+  --sv-tippziel: 44px;
+  --sv-zeile: calc(var(--sv-sa-oben) + 8px + var(--sv-tippziel));
 }

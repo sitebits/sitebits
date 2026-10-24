@@ -1,4 +1,5 @@
-"""CLI-Weg `fotos-metashape`: prüfen (CRS, Kalibrierung, Rahmen), dann `write_images`."""
+"""CLI-Wege `fotos-kameras`, `fotos-colmap`, `fotos-odm`: prüfen (CRS, Kalibrierung, Rahmen), dann
+`write_images`. Die Leser liefern ein `FrameExport`; ab da ist der Weg für alle Quellen derselbe."""
 
 from __future__ import annotations
 
@@ -8,11 +9,11 @@ from typing import Any
 
 from .fotos import plane_fotos, write_images
 from .fotos_pruefung import GRENZE_PX, rueckprojektion
+from .kameras import FrameExport, hoehen_umrechnen, lage_anwenden, read_frame_cameras
+from .kameras_import import kamera_umrechnung, paket_datum, pruefe_paket_crs
 from .lage import aus_paket
 from .manifest_io import cloud_of, read_manifest, write_manifest
 from .mesh_frame import sample_cloud
-from .metashape import hoehen_umrechnen, lage_anwenden, read_frame_cameras
-from .metashape_import import kamera_umrechnung, paket_datum, pruefe_paket_crs
 from .rahmenpruefung import pruefe_rahmen
 
 WOLKEN_STICHPROBE = 200_000
@@ -32,6 +33,32 @@ def import_fotos(
 ) -> dict[str, Any]:
     """Erst alles prüfen, dann schreiben; jeder Abbruch lässt das Paket unverändert."""
     export = read_frame_cameras(kameras, exif_drehung_ignorieren=exif_drehung_ignorieren)
+    return importiere_export(
+        export,
+        pkg,
+        quelle={"source": "kameras", "document": export.document},
+        max_kante=max_kante,
+        gruppen=gruppen,
+        rahmen_toleranz=rahmen_toleranz,
+        prozesse=prozesse,
+        height_system=height_system,
+        rueckprojektion_grenze=rueckprojektion_grenze,
+    )
+
+
+def importiere_export(
+    export: FrameExport,
+    pkg: Path,
+    *,
+    quelle: dict[str, Any],
+    max_kante: int | None,
+    gruppen: list[str] | None = None,
+    rahmen_toleranz: float | None = None,
+    prozesse: int = 1,
+    height_system: str | None = None,
+    rueckprojektion_grenze: float = GRENZE_PX,
+) -> dict[str, Any]:
+    """Gemeinsamer Kern: CRS → Höhe → Lage → Rahmen → Rückprojektion → schreiben."""
     if (pkg / "project.json").is_file() and "layers" not in read_manifest(pkg):
         raise ValueError(
             "Orientierte Fotos brauchen ein Schema-2-Paket — vorher scanview-import migrate"
@@ -80,8 +107,8 @@ def import_fotos(
         max_kante=max_kante,
         prozesse=prozesse,
         provenance={
-            "source": "metashape",
-            "document": export.document,
+            **quelle,
+            **({"modelCheck": export.modellbeleg} if export.modellbeleg else {}),
             "frameCheck": frame_check,
             "reprojection": {k: v for k, v in rueck.items() if k != "perImage"},
             "exifOrientationIgnored": exif_ignoriert,
@@ -96,6 +123,7 @@ def import_fotos(
         "uebersprungen": export.skipped,
         "rahmenpruefung": frame_check,
         "rueckprojektion": {k: v for k, v in rueck.items() if k != "perImage"},
+        **({"modellbeleg": export.modellbeleg} if export.modellbeleg else {}),
         "anonymisierung": out["anonymization"]["status"],
         "exifDrehungIgnoriert": exif_ignoriert,
     }

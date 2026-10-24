@@ -24,8 +24,45 @@ handle /api/authz {
 }
 # API: JSON-Körper bleiben klein (POIs, Messungen bis 1000 Eckpunkte ≈ 60 KB) — größere Körper
 # gar nicht erst an den Dienst durchreichen (413).
+# Zwei Ausnahmen; die drei Matcher schließen sich aus: nie zwei Grenzen auf einer Anfrage.
+# - Ein Stück eines Uploads (PUT …/uploads/<id>/dateien/<nr>, höchstens 64 MiB je Stück) darf bis
+#   65 MiB groß sein. Der Dienst zählt die Bytes selbst noch einmal; diese Grenze ist nur die äußere
+#   Wand.
+# - Die Ankündigung eines Uploads (POST /api/v1/uploads, Dateiliste als JSON) darf bis 13 MiB groß
+#   sein. Rechenweg aus dem Schema-Maximum (`routen_uploads.UploadIn`, Befund B-FUZZ-5):
+#     je Eintrag {"pfad": "<1300 Zeichen>", "groesse": 1125899906842624},
+#       = 10 + 1300 + 14 + 16 (2^50) + 1 + 2 (", ") = 1343 Byte (Pfade nur ASCII, siehe uploads.py)
+#     10 001 Einträge (maxItems) × 1343 + 15 Byte Rahmen {"dateien": [ … ]} = 13 431 356 Byte
+#     ≈ 12,81 MiB, aufgerundet 13 MiB. Mit 1 MB hätte schon eine Liste mit Pfaden über ~65 Zeichen
+#     im Schnitt ein leeres 413 von Caddy bekommen. Der Dienst hat dort keine eigene Körpergrenze,
+#     er prüft Anzahl, Länge und Form der Einträge (422). Drift-Test:
+#     server/tests/test_caddy_grenzen.py.
 handle /api/* {
-	request_body {
+	@upload_stueck {
+		method PUT
+		path_regexp ^/api/v1/uploads/[0-9a-f]{32}/dateien/[0-9]{1,5}$
+	}
+	@upload_ankuendigung {
+		method POST
+		path /api/v1/uploads
+	}
+	@api_klein {
+		not {
+			method PUT
+			path_regexp ^/api/v1/uploads/[0-9a-f]{32}/dateien/[0-9]{1,5}$
+		}
+		not {
+			method POST
+			path /api/v1/uploads
+		}
+	}
+	request_body @upload_stueck {
+		max_size 65MiB
+	}
+	request_body @upload_ankuendigung {
+		max_size 13MiB
+	}
+	request_body @api_klein {
 		max_size 1MB
 	}
 	reverse_proxy {$SCANVIEW_UPSTREAM:127.0.0.1:8803}

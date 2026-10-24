@@ -4,6 +4,10 @@
 import { AKTIONEN, akkordVon, belege, belegePad, beschriftung, normalisiere, padBelegung, vorgabeBelegung } from './tastenbelegung';
 import { PAD_AKTIONEN, PAD_KNOEPFE, PAD_NICHT_BELEGT, PAD_TITEL, TOTZONE } from './gamepad';
 import type { PadAktion } from './gamepad';
+import { belegungsTabelle, MODUS_TITEL, symbol } from './padModus';
+import type { PadModus } from './padModus';
+
+const PAD_MODI: readonly PadModus[] = ['uebersicht', 'begehen', 'panorama', 'menue'];
 import type { Akkord, AktionDef, AktionId, Belegung } from './tastenbelegung';
 import { PANORAMA_ZIEL_AKTIONEN } from './keymap';
 import { GRENZEN, ladeEinstellungen, speichereEinstellungen, vorgabeEinstellungen } from './bedienEinstellungen';
@@ -131,12 +135,18 @@ function tabelle(spalten: readonly string[], tbody: HTMLTableSectionElement, bes
 export function createBedienung(o: { belegung: () => Belegung; kuerzel: (a: AktionId) => string; kontext: () => HilfeKontext }): { oeffne(): void } {
   const tbody = el('tbody');
   const gesten = el('div', undefined, 'sv-gesten');
+  const controller = el('div', undefined, 'sv-gesten');
   const huelle = baueDialog('Bedienung', (d) => {
     const zu = knopf('Schließen');
     zu.addEventListener('click', () => d.close());
     const fuss = el('div', undefined, 'sv-aktionen');
     fuss.append(zu);
-    d.append(el('h3', 'Maus und Finger'), gesten, el('h3', 'Tasten'), tabelle(['Aktion', 'Taste', 'Bereich'], tbody), fuss);
+    d.append(
+      el('h3', 'Maus und Finger'), gesten, el('h3', 'Tasten'), tabelle(['Aktion', 'Taste', 'Bereich'], tbody),
+      el('h3', 'Controller'),
+      el('p', 'Ein Schema für alle Ansichten, Symbole für PlayStation und Xbox. Jede Controller-Funktion gibt es auch per Taste oder Maus.'),
+      controller, fuss,
+    );
   });
   const fuelleGesten = (): void => {
     gesten.replaceChildren(...mausUndFinger(o.kontext()).map((a) => {
@@ -153,8 +163,25 @@ export function createBedienung(o: { belegung: () => Belegung; kuerzel: (a: Akti
       return t;
     }));
   };
+  const fuelleController = (): void => {
+    const k = padBelegung(o.belegung());
+    controller.replaceChildren(...PAD_MODI.map((m) => {
+      const ps = belegungsTabelle(m, 'playstation', k);
+      const xb = belegungsTabelle(m, 'xbox', k);
+      const body = el('tbody');
+      ps.forEach((z, i) => {
+        const tr = el('tr');
+        const th = el('th', z.wirkung);
+        th.scope = 'row';
+        tr.append(th, el('td', z.eingabe), el('td', xb[i]?.eingabe ?? ''));
+        body.append(tr);
+      });
+      return tabelle(['Wirkung', 'PlayStation', 'Xbox'], body, `Controller – ${MODUS_TITEL[m]}`);
+    }));
+  };
   const fuelle = (): void => {
     fuelleGesten();
+    fuelleController();
     const b = o.belegung();
     const zeilen: HTMLTableRowElement[] = [];
     const zeile = (aktion: string, taste: string, bereich: string): void => {
@@ -175,9 +202,9 @@ export function createBedienung(o: { belegung: () => Belegung; kuerzel: (a: Akti
   return { oeffne: () => huelle.oeffne(fuelle) };
 }
 
-type ZahlFeld = 'drehSchrittGrad' | 'empfindlichkeit' | 'sichtfeldGrad' | 'tempo' | 'fadenkreuzPx';
+type ZahlFeld = 'drehSchrittGrad' | 'empfindlichkeit' | 'sichtfeldGrad' | 'tempo' | 'fadenkreuzPx' | 'padEmpfindlichkeit';
 type WahlFeld = 'drehenInSchritten' | 'bewegungReduzieren' | 'zielen' | 'schnell' | 'orbitLinks';
-type JaNeinFeld = 'invertY' | 'vignette' | 'hoeheHalten';
+type JaNeinFeld = 'invertY' | 'vignette' | 'hoeheHalten' | 'vibration';
 
 const ZAHL_FELDER: readonly { key: ZahlFeld; label: string; step: number }[] = [
   { key: 'drehSchrittGrad', label: 'Drehschritt (Grad)', step: 1 },
@@ -185,6 +212,7 @@ const ZAHL_FELDER: readonly { key: ZahlFeld; label: string; step: number }[] = [
   { key: 'sichtfeldGrad', label: 'Sichtfeld (Grad)', step: 1 },
   { key: 'tempo', label: 'Tempo (m/s)', step: 0.1 },
   { key: 'fadenkreuzPx', label: 'Fadenkreuz-Größe (Pixel)', step: 1 },
+  { key: 'padEmpfindlichkeit', label: 'Controller-Empfindlichkeit', step: 0.05 },
 ];
 const WAHL_FELDER: readonly { key: WahlFeld; label: string; optionen: readonly (readonly [string, string])[] }[] = [
   { key: 'drehenInSchritten', label: 'Drehen in Schritten', optionen: [['auto', 'automatisch (bei reduzierter Bewegung)'], ['an', 'immer'], ['aus', 'nie']] },
@@ -204,6 +232,7 @@ const JA_NEIN_FELDER: readonly { key: JaNeinFeld; label: string }[] = [
   { key: 'invertY', label: 'Blick nach oben/unten umkehren' },
   { key: 'vignette', label: 'Rand abdunkeln bei Bewegung' },
   { key: 'hoeheHalten', label: 'Höhe beim Gehen halten' },
+  { key: 'vibration', label: 'Controller vibriert beim Setzen und Bestätigen (wo der Browser es anbietet)' },
 ];
 
 const MODIFIKATOREN = new Set(['Control', 'Alt', 'Meta', 'AltGraph']);
@@ -307,7 +336,11 @@ export function createEinstellungen(o: {
     keiner.value = String(PAD_NICHT_BELEGT);
     s.append(keiner);
     PAD_KNOEPFE.forEach((name, i) => {
-      const opt = el('option', `${i}: ${name}`);
+      // Symbole beider verbreiteter Anordnungen, z. B. „0: Knopf unten (✕ / A)“.
+      const ps = symbol('playstation', i);
+      const xb = symbol('xbox', i);
+      const zusatz = i >= 12 && i <= 15 ? '' : xb.startsWith('Knopf') ? ` (${ps})` : ` (${ps} / ${xb})`;
+      const opt = el('option', `${i}: ${name}${zusatz}`);
       opt.value = String(i);
       s.append(opt);
     });
@@ -433,6 +466,7 @@ export function createEinstellungen(o: {
     padVorgabe.addEventListener('click', () => {
       const ohnePad = { ...o.belegung() };
       delete ohnePad.pad;
+      delete ohnePad.padSchema;
       o.setzeBelegung(ohnePad);
       for (const z of padAuswahl.values()) z.hinweis.textContent = '';
       zeigePad();
@@ -441,7 +475,7 @@ export function createEinstellungen(o: {
     const controller = el('section');
     controller.append(
       el('h3', 'Controller'),
-      el('p', `Wirkt nur im Begehen und nur bei Controllern mit Standardbelegung. Linker Stick bewegt, rechter Stick schaut um (Totzone ${Math.round(TOTZONE * 100)} %); „Blick nach oben/unten umkehren“ gilt auch hier.`),
+      el('p', `Wirkt in der Übersicht, im Begehen, im Panorama und in Dialogen, bei Controllern mit Standardbelegung. Linker Stick bewegt, rechter Stick schaut bzw. dreht (Totzone ${Math.round(TOTZONE * 100)} %); „Blick nach oben/unten umkehren“ und „Controller-Empfindlichkeit“ gelten auch hier. Die Knöpfe heißen nach ihrer Lage im Standard-Mapping.`),
       padTabelle,
       padVorgabe,
     );

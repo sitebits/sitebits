@@ -8,7 +8,7 @@ import sqlite3
 import threading
 import time
 from collections import deque
-from collections.abc import AsyncIterator, Iterator, Mapping
+from collections.abc import AsyncIterator, Callable, Iterator, Mapping
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -19,8 +19,9 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from . import apitoken, konten, lesezugriff, passkey, passwort, teilen
+from . import apitoken, auftraege, konten, lesezugriff, passkey, passwort, teilen
 from . import db as dbmod
+from .api_modelle import FEHLERANTWORTEN
 from .config import Settings
 from .katalog import PROJECT_ID_RE, Katalog
 
@@ -54,6 +55,13 @@ LESEZUGRIFF_PFADE = ("/api/v1/lesezugriffe", "/api/v1/lesezugriffe.jsonl")
 LESEZUGRIFF_PROJEKT_RE = re.compile(r"^/api/v1/projekte/[^/]+/lesezugriffe(\.jsonl)?$")
 # Projektbezogener Verlauf: 404 ohne Zugriff, 403 als Betrachter, sonst 422.
 _PROJEKT_PROTOKOLL_RE = re.compile(r"^/api/v1/projekte/(?P<pid>[^/]+)/protokoll(\.jsonl)?$")
+# Auswertungen: kaputter Körper → erst 404 (kein Recht), dann 403 (Schreiben unter
+# Projektleitung), sonst 422 — wie routen_auswertungen mit gültigem Körper.
+_AUSWERTUNG_RE = re.compile(r"^/api/v1/projekte/(?P<pid>[^/]+)/auswertungen(/|$)")
+_NUR_LEITUNG_AUSWERTUNG = "Auswertungen starten und verwalten nur Projektleitung und Admins."
+# Uploads und Importe (nur Admin, nur mit eingeschaltetem Import): kaputter Körper → 404 ohne
+# Import oder für Nicht-Admins, sonst 403 für Lese-Tokens, sonst 422.
+_UPLOAD_RE = re.compile(r"^/api/v1/(uploads|importe)(/|$)")
 # Projektpfade, unter denen ein Lese-Token mit kaputtem Körper erst 404 (kein
 # Zugriff), dann 403 bekommt — dieselbe Reihenfolge wie zugriff.projekt() bei gültigem Körper.
 _PROJEKT_RE = re.compile(r"^/api/v1/projekte/(?P<pid>[^/]+)(/|$)")
@@ -309,6 +317,47 @@ class KeinCache:
         await self.app(scope, receive, senden)
 
 
+def _admin_vorrang(r: Request, pfad: str, *, import_an: bool, admin: bool
+                   ) -> tuple[bool, tuple[int, str, Mapping[str, str] | None] | None]:
+    """Admin-Pfade mit kaputtem Körper: (zuständig, Antwort). Antwort None heißt 422.
+
+    Auf /api/v1/admin/*, /api/v1/protokoll(.jsonl) und den Lesezugriffen verrät ein 422 vor der
+    Admin-Prüfung ebenso die Existenz der Route — dieselbe 404-Antwort wie zugriff.admin(), auch
+    bei ungültigen Query-/Body-Parametern. Per Token (ADR 0008) gibt es keine Verwaltung, auch
+    nicht für ein Admin-Konto. Uploads und Importe: 404 ohne Import oder für Nicht-Admins (wie
+    die Routen selbst), dann 403 für Lese-Tokens."""
+    if (
+        pfad.startswith(_ADMIN_PFAD_PREFIX) or pfad in _PROTOKOLL_PFADE
+        or pfad in LESEZUGRIFF_PFADE or LESEZUGRIFF_PROJEKT_RE.match(pfad)
+    ):
+        if not admin or api_token(r) is not None:
+            return True, (404, _NICHT_GEFUNDEN, None)
+        return True, None
+    if _UPLOAD_RE.match(pfad):
+        if not import_an or not admin:
+            return True, (404, _NICHT_GEFUNDEN, None)
+        if nur_lesen_verletzt(r):
+            return True, (403, NUR_LESEN, None)
+        return True, None
+    return False, None
+
+
+def _auswertung_vorrang(
+    r: Request, pfad: str, rolle_von: Callable[[str], str | None],
+) -> tuple[int, str, Mapping[str, str] | None] | None:
+    """Vorrang bei kaputtem Körper unter …/auswertungen: 404 ohne Zugriff, 403 unter der
+    Projektleitung (schreibend), sonst None (→ 422)."""
+    treffer = _AUSWERTUNG_RE.match(pfad)
+    if treffer is None or r.method in ("GET", "HEAD"):
+        return None
+    rolle = rolle_von(treffer.group("pid"))
+    if rolle is None:
+        return 404, _NICHT_GEFUNDEN, None
+    if not konten.mindestens(rolle, "projektleitung"):
+        return 403, _NUR_LEITUNG_AUSWERTUNG, None
+    return None
+
+
 @asynccontextmanager
 async def _lebenszeit(app: FastAPI) -> AsyncIterator[None]:
     yield
@@ -319,6 +368,7 @@ def create_app(settings: Settings, katalog: Katalog | None = None) -> FastAPI:
     app = FastAPI(
         title="siteBits", version="1",
         docs_url=None, redoc_url=None, openapi_url=None, lifespan=_lebenszeit,
+        responses=FEHLERANTWORTEN,
     )
     app.add_middleware(KeinCache)
     app.state.settings = settings
@@ -339,6 +389,21 @@ def create_app(settings: Settings, katalog: Katalog | None = None) -> FastAPI:
     finally:
         conn.close()
 
+    if settings.jobs_db is not None:
+        # Eigene Auftragsdatenbank (nie scanview.db); der Worker legt dasselbe Schema an.
+        jc = auftraege.verbinden(settings.jobs_db)
+        try:
+            auftraege.schema(jc)
+            if settings.import_enabled and settings.uploads_dir is not None:
+                from .routen_uploads import aufraeumen
+
+                c2 = dbmod.connect(settings.db_path)
+                try:
+                    aufraeumen(settings.uploads_dir, c2, jc)
+                finally:
+                    c2.close()
+        finally:
+            jc.close()
     lesezugriff.melde_start(settings.lesezugriffe_tage, geloescht)
     if katalog is None:
         katalog = Katalog(settings.data_dir)
@@ -376,17 +441,10 @@ def create_app(settings: Settings, katalog: Katalog | None = None) -> FastAPI:
                 return e.status_code, str(e.detail), e.headers
             if n is None:
                 return 401, "nicht angemeldet", None
-            # Auf /api/v1/admin/*, /api/v1/protokoll(.jsonl) und den Lesezugriffen verrät ein
-            # 422 vor der Admin-Prüfung ebenso die Existenz der Route — dieselbe 404-Antwort
-            # wie zugriff.admin(), auch bei ungültigen Query-/Body-Parametern. Per Token (ADR 0008)
-            # gibt es keine Verwaltung, auch nicht für ein Admin-Konto.
-            if (
-                pfad.startswith(_ADMIN_PFAD_PREFIX) or pfad in _PROTOKOLL_PFADE
-                or pfad in LESEZUGRIFF_PFADE or LESEZUGRIFF_PROJEKT_RE.match(pfad)
-            ):
-                if not n.is_admin or api_token(r) is not None:
-                    return 404, _NICHT_GEFUNDEN, None
-                return None
+            nur_admin, antwort = _admin_vorrang(r, pfad, import_an=settings.import_enabled,
+                                                admin=n.is_admin)
+            if nur_admin:
+                return antwort
             # Lese-Token, schreibende Methode, kaputter Körper → erst
             # 404 (kein Zugriff aufs Projekt), dann 403 — wie zugriff.projekt() mit gültigem
             # Körper. Nur für Tokens: das Cookie-Verhalten (Betrachter mit kaputtem Körper → 422,
@@ -405,6 +463,9 @@ def create_app(settings: Settings, katalog: Katalog | None = None) -> FastAPI:
                     return 403, _NUR_LEITUNG, None
                 if api_token(r) is not None:
                     return 403, _NICHT_PER_TOKEN, None
+            auswertung = _auswertung_vorrang(r, pfad, lambda pid: _zugang(conn, n, pid))
+            if auswertung is not None:
+                return auswertung
             # Dieselbe Vorrangfolge für den projektbezogenen
             # Verlauf — 404 ohne Zugriff, 403 als Betrachter, sonst durch zu 422.
             treffer = _PROJEKT_PROTOKOLL_RE.match(pfad)
@@ -445,6 +506,7 @@ def create_app(settings: Settings, katalog: Katalog | None = None) -> FastAPI:
     from . import (
         routen_admin,
         routen_api,
+        routen_auswertungen,
         routen_auth,
         routen_barrierefreiheit,
         routen_export,
@@ -454,6 +516,7 @@ def create_app(settings: Settings, katalog: Katalog | None = None) -> FastAPI:
         routen_lesezugriffe,
         routen_projekt,
         routen_teilen,
+        routen_uploads,
         routen_v1,
     )
 
@@ -469,4 +532,6 @@ def create_app(settings: Settings, katalog: Katalog | None = None) -> FastAPI:
     app.include_router(routen_konto.router)
     app.include_router(routen_barrierefreiheit.router)
     app.include_router(routen_teilen.router)
+    app.include_router(routen_auswertungen.router)
+    app.include_router(routen_uploads.router)
     return app

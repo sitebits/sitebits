@@ -35,7 +35,7 @@
 .sv-rueckfrage button:hover { background: var(--sv-surface-hover); }
 .sv-rueckfrage button:focus-visible, .sv-rueckfrage button:focus { outline: none; box-shadow: var(--sv-focus); border-color: var(--sv-accent); }
 /* Koordinate am Zeiger (koordinatenzeile.ts, F23): unten links, Ziffern gleich breit, Klick kopiert. */
-.sv-koordinaten { position: fixed; left: 8px; bottom: 8px; z-index: 5; padding: 0.2em 0.6em; background: var(--sv-surface);
+.sv-koordinaten { position: fixed; left: calc(var(--sv-sa-links) + 8px); bottom: calc(var(--sv-sa-unten) + 8px); z-index: 5; padding: 0.2em 0.6em; background: var(--sv-surface);
   color: var(--sv-fg); border: 1px solid var(--sv-border); border-radius: var(--sv-radius); font: var(--sv-font);
   font-variant-numeric: tabular-nums; white-space: nowrap; cursor: copy; }
 .sv-koordinaten:hover { background: var(--sv-surface-hover); }

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { echteTastatur, gezaehlt, HINWEIS_GRENZE, padAktiv, TAETIGKEIT, hinweisFuerAktion, hinweisSchluessel, hinweisTaste, ladeHinweise, padKurz, padTypVon, schneidet, seiteFuer, sichtbareHinweise, speichereHinweise, ueberdeckt, zurueckgesetzt } from '../src/hinweise';
+import { echteTastatur, gezaehlt, HINWEIS_GRENZE, TAETIGKEIT, hinweisFuerAktion, hinweisSchluessel, hinweisTaste, ladeHinweise, schneidet, seiteFuer, sichtbareHinweise, speichereHinweise, ueberdeckt, zurueckgesetzt } from '../src/hinweise';
 import type { HinweisId, HinweisKontext } from '../src/hinweise';
-import { PAD_VORGABE } from '../src/gamepad';
 import type { AktionId } from '../src/tastenbelegung';
 import { kuerzelFuer, vorgabeBelegung } from '../src/tastenbelegung';
 
@@ -105,18 +104,9 @@ describe('Maus und Finger', () => {
 describe('abgeschaltete Taste über den echten Kürzel-Weg', () => {
   it('Einzeltasten aus: kein Hinweis auf Begehen und Tastenhilfe, Begehen-Hinweise bleiben', () => {
     const b = { ...vorgabeBelegung(), einzeltastenAus: true };
-    const echt = (id: HinweisId): string => hinweisTaste(id, { kuerzel: (a) => kuerzelFuer(b, a), pad: null });
+    const echt = (id: HinweisId): string => hinweisTaste(id, { kuerzel: (a) => kuerzelFuer(b, a) });
     expect(ids(sichtbareHinweise(k(), zurueckgesetzt(), { immer: true, taste: echt }))).toEqual([]);
     expect(ids(sichtbareHinweise(k({ begehen: true }), zurueckgesetzt(), { immer: true, taste: echt }))).toEqual(['befund', 'zielen', 'beenden']);
-  });
-});
-
-describe('padAktiv', () => {
-  it('Controller-Knöpfe nur mit benutztem, noch verbundenem Controller im Begehen', () => {
-    expect(padAktiv('xbox', true, 'Xbox Controller')).toBe(true);
-    expect(padAktiv('xbox', true, '')).toBe(false); // abgesteckt: zurück zu Tasten
-    expect(padAktiv(null, true, 'Xbox Controller')).toBe(false); // zuletzt Tastatur
-    expect(padAktiv('xbox', false, 'Xbox Controller')).toBe(false); // wirkt nur im Begehen
   });
 });
 
@@ -168,31 +158,11 @@ describe('hinweisFuerAktion', () => {
 describe('Beschriftung', () => {
   const kuerzel = (a: AktionId): string => ({ begehen: 'W', tastenhilfe: '?', 'begehen.setzen': 'Leertaste', 'begehen.zielen': 'Z', 'begehen.befund': 'F', teilen: 'T', 'begehen.drehen-links': '←', 'begehen.drehen-rechts': '→' } as Partial<Record<AktionId, string>>)[a] ?? '';
   it('Tastatur: aktuelle Kürzel, Drehen aus beiden Tasten, Beenden immer Esc', () => {
-    expect(hinweisTaste('begehen', { kuerzel, pad: null })).toBe('W');
-    expect(hinweisTaste('drehen', { kuerzel, pad: null })).toBe('← →');
-    expect(hinweisTaste('drehen', { kuerzel: (a) => (a === 'begehen.drehen-links' ? '' : kuerzel(a)), pad: null })).toBe('→');
-    expect(hinweisTaste('beenden', { kuerzel: () => '', pad: null })).toBe('Esc');
-    expect(hinweisTaste('teilen', { kuerzel: () => '', pad: null })).toBe('');
-  });
-  it('Controller: Knopfnamen je Typ, umbelegt und nicht belegt', () => {
-    const pad = { typ: 'xbox' as const, belegung: { ...PAD_VORGABE } };
-    expect(hinweisTaste('befund', { kuerzel, pad })).toBe('Y');
-    expect(hinweisTaste('setzen', { kuerzel, pad })).toBe('RT');
-    expect(hinweisTaste('zielen', { kuerzel, pad })).toBe('LT');
-    expect(hinweisTaste('befund', { kuerzel, pad: { typ: 'playstation', belegung: { ...PAD_VORGABE } } })).toBe('△');
-    expect(hinweisTaste('setzen', { kuerzel, pad: { typ: 'playstation', belegung: { ...PAD_VORGABE } } })).toBe('R2');
-    expect(hinweisTaste('befund', { kuerzel, pad: { typ: 'generisch', belegung: { ...PAD_VORGABE, befund: 2 } } })).toBe('X');
-    expect(hinweisTaste('befund', { kuerzel, pad: { typ: 'xbox', belegung: { ...PAD_VORGABE, befund: -1 } } })).toBe('');
-    // Ohne Controller-Gegenstück bleibt es bei der Taste.
-    expect(hinweisTaste('beenden', { kuerzel, pad })).toBe('Esc');
-    expect(hinweisTaste('tastenhilfe', { kuerzel, pad })).toBe('?');
-  });
-  it('Knopf außerhalb des Standard-Mappings ist leer', () => {
-    expect(padKurz('xbox', -1)).toBe('');
-    expect(padKurz('xbox', 17)).toBe('');
-    expect(padKurz('playstation', 1.5)).toBe('');
-    expect(padTypVon('Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)')).toBe('playstation');
-    expect(padTypVon('Test Pad (STANDARD GAMEPAD)')).toBe('generisch');
+    expect(hinweisTaste('begehen', { kuerzel })).toBe('W');
+    expect(hinweisTaste('drehen', { kuerzel })).toBe('← →');
+    expect(hinweisTaste('drehen', { kuerzel: (a) => (a === 'begehen.drehen-links' ? '' : kuerzel(a)) })).toBe('→');
+    expect(hinweisTaste('beenden', { kuerzel: () => '' })).toBe('Esc');
+    expect(hinweisTaste('teilen', { kuerzel: () => '' })).toBe('');
   });
 });
 
@@ -224,14 +194,17 @@ describe('seiteFuer', () => {
   it('Panel unten rechts, links frei: links', () => {
     expect(seiteFuer(rechts, 1280, null, [minikarte])).toBe('links');
   });
-  it('Panels auf beiden Seiten: rechts bleibt', () => {
-    expect(seiteFuer(rechts, 1280, null, [minikarte, linksUnten])).toBe('rechts');
+  it('Panels auf beiden Seiten: die Leiste tritt zurück', () => {
+    expect(seiteFuer(rechts, 1280, null, [minikarte, linksUnten])).toBe('keine');
   });
-  it('fokussiertes Element rechts wiegt schwerer als ein Panel links', () => {
-    expect(seiteFuer(rechts, 1280, { left: 1200, top: 690, right: 1260, bottom: 710 }, [linksUnten])).toBe('links');
+  it('fokussiertes Element rechts, links frei: links', () => {
+    expect(seiteFuer(rechts, 1280, { left: 1200, top: 690, right: 1260, bottom: 710 }, [])).toBe('links');
   });
-  it('fokussiertes Element links: nicht dorthin ausweichen, auch wenn rechts ein Panel liegt', () => {
-    expect(seiteFuer(rechts, 1280, { left: 20, top: 690, right: 120, bottom: 710 }, [minikarte])).toBe('rechts');
+  it('fokussiertes Element rechts, Panel links: die Leiste tritt zurück', () => {
+    expect(seiteFuer(rechts, 1280, { left: 1200, top: 690, right: 1260, bottom: 710 }, [linksUnten])).toBe('keine');
+  });
+  it('fokussiertes Element links, Panel rechts: die Leiste tritt zurück', () => {
+    expect(seiteFuer(rechts, 1280, { left: 20, top: 690, right: 120, bottom: 710 }, [minikarte])).toBe('keine');
   });
   it('die 3D-Ansicht als Fokus zählt nicht', () => {
     expect(seiteFuer(rechts, 1280, { left: 0, top: 0, right: 1280, bottom: 720 }, [])).toBe('rechts');

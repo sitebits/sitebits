@@ -23,7 +23,7 @@ PILOT: dict[str, Any] = {
     "scale": {"status": "set", "setFrom": ["A-B Laser"]},
     "points": [],
     "distances": [{"name": "A-B Laser", "role": "control", "errorPct": 0}],
-    "source": {"software": "Agisoft Metashape", "version": "2.1.3",
+    "source": {"software": "Photogrammetrie-Werkzeug", "version": "2.1.3",
                "created": "2026-10-11T07:00:00Z", "projectSha256": "ab" * 32, "crs": "EPSG:25833"},
     "report": {"filename": "report.pdf", "sha256": "cd" * 32},
 }
@@ -44,7 +44,7 @@ def test_pilot_gesetzt_und_nur_gnss_ohne_plusminus() -> None:
     assert z == [
         "Lage nicht unabhängig geprüft (nur Drohnen-GNSS)",
         "Maßstab aus 1 Strecke gesetzt (A-B Laser), nicht geprüft",
-        "Quelle: Agisoft Metashape 2.1.3, 2026-10-11, Projekt abababab…",
+        "Quelle: Photogrammetrie-Werkzeug 2.1.3, 2026-10-11, Projekt abababab…",
         "Bericht: report.pdf (SHA-256 cdcdcdcd…)",
     ]
     assert "±" not in " ".join(z) and "RMSE" not in " ".join(z)
@@ -95,6 +95,18 @@ def test_ebenen_und_messhinweise_wie_viewer() -> None:
         "Maßstab aus 1 Strecke gesetzt (A-B Laser), nicht geprüft · "
         "Lage nicht unabhängig geprüft (nur Drohnen-GNSS)")
     assert genauigkeit.mess_hinweis(None, je) == ""
+
+
+def test_modellmass_aus_mehreren_ebenen_eine_meldung() -> None:
+    je = {
+        "a": ("Modellmaß — Maßstab nicht belegt (Quelle: unit:file)",),
+        "b": ("Modellmaß — Maßstab nicht belegt (Quelle: unit:cli)",
+              "Modelloberfläche (teils interpoliert)"),
+    }
+    quellen = [{"layerId": "a"}, {"layerId": "b"}, {"layerId": "a"}]
+    assert genauigkeit.mess_hinweis(quellen, je) == (
+        "Modellmaß — Maßstab nicht belegt (Quelle: unit:file, unit:cli) · "
+        "Modelloberfläche (teils interpoliert)")
 
 
 def _messung() -> Eintrag:

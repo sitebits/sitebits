@@ -1,16 +1,22 @@
 // Ebenen-Register für Punktwolken, Panoramen, glTF-Meshes, Splats und Fotos.
+import { KEINE_WOLKE } from './manifest';
 import type { ImagesLayer, Layer, MeshLayer, SplatsLayer, PanoramasLayer, PointcloudLayer, Project, Vec3 } from './manifest';
 import type { Station } from './stations';
 import type { StationLayer } from './stationLayer';
 import type { Viewer } from './viewer';
 import { fitDistance } from './viewMath';
 import { panelZeilen } from './genauigkeit';
+import type { MeshFlaeche } from './meshMath';
 
 export interface MeshHandle {
   readonly id: string;
   readonly disabled?: boolean;
   readonly shading?: boolean;
   setShading?(on: boolean): void;
+  readonly flaeche?: MeshFlaeche;
+  readonly draht?: boolean;
+  setFlaeche?(f: MeshFlaeche): void;
+  setDraht?(on: boolean): void;
   setVisible(on: boolean): void;
   setOpacity(x: number): void;
 }
@@ -37,6 +43,9 @@ export interface LayerEntry {
   /** Abschnitt „Genauigkeit“ (F15) bei Punktwolken und Meshes. */
   genauigkeit?: string[];
   shading?: boolean;
+  /** Nur Meshes: Darstellung der Fläche und Drahtgitter (meshLayer.ts). */
+  flaeche?: MeshFlaeche;
+  draht?: boolean;
   keyNumber?: number;
   groups?: { id: string; title: string; count: number; visible: boolean }[];
 }
@@ -83,6 +92,8 @@ export interface LayerRegistry {
   /** Deckkraft räumlicher Ebenen; für andere Ebenenarten ein No-op. */
   setOpacity(id: string, x: number): void;
   setShading(id: string, on: boolean): void;
+  setFlaeche(id: string, f: MeshFlaeche): void;
+  setDraht(id: string, on: boolean): void;
   /** Gruppe der Fotos-Ebene ein-/ausblenden. */
   setGroupVisible(id: string, group: string, on: boolean): void;
   /** Kamera auf die Ebene rahmen (Punktwolke: ihre boundsWorld; Standpunkte: Vereinigung der
@@ -183,8 +194,12 @@ export function createLayerRegistry(o: {
           notes: [!l.provenance.scaleVerified ? 'Modellmaß – Maßstab nicht belegt' : '',
             l.provenance.interpolated ? 'Oberfläche teils interpoliert' : ''].filter(Boolean),
           shading: meshes.find((m) => m.id === l.id)?.shading ?? false,
+          flaeche: meshes.find((m) => m.id === l.id)?.flaeche ?? 'textur',
+          draht: meshes.find((m) => m.id === l.id)?.draht ?? false,
         } : {}),
-        ...(!('unsupported' in l) && l.kind === 'splats' ? { notes: ['Sichtschicht – Messen und Fangen auf Punktwolke oder Mesh'] } : {}),
+        ...(!('unsupported' in l) && l.kind === 'splats' ? { notes: [
+          ...(l.frameCheck === KEINE_WOLKE ? ['Modellmaß – Lage und Maßstab nicht belegt'] : []),
+          'Sichtschicht – Messen und Fangen auf Punktwolke oder Mesh'] } : {}),
         ...(!('unsupported' in l) && l.kind === 'images' && images && project.images?.id === l.id
           ? { groups: images.groups() } : {}),
       })),
@@ -208,6 +223,14 @@ export function createLayerRegistry(o: {
     },
     setShading: (id, on) => {
       meshes.find((m) => m.id === id)?.setShading?.(on);
+      fireChange();
+    },
+    setFlaeche: (id, f) => {
+      meshes.find((m) => m.id === id)?.setFlaeche?.(f);
+      fireChange();
+    },
+    setDraht: (id, on) => {
+      meshes.find((m) => m.id === id)?.setDraht?.(on);
       fireChange();
     },
     setGroupVisible: (id, group, on) => {

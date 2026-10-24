@@ -69,7 +69,11 @@ export async function post<T>(pfad: string, body: unknown): Promise<T> {
 }
 
 /** Angemeldeter Nutzer plus Instanz-Angaben aus /api/sitzung (quelltextUrl: null = kein Link). */
-export type Sitzung = { id?: number; name: string; email: string; admin: boolean; quelltextUrl: string | null };
+export type Sitzung = {
+  id?: number; name: string; email: string; admin: boolean; quelltextUrl: string | null;
+  /** Hochladen und neue Projekte (Seite /uploads): nur Admins, nur wenn die Instanz es eingeschaltet hat. */
+  importAn?: boolean;
+};
 
 export async function sitzung(): Promise<Sitzung | null> {
   let antwort: Response;
@@ -81,9 +85,9 @@ export async function sitzung(): Promise<Sitzung | null> {
   if (!antwort.ok) return null;
   const daten = await leseJson(antwort);
   if (daten === null || typeof daten !== 'object') return null;
-  const roh = daten as { nutzer?: { id?: number; name: string; email: string; admin: boolean }; quelltext_url?: unknown };
+  const roh = daten as { nutzer?: { id?: number; name: string; email: string; admin: boolean }; quelltext_url?: unknown; import?: unknown };
   if (!roh.nutzer) return null;
-  return { ...roh.nutzer, quelltextUrl: quelltextLink(roh.quelltext_url) };
+  return { ...roh.nutzer, quelltextUrl: quelltextLink(roh.quelltext_url), importAn: roh.import === true };
 }
 
 export async function projekte(): Promise<Projekt[]> {

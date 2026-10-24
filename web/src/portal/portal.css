@@ -246,3 +246,21 @@ h1, h2 { font-weight: 600; }
 .sv-befund-angaben dd { margin: 0; }
 .sv-befund-aktionen { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-top: 6px; }
 .sv-karte-ueberfaellig { font-weight: 600; color: var(--sv-error); }
+
+/* Seite Uploads (uploads.ts): Formular eine Spalte, Fortschritt über die ganze Breite. */
+.sv-neues-projekt { display: flex; flex-direction: column; gap: 4px; max-width: 40em; }
+.sv-neues-projekt select, .sv-neues-projekt input[type='file'] {
+  width: 100%; box-sizing: border-box; padding: 8px; background: var(--sv-bg); color: var(--sv-fg);
+  border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius);
+}
+.sv-neues-projekt select:disabled { opacity: .6; }
+.sv-neues-projekt .sv-schalter input { margin-top: 0; }
+.sv-quelle { border: 1px solid var(--sv-border); border-radius: var(--sv-radius); margin-top: 12px; }
+.sv-feld-fehler { margin-top: 4px; }
+.sv-neues-projekt .sv-aktionen { margin-top: 12px; }
+.sv-neues-projekt button { min-height: 44px; padding: 6px 12px; }
+.sv-primaer-knopf { background: var(--sv-accent); color: var(--sv-accent-fg); border: 1px solid var(--sv-accent); border-radius: var(--sv-radius); cursor: pointer; }
+.sv-neues-projekt progress { width: 100%; height: 12px; margin-top: 8px; }
+.sv-fortsetzen { padding: 8px; border: 1px solid var(--sv-border-strong); border-radius: var(--sv-radius); }
+.sv-uploads-seite .sv-tabelle td { overflow-wrap: anywhere; }
+.sv-import-fehlgeschlagen { color: var(--sv-error); font-weight: 600; }

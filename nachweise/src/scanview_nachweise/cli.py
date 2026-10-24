@@ -41,7 +41,7 @@ from . import (
 from .fehler import NachweisFehler
 from .werkzeuge import lade_werkzeuge
 
-_VERSION = "0.10.3"
+_VERSION = "0.11.0"
 
 
 def _version(_args: argparse.Namespace) -> int:
@@ -216,7 +216,12 @@ def _osv_aktualisieren(cache: Path, abfragen: list[osv.Abfrage]) -> None:
 
 
 def _sbom_dateien(ordner: Path) -> dict[str, Path]:
-    return scan.sbom_dateien(ordner, vex.LOCKDATEIEN)
+    """Je Artefakt ein SBOM; dazu das Nachweis-SBOM der Werkzeug-Images, wenn es im Ordner liegt
+    (die CLI bewertet streng wie bisher: auch dessen Treffer blockieren hier)."""
+    namen = [*vex.LOCKDATEIEN]
+    if ordner.is_dir() and any(ordner.glob(f"scanview-{scan.BILDER}-*.cdx.json")):
+        namen.append(scan.BILDER)
+    return scan.sbom_dateien(ordner, namen)
 
 
 def _lock_hashes(wurzel: Path) -> dict[str, str]:
@@ -866,7 +871,7 @@ def _bauen_parser() -> argparse.ArgumentParser:
 
     do = sub.add_parser("deploy-ordner", help="Release-Ordner für einrichten.sh --release aus "
                                               "dem committeten Archiv zusammenstellen (Manifest, "
-                                              "Abschluss, drei ausgelieferte Tarballs; alles "
+                                              "Abschluss, ausgelieferte Tarballs je Schema; alles "
                                               "vorher geprüft)")
     do.add_argument("--version", required=True, help="Version X.Y.Z")
     do.add_argument("--ziel", required=True, help="neuer Zielordner")

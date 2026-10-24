@@ -1,0 +1,32 @@
+{
+  "name": "sitebits",
+  "version": "0.1.0",
+  "description": "Client für die API v1 einer siteBits-Instanz: typisierte Funktionen, nur fetch, ohne Laufzeit-Abhängigkeiten.",
+  "license": "EUPL-1.2",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=22.18.0",
+      "onFail": "error"
+    }
+  },
+  "scripts": {
+    "typen": "cd ../../server && uv run --locked python -m scanview_server.openapi_v1 ../docs/public/api/openapi.json && cd ../clients/sitebits && openapi-typescript ../../docs/public/api/openapi.json -o src/schema.d.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "test": "node --test \"test/**/*.test.ts\""
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "eslint": "9.39.5",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.1"
+  }
+}

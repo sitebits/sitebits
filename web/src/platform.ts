@@ -139,7 +139,13 @@ export function zeigeZurueck(parent: HTMLElement): void {
   const a = document.createElement('a');
   a.href = '/';
   a.className = 'sv-zurueck';
-  a.textContent = '← Projekte';
+  // Pfeil und Text getrennt: auf dem Handy bleibt nur der Pfeil sichtbar, der Name „← Projekte“ bleibt (toolbar.css).
+  const pfeil = document.createElement('span');
+  pfeil.textContent = '←';
+  const text = document.createElement('span');
+  text.className = 'sv-knopf-text';
+  text.textContent = ' Projekte';
+  a.append(pfeil, text);
   parent.prepend(a);
 }
 

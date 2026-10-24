@@ -10,7 +10,7 @@ des Release-Commits) vier Tarballs:
 3. `scanview-mcp-<v>.tar.gz` — `mcp-server/`.
 4. `scanview-import-<v>.tar.gz` — `import/`.
 
-Für die ausgelieferten Artefakte 1 bis 3 gilt zusätzlich die öffentliche Positivliste
+Für die ausgelieferten Artefakte 1 bis 4 gilt zusätzlich die öffentliche Positivliste
 (`veroeffentlichung/positivliste.txt`): ausgeliefert wird nur, was auch öffentlich sein darf
 (z. B. nicht `deploy/platform/README.md` mit Betriebsdetails). Für 2 bis 4 zählen nur **von Git
 versionierte** Dateien (`git ls-files` im Worktree); so kann kein
@@ -95,7 +95,7 @@ _PYTHON_KOMPONENTEN = (
                 ("server/pyproject.toml", "server/uv.lock"), True),
     _Komponente("mcp", ("mcp-server/",), ("mcp-server/pyproject.toml", "mcp-server/uv.lock"),
                 True),
-    _Komponente("import", ("import/",), ("import/pyproject.toml", "import/uv.lock"), False),
+    _Komponente("import", ("import/",), ("import/pyproject.toml", "import/uv.lock"), True),
 )
 _WEB_DIST = "web/dist"
 

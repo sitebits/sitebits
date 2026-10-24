@@ -1,4 +1,4 @@
-"""Metashape-Rahmenkameramodell, Inversion, Zuschnitt und Entzerrung."""
+"""Rahmenkameramodell des Austauschformats, Inversion, Zuschnitt und Entzerrung."""
 
 import dataclasses
 
@@ -16,7 +16,7 @@ from scanview_import.verzeichnung import (
     zielkamera,
 )
 
-# Beispielprojekt (Drohne), Sensor 0 (Metashape, angepasst), 3840 x 2160.
+# Beispielprojekt (Drohne), Sensor 0 (Ausrichtung, angepasst), 3840 x 2160.
 DROHNE = Kalibrierung(
     width=3840, height=2160, f=2836.0741148025791, cx=-3.2366462910117906,
     cy=-1.3946326776059215, k1=0.15335393066876787, k2=-0.50697268973724219,
@@ -36,7 +36,7 @@ def test_ohne_verzeichnung_ist_lochkamera():
     np.testing.assert_allclose(v, [150.0, 80.0])
 
 
-def test_formel_wie_metashape_handbuch():
+def test_formel_wie_austauschformat():
     k = Kalibrierung(width=100, height=80, f=50.0, cx=1.0, cy=-2.0, k1=0.1, k2=0.01,
                      k3=0.001, k4=0.0001, p1=0.002, p2=-0.003, b1=0.5, b2=0.25)
     x, y = 0.3, -0.2

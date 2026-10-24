@@ -1,0 +1,115 @@
+# Beispielprofil „Bestandserfassung Liegenschaft“ (siteBits, eigene Formulierung).
+# Schwellen sind Vorschläge; der Auftraggeber passt sie in einer Kopie an.
+schema = 1
+titel = "Bestandserfassung Liegenschaft (Beispielprofil)"
+beschreibung = """Beispiel für eine 3D-Bestandsaufnahme einer Liegenschaft per Drohne oder Scanner.
+Schwellen sind Vorschläge nach gängigen Normen und Leitfäden, keine Vorgabe."""
+
+[[zeile]]
+id = "L01"
+anforderung = "Lage in ETRS89/UTM Zone 33 (EPSG:25833), Höhen in DHHN2016"
+pruefart = "bezugssystem"
+parameter = { epsg = 25833, hoehe = "dhhn2016" }
+
+[[zeile]]
+id = "L02"
+anforderung = "Lagegenauigkeit (RMSE) an mindestens 30 unabhängigen Kontrollpunkten nachgewiesen, Fehler der Kontrollpunkte eingerechnet"
+pruefart = "kontrollpunkte"
+parameter = { rmse_h_m = 0.025, mindestens = 30 }
+
+[[zeile]]
+id = "L03"
+anforderung = "Höhengenauigkeit (RMSE) an denselben Kontrollpunkten nachgewiesen"
+pruefart = "kontrollpunkte"
+parameter = { rmse_v_m = 0.05, mindestens = 30 }
+
+[[zeile]]
+id = "L04"
+anforderung = "Höhen auf freiem Boden plausibel gegen das amtliche DGM1 (mittlere absolute Abweichung höchstens 0,3 m)"
+pruefart = "einpassung"
+parameter = { mad_m = 0.3 }
+
+[[zeile]]
+id = "L05"
+anforderung = "Maßstab an mindestens zwei Strecken von mindestens 10 m zwischen Kontrollpunkten geprüft, Abweichung höchstens 0,1 %"
+pruefart = "massstab"
+parameter = { strecken = 2, abweichung = 0.001, min_laenge_m = 10.0 }
+
+[[zeile]]
+id = "L06"
+anforderung = "Bodenauflösung der senkrechten Luftbilder (Neigung bis 20°) im Auftragsgebiet höchstens 2 cm"
+pruefart = "gsd"
+parameter = { gsd_m = 0.02, max_neigung_grad = 20, zelle_m = 1.0 }
+
+[[zeile]]
+id = "L07"
+anforderung = "Mindestens 100 Punkte je m² auf 95 % der Auftragsfläche"
+pruefart = "dichte"
+parameter = { punkte_m2 = 100, anteil = 0.95, zelle_m = 1.0 }
+
+[[zeile]]
+id = "L08"
+anforderung = "Datenlücken (Zellen von 1 m ohne Punkt) höchstens 1 % der Auftragsfläche"
+pruefart = "luecken"
+parameter = { anteil = 0.01, zelle_m = 1.0 }
+
+[[zeile]]
+id = "L09"
+anforderung = "Punktwolke klassifiziert nach ASPRS: Boden (2), Gebäude (6), Vegetation (3, 4 oder 5)"
+pruefart = "klassen"
+parameter = { klassen = [2, 6, [3, 4, 5]] }
+
+[[zeile]]
+id = "L10"
+anforderung = "Geländemodell (DGM) und Oberflächenmodell (DOM) als GeoTIFF, Raster höchstens 0,5 m, Bezugssystem wie L01"
+pruefart = "raster"
+parameter = { raster_m = 0.5, epsg = 25833, produkte = [{ name = "DGM", muster = "*dgm*.tif*" }, { name = "DOM", muster = "*dom*.tif*" }] }
+
+[[zeile]]
+id = "L11"
+anforderung = "Lieferformate: Punktwolke als LAZ und E57, 3D-Modell als glTF oder OBJ, Bericht als PDF, Tabellen als CSV oder GeoJSON"
+pruefart = "formate"
+parameter = { arten = ["laz", "e57", "gltf|obj", "pdf", "csv|geojson"] }
+
+[[zeile]]
+id = "L12"
+anforderung = "Alle gelieferten Dateien mit SHA-256-Prüfsummen (Liste im sha256sum-Format)"
+pruefart = "pruefsummen"
+parameter = { vollstaendig = true }
+
+[[zeile]]
+id = "L13"
+anforderung = "Registrier- oder Passpunktbericht mit Residuen liegt bei"
+pruefart = "anhang"
+parameter = { muster = ["*registrier*", "*passpunkt*"], bezeichnung = "Registrier- oder Passpunktbericht" }
+
+[[zeile]]
+id = "L14"
+anforderung = "Schäden als georeferenzierte Befunde mit Objektnummer, Kategorie und Foto"
+pruefart = "befunde"
+
+[[zeile]]
+id = "L15"
+anforderung = "Jede Flächenangabe nennt ihren Bezug (Grundriss oder geneigt)"
+pruefart = "flaechenbezug"
+
+[[zeile]]
+id = "L16"
+anforderung = "Wiederholungsmessung zum Vorjahr co-registriert, Restfehler angegeben, Änderungen auf Signifikanz geprüft"
+pruefart = "zeitstaende"
+
+[[zeile]]
+id = "L17"
+anforderung = "Personen und Kennzeichen auf freigegebenen Fotos unkenntlich, mit Protokoll"
+pruefart = "anonymisierung"
+
+[[zeile]]
+id = "L18"
+anforderung = "Prüfbericht nennt Verarbeitungskette mit Versionen, Prüfsummen und seine Grenzen"
+pruefart = "bericht"
+
+[[zeile]]
+id = "L19"
+anforderung = "Bodenklasse plausibel: höchstens 1 % der Pixel mit Bodenpunkten weichen mehr als 0,5 m vom amtlichen DGM1 ab"
+pruefart = "klassen_richtig"
+parameter = { toleranz_m = 0.5, anteil = 0.01 }

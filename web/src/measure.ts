@@ -1,4 +1,4 @@
-import { sourceFromPick, measurementNotes, sourceReusable } from './pointSources';
+import { sourceFromPick, measurementNotes, sourceReusable, anzeigeSprache } from './pointSources';
 import type { PointSource, SourceLayer } from './pointSources';
 // Messwerkzeug (Strecke, Polylinie, Fläche, Höhe/Lot, Eckpunkte ziehen/
 // einfügen/löschen, Rückgängig). Jeder Eckpunkt kommt aus der Strahlsuche hinter der Naht PickSource
@@ -296,7 +296,7 @@ export function attachMeasureTool(o: MeasureToolOptions): MeasureTool {
   const drawMeasurement = (m: Measurement): void => {
     if (m.vorschlag && o.vorschlaegeSichtbar?.() === false) return;
     vorschlagBeimZeichnen = m.vorschlag;
-    const notes = measurementNotes(m,o.sourceLayers ?? []);
+    const notes = measurementNotes(m,o.sourceLayers ?? [],anzeigeSprache());
     const hint = [...(m.vorschlag ? [vorschlagText(m.vorschlag)] : []), ...notes].join(' · ');
     const sel = selection?.id === m.id ? selection : null;
     zusatzVoll = sel !== null;

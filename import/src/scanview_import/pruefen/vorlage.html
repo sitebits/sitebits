@@ -1,0 +1,72 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8">
+<title>Prüfbericht – $titel</title>
+<style>
+@page { size: A4; margin: 16mm 15mm; }
+:root { --text:#1d2430; --leise:#5b6573; --linie:#d5dae1; --akzent:#2c5d8a;
+  --gut:#2f6b3a; --schlecht:#8a1f1f; --offen:#6b5a1f; }
+body { font: 10pt/1.45 "DejaVu Sans", "Liberation Sans", sans-serif; color: var(--text);
+  background:#fff; margin:0; }
+h1 { font-size: 17pt; margin: 0 0 2pt; }
+h2 { font-size: 12pt; margin: 16pt 0 5pt; color: var(--akzent); break-after: avoid; }
+h3 { font-size: 10.5pt; margin: 10pt 0 3pt; break-after: avoid; }
+.leise { color: var(--leise); font-size: 8.5pt; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border-bottom: 1px solid var(--linie); padding: 2.5pt 5pt; text-align: left; vertical-align: top; }
+th { font-weight: 600; font-size: 8.5pt; }
+.kacheln { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6pt; margin: 8pt 0; }
+.kachel { border: 1px solid var(--linie); border-radius: 4pt; padding: 6pt 8pt; }
+.kachel b { display: block; font-size: 15pt; }
+.kachel span { font-size: 8pt; color: var(--leise); }
+.frage { font-size: 11pt; margin: 6pt 0 2pt; }
+.antwort { font-size: 12.5pt; font-weight: 600; margin: 2pt 0 6pt; }
+.vertrauen { display:inline-block; border:1px solid var(--akzent); color: var(--akzent);
+  border-radius: 3pt; padding: 1pt 6pt; font-weight: 600; }
+.u-erfuellt { color: var(--gut); font-weight: 600; white-space: nowrap; }
+.u-nicht-erfuellt { color: var(--schlecht); font-weight: 600; white-space: nowrap; }
+.u-nicht-pruefbar { color: var(--offen); font-weight: 600; white-space: nowrap; }
+.zeile { border-top: 1px solid var(--linie); padding-top: 4pt; break-inside: avoid; }
+.belege { font-size: 8.5pt; color: var(--leise); margin: 2pt 0 0 0; padding-left: 14pt; }
+code, .sha { font-size: 8pt; word-break: break-all; }
+.seite { break-before: page; }
+.karte { display:block; max-width: 100%; max-height: 110mm; margin: 4pt 0; border: 1px solid var(--linie); }
+</style></head><body>
+<h1>Prüfbericht: $titel</h1>
+<p class="leise">Lieferung „$lieferung“ · Katalog $katalog_datei · erstellt $erstellt · siteBits $git</p>
+
+<p class="frage"><b>Frage:</b> Erfüllt die Lieferung den Anforderungskatalog?</p>
+<p class="antwort">$antwort</p>
+<p><span class="vertrauen">$vertrauen</span> <span class="leise">$vertrauen_grund</span></p>
+<div class="kacheln">
+<div class="kachel"><b>$n_erfuellt</b><span>erfüllt</span></div>
+<div class="kachel"><b>$n_nicht_erfuellt</b><span>nicht erfüllt</span></div>
+<div class="kachel"><b>$n_nicht_pruefbar</b><span>nicht prüfbar</span></div>
+</div>
+<table><tr><th>Nr.</th><th>Anforderung</th><th>Urteil</th><th>Grund</th></tr>$uebersicht</table>
+<p class="leise">„Nicht prüfbar“ heißt: Für diese Anforderung hat siteBits noch kein Prüfwerkzeug, oder eine
+Grundlage des Auftraggebers fehlt (z. B. die Auftragsfläche). Was die Lieferung schuldet und fehlt, ist
+„nicht erfüllt“.</p>
+
+<h2 class="seite">Prüfung je Zeile</h2>
+$zeilen
+
+<h2>Aufnahme</h2>
+<p>Entfällt: Geprüft wird eine fremde Lieferung, siteBits hat nichts aufgenommen. Angaben zur Aufnahme
+gehören in die Unterlagen des Dienstleisters.</p>
+
+<h2>Verarbeitungskette</h2>
+<table>$kette</table>
+
+<h2>Schwellen</h2>
+<p>Alle Schwellen stammen aus dem Katalog des Auftraggebers und stehen bei jeder Zeile unter
+„Parameter“. siteBits setzt keine eigenen Schwellen; Toleranz beim Raster: 10<sup>−9</sup> m.</p>
+
+<h2>Was der Bericht nicht kann</h2>
+<ul>$grenzen</ul>
+
+<h2>Datenschutz</h2>
+<p>$datenschutz</p>
+
+<h2>Anhang und Nachprüfung</h2>
+<ul>$anhang</ul>
+<p class="leise">Ergebnis-Prüfsumme (SHA-256 über ergebnis.json): <span class="sha">$sha</span></p>
+</body></html>

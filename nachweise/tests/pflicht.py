@@ -13,6 +13,7 @@ from scanview_nachweise.manifest import (
     PFLICHT_PRUEFUNGEN,
     PFLICHT_WERKZEUGE,
     SCHEMA_1,
+    SCHEMA_2,
 )
 from scanview_nachweise.werkzeuge import Werkzeug
 
@@ -23,9 +24,19 @@ WERKZEUGE_NUR_2 = tuple(n for n in PFLICHT_WERKZEUGE if n not in PFLICHT_JE_SCHE
 PRUEFUNGEN_NUR_2 = tuple(n for n in PFLICHT_PRUEFUNGEN if n not in PFLICHT_JE_SCHEMA[SCHEMA_1][2])
 
 
+def auf_schema_2(d: dict[str, Any]) -> None:
+    """Formgültiges /3-Manifest (als dict) auf Schema /2 zurücksetzen: /2 liefert import nicht
+    aus (gleiche Pflichtlisten, andere Auslieferungsmenge)."""
+    d["schema"] = SCHEMA_2
+    for a in d["artefakte"]:
+        if a["name"] == "import":
+            a["ausgeliefert"] = False
+
+
 def auf_schema_1(d: dict[str, Any]) -> None:
-    """Formgültiges /2-Manifest (als dict) auf Schema /1 zurücksetzen: Schema und die erst mit /2
-    verlangten Berichte, Prüfungen und Werkzeuge."""
+    """Formgültiges /3-Manifest (als dict) auf Schema /1 zurücksetzen: Auslieferungsmenge wie /2,
+    dazu ohne die erst mit /2 verlangten Berichte, Prüfungen und Werkzeuge."""
+    auf_schema_2(d)
     d["schema"] = SCHEMA_1
     for name in BERICHTE_NUR_2:
         del d["berichte"][name]

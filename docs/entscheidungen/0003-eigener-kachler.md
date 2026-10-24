@@ -32,8 +32,8 @@ Vertrag gemessen.
 
 ## Nachtrag Vorstudie 28.09.2026
 
-Die Vorstudie bestätigt die Entscheidung. Geprüft wurde zuerst, ob ein nativer 3D-Tiles-Export aus
-Metashape unverändert durchgereicht werden kann: Am selben Testmesh (7,7 Mio. Dreiecke) verletzt er
+Die Vorstudie bestätigt die Entscheidung. Geprüft wurde zuerst, ob ein nativer 3D-Tiles-Export einer
+Photogrammetrie-Software unverändert durchgereicht werden kann: Am selben Testmesh (7,7 Mio. Dreiecke) verletzt er
 den Ausgabevertrag strukturell: Punkte der Quelle weichen bis 1,46 mm von den Blattkacheln ab
 (Grenze 0,35 mm), und die Blattkacheln haben 6,1 % mehr Fläche als die Quelle, weil sich benachbarte
 Kacheln überlappen (Grenze 0,1 %; nach Entfernen exakter Duplikate bleiben 3,3 %). Die übrigen Werkzeuge tragen ebenfalls nicht: Obj2Tiles mit unveränderten Texturen

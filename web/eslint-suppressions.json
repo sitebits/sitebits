@@ -154,7 +154,7 @@
       "count": 1
     },
     "playwright/no-wait-for-timeout": {
-      "count": 10
+      "count": 8
     }
   },
   "e2e/helpers.ts": {

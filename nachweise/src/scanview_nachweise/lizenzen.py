@@ -7,9 +7,11 @@ Zwei Regeln je ausgeliefertem SBOM, beide fail-closed:
    `erlaubt` erfüllbar ist (`AND`: alle, `OR`: eine, `X WITH Y` nur als ganzer Eintrag), oder ein
    Freitext/Trove-Klassifikator, der über `klassifikatoren` einem solchen Ausdruck zugeordnet ist.
    Eine Komponente ohne erklärte Lizenz, ein unbekannter Freitext oder ein unlesbarer Ausdruck
-   ist ein Fehler. Die Liste steht maschinenlesbar in `nachweise/lizenzen.toml` (Kategorien:
-   permissive Lizenzen auch außerhalb der wörtlichen Liste, LGPL, BlueOak-1.0.0/Python-2.0,
-   sowie MPL-2.0 unverändert weitergegeben).
+   ist ein Fehler — außer für genau diese Version liegt eine **belegte Lizenzfeststellung** vor
+   (`[feststellungen]`: Ausdruck, Beleg, SHA-256 des Lizenztexts im Paket). Sie gilt nur, solange
+   die Komponente selbst nichts erklärt, und nur für Name **und** Version. Die Liste steht
+   maschinenlesbar in `nachweise/lizenzen.toml` (Kategorien: permissive Lizenzen auch außerhalb
+   der wörtlichen Liste, LGPL, BlueOak-1.0.0/Python-2.0, sowie MPL-2.0 unverändert weitergegeben).
 2. **Nennung:** jede Komponente steht mit Name **und** Version in einer Tabellenzeile von
    `docs/THIRD_PARTY.md` (erste Spalte Name, zweite Version; `a / b` paarweise; Klammerzusätze
    wie „ol (OpenLayers)“ zählen nicht zum Namen). Eine Erwähnung im Fließtext zählt nicht."""
@@ -21,7 +23,7 @@ import tomllib
 import urllib.parse
 from collections import Counter
 from collections.abc import Iterator, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +38,8 @@ _MAX_MELDUNGEN = 40
 class Lizenzregeln:
     erlaubt: frozenset[str]
     klassifikatoren: dict[str, str]
+    # (Name, Version) → SPDX-Ausdruck, festgestellt aus dem mitgelieferten Lizenztext
+    feststellungen: dict[tuple[str, str], str] = field(default_factory=dict)
 
 
 # --- SPDX-Ausdrücke ------------------------------------------------------------------------------
@@ -123,7 +127,7 @@ def lade_regeln(pfad: Path) -> Lizenzregeln:
         raise NachweisFehler(_REGEL, f"{pfad}: nicht lesbar ({e.strerror})") from None
     except tomllib.TOMLDecodeError as e:
         raise NachweisFehler(_REGEL, f"{pfad}: kein gültiges TOML ({e})") from None
-    unbekannt = sorted(set(daten) - {"erlaubt", "klassifikatoren"})
+    unbekannt = sorted(set(daten) - {"erlaubt", "klassifikatoren", "feststellungen"})
     if unbekannt:
         raise NachweisFehler(_REGEL, f"{pfad}: unbekannte Schlüssel {', '.join(unbekannt)}")
     erlaubt = daten.get("erlaubt")
@@ -139,6 +143,21 @@ def lade_regeln(pfad: Path) -> Lizenzregeln:
             raise NachweisFehler(_REGEL, f"{pfad}: Klassifikator „{name}“ ohne Ausdruck")
         ausdruck_erlaubt(ausdruck, regeln.erlaubt)  # lesbar?
         regeln.klassifikatoren[name] = ausdruck
+    fest = daten.get("feststellungen", {})
+    if not isinstance(fest, dict):
+        raise NachweisFehler(_REGEL, f"{pfad}: „feststellungen“ muss eine Tabelle sein")
+    for schluessel, eintrag in fest.items():
+        name, at, version = schluessel.rpartition("@")
+        if not (at and name and version) or not isinstance(eintrag, dict) \
+                or set(eintrag) != {"ausdruck", "beleg", "sha256"} \
+                or not all(isinstance(v, str) and v.strip() for v in eintrag.values()) \
+                or not re.fullmatch(r"[0-9a-f]{64}", eintrag["sha256"]):
+            raise NachweisFehler(_REGEL, f"{pfad}: Feststellung „{schluessel}“ braucht "
+                                         "name@version mit ausdruck, beleg und sha256")
+        if not ausdruck_erlaubt(eintrag["ausdruck"], regeln.erlaubt):
+            raise NachweisFehler(_REGEL, f"{pfad}: Feststellung „{schluessel}“: "
+                                         f"{eintrag['ausdruck']} nicht erlaubt")
+        regeln.feststellungen[(normalisiere(name), version)] = eintrag["ausdruck"]
     return regeln
 
 
@@ -236,7 +255,8 @@ def probleme(bom: dict[str, Any], regeln: Lizenzregeln,
             continue
         ref = str(k.get("purl") or k.get("bom-ref") or k.get("name", "?"))
         erklaert = _erklaert(k)
-        if not erklaert:
+        name, version = _name(k), str(k.get("version", ""))
+        if not erklaert and (name, version) not in regeln.feststellungen:
             ergebnis.append(f"{ref}: keine erklärte Lizenz")
         for e in erklaert:
             anzeige, ausdruck = _angabe(e)
@@ -253,7 +273,6 @@ def probleme(bom: dict[str, Any], regeln: Lizenzregeln,
                 continue
             if not ok:
                 ergebnis.append(f"{ref}: Lizenz {anzeige} nicht erlaubt")
-        name, version = _name(k), str(k.get("version", ""))
         if (name, version) not in genannt:
             ergebnis.append(f"{name} {version} nicht in docs/THIRD_PARTY.md genannt")
     return ergebnis

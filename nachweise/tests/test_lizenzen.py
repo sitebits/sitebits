@@ -249,3 +249,46 @@ def test_repo_regeln_gueltig():
         assert spdx in r.erlaubt
     for verboten in ("GPL-3.0-only", "AGPL-3.0-only", "SSPL-1.0", "BUSL-1.1"):
         assert verboten not in r.erlaubt
+
+
+def test_belegte_feststellung_nur_fuer_genau_diese_version():
+    regeln = lizenzen.Lizenzregeln(REGELN.erlaubt, REGELN.klassifikatoren,
+                                   {("ol", "10.10.0"): "BSD-2-Clause AND Apache-2.0"})
+    bom = _gut()
+    ol = next(k for k in bom["components"] if k.get("name") == "ol")
+    del ol["licenses"]
+    lizenzen.pruefe({"web": bom}, regeln, THIRD_PARTY)  # festgestellt → bestanden
+    ol["version"] = "10.10.1"  # andere Version: Feststellung gilt nicht
+    with pytest.raises(NachweisFehler, match="keine erklärte Lizenz"):
+        lizenzen.pruefe({"web": bom}, regeln, THIRD_PARTY.replace("10.10.0", "10.10.1"))
+
+
+def test_feststellung_ersetzt_keine_erklaerte_lizenz():
+    regeln = lizenzen.Lizenzregeln(REGELN.erlaubt, REGELN.klassifikatoren,
+                                   {("ol", "10.10.0"): "MIT"})
+    bom = _gut()
+    ol = next(k for k in bom["components"] if k.get("name") == "ol")
+    ol["licenses"] = [{"license": {"id": "GPL-3.0-only"}}]
+    with pytest.raises(NachweisFehler, match=r"GPL-3\.0-only nicht erlaubt"):
+        lizenzen.pruefe({"web": bom}, regeln, THIRD_PARTY)
+
+
+def test_feststellungen_laden(tmp_path):
+    datei = tmp_path / "lizenzen.toml"
+    gut = ('erlaubt = ["MIT"]\n[feststellungen]\n"x-y@1.0" = { ausdruck = "MIT", '
+           f'beleg = "LICENSE", sha256 = "{"a" * 64}" }}\n')
+    datei.write_text(gut, encoding="utf-8")
+    assert lizenzen.lade_regeln(datei).feststellungen == {("x-y", "1.0"): "MIT"}
+    for kaputt in (gut.replace("x-y@1.0", "x-y"),
+                   gut.replace('ausdruck = "MIT"', 'ausdruck = "GPL-3.0-only"'),
+                   gut.replace("a" * 64, "kurz"), gut.replace('beleg = "LICENSE", ', ""),
+                   gut.replace("ausdruck", "lizenz")):
+        assert kaputt != gut
+        datei.write_text(kaputt, encoding="utf-8")
+        with pytest.raises(NachweisFehler):
+            lizenzen.lade_regeln(datei)
+
+
+def test_repo_feststellung_embreex_passt_zum_lizenztext():
+    r = lizenzen.lade_regeln(WURZEL / "nachweise" / "lizenzen.toml")
+    assert r.feststellungen[("embreex", "4.4.0")] == "BSD-2-Clause AND Apache-2.0"

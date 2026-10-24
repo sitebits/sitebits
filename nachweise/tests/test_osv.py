@@ -4,6 +4,7 @@ Abdeckung (bom-ref und PURL) und das VEX-Gate mit der Lockdatei `eigenbau.toml`.
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -16,9 +17,9 @@ from scanview_nachweise.fehler import NachweisFehler
 WURZEL = Path(__file__).resolve().parents[2]
 JETZT = datetime(2026, 10, 7, 20, 0, tzinfo=UTC)
 REF = "eigenbau:basis-universal-transcoder@1.50.0"
-REF_ZSTD = f"{REF}/zstd@1.4.9"
+REF_ZSTD = f"{REF}/zstd@1.5.7"
 COMMIT = "051ad6d8a64bb95a79e8601c317055fd1782ad3e"
-COMMIT_ZSTD = "e4558ffd1dc49399faf4ee5d85abed4386b4dcf5"
+COMMIT_ZSTD = "f8745da6ff1ad1e7bab384bd1f9d742439278e99"
 PURL = f"pkg:github/binomialllc/basis_universal@{COMMIT}"
 PURL_ZSTD = f"pkg:github/facebook/zstd@{COMMIT_ZSTD}"
 ZSTD_REPO = "https://github.com/facebook/zstd"
@@ -26,8 +27,10 @@ ZSTD_REPO = "https://github.com/facebook/zstd"
 
 def _osv_attrappe(*, kontrolle_commit: bool = True, kontrolle_tag: bool = True,
                   seiten: bool = False) -> tuple[list[dict[str, Any]], osv.Holen]:
-    """OSV wie am 07.10.2026 gemessen: CVE-2019-11922 für zstd v1.3.7 per Commit und Tag,
-    OSV-2022-15 für zstd nur per Tag v1.4.9, nichts für basis_universal."""
+    """OSV nach dem am 07.10.2026 gemessenen Muster: CVE-2019-11922 für zstd v1.3.7 per Commit
+    und Tag, nichts für basis_universal. Der zstd-Fund kommt nur per Tag — so meldete OSV damals
+    OSV-2022-15 für v1.4.9. Heute ist zstd 1.5.7 eingebaut und ohne Fund; die Attrappe meldet
+    dafür die erfundene Kennung OSV-2098-15, damit der Pfad „nur per Tag“ getestet bleibt."""
     anfragen: list[dict[str, Any]] = []
 
     def holen(nutzlast: dict[str, Any]) -> dict[str, Any]:
@@ -38,11 +41,11 @@ def _osv_attrappe(*, kontrolle_commit: bool = True, kontrolle_tag: bool = True,
         paket = nutzlast.get("package", {})
         if paket.get("name") == ZSTD_REPO and nutzlast.get("version") == osv.KONTROLLE_TAG:
             return {"vulns": [{"id": osv.KONTROLLE_ERWARTET}] if kontrolle_tag else []}
-        if paket.get("name") == ZSTD_REPO and nutzlast.get("version") == "v1.4.9":
+        if paket.get("name") == ZSTD_REPO and nutzlast.get("version") == "v1.5.7":
             if seiten and "page_token" not in nutzlast:
-                return {"vulns": [{"id": "OSV-2022-15", "modified": "2022-01-20"}],
+                return {"vulns": [{"id": "OSV-2098-15", "modified": "2022-01-20"}],
                         "next_page_token": "weiter"}
-            return {"vulns": [{"id": "OSV-2099-1" if seiten else "OSV-2022-15",
+            return {"vulns": [{"id": "OSV-2099-1" if seiten else "OSV-2098-15",
                                "modified": "2022-01-20"}]}
         return {}
 
@@ -54,7 +57,7 @@ def _abfragen() -> list[osv.Abfrage]:
 
 
 TAGS = {("https://github.com/BinomialLLC/basis_universal", "v1_50_0"): COMMIT,
-        (ZSTD_REPO, "v1.4.9"): COMMIT_ZSTD}
+        (ZSTD_REPO, "v1.5.7"): COMMIT_ZSTD}
 
 
 def _tag_commit(repo: str, tag: str) -> str | None:
@@ -96,7 +99,7 @@ def test_abfragen_aus_eigenbau_und_aus_dem_sbom_sind_gleich(tmp_path):
     assert sorted(_abfragen(), key=lambda a: a.bom_ref) == \
         sorted(osv.abfragen_aus_bom(_bom_mit_eigenbau(tmp_path)), key=lambda a: a.bom_ref)
     assert {(a.bom_ref, a.purl, a.tag) for a in _abfragen()} == {
-        (REF, PURL, "v1_50_0"), (REF_ZSTD, PURL_ZSTD, "v1.4.9")}
+        (REF, PURL, "v1_50_0"), (REF_ZSTD, PURL_ZSTD, "v1.5.7")}
 
 
 def test_aktualisieren_fragt_commit_und_tag_und_vereinigt(tmp_path):
@@ -104,10 +107,10 @@ def test_aktualisieren_fragt_commit_und_tag_und_vereinigt(tmp_path):
     stand = osv.aktualisieren(_abfragen(), tmp_path, holen=holen, uhr=lambda: JETZT,
                               tag_commit=_tag_commit)
     je_ref = {a.bom_ref: [f.id for f in fs] for a, fs in stand.funde.items()}
-    # OSV-2022-15 kommt nur über den Tag — ohne Tag-Abfrage bliebe er unsichtbar.
-    assert je_ref == {REF: [], REF_ZSTD: ["OSV-2022-15"]}
+    # OSV-2098-15 kommt nur über den Tag — ohne Tag-Abfrage bliebe er unsichtbar.
+    assert je_ref == {REF: [], REF_ZSTD: ["OSV-2098-15"]}
     assert {"commit": COMMIT_ZSTD} in anfragen
-    assert {"package": {"name": ZSTD_REPO, "ecosystem": "GIT"}, "version": "v1.4.9"} in anfragen
+    assert {"package": {"name": ZSTD_REPO, "ecosystem": "GIT"}, "version": "v1.5.7"} in anfragen
     gespeichert = json.loads((tmp_path / osv.OSV_STAND).read_text(encoding="utf-8"))
     assert gespeichert["kontrolle"]["gefunden"] == ["CVE-2019-11922", "OSV-2020-1"]
     assert osv.lade_stand(tmp_path, JETZT + timedelta(hours=1)).funde == stand.funde
@@ -123,7 +126,7 @@ def test_blinde_gegenprobe_bricht_ab_und_schreibt_nichts(tmp_path, weg):
 def test_folgeseiten_werden_gelesen(tmp_path):
     stand = _stand(tmp_path, seiten=True)
     zstd = next(fs for a, fs in stand.funde.items() if a.bom_ref == REF_ZSTD)
-    assert [f.id for f in zstd] == ["OSV-2022-15", "OSV-2099-1"]
+    assert [f.id for f in zstd] == ["OSV-2098-15", "OSV-2099-1"]
 
 
 def test_eigenbau_ohne_github_purl_ist_nicht_abfragbar():
@@ -207,7 +210,7 @@ def test_negativ_anderer_commit_als_im_stand_bleibt_pflicht(tmp_path):
 
 def _aussage(lockdatei: str, lock_hash: str) -> vex.VexAussage:
     return vex.VexAussage(
-        schwachstelle="OSV-2022-15", produkte=(PURL_ZSTD,), status="not_affected",
+        schwachstelle="OSV-2098-15", produkte=(PURL_ZSTD,), status="not_affected",
         justification="vulnerable_code_not_present",
         impact_statement="Betroffen ist ZSTD_compressBlock_opt0 (Kompressor); eingebaut ist nur "
                          "zstd/zstddeclib.c (Decoder), die Funktion fehlt dort.",
@@ -218,9 +221,9 @@ def test_osv_fund_ist_hoch_und_blockiert_ohne_vex(tmp_path):
     bom = _bom_mit_eigenbau(tmp_path)
     t = osv.treffer(bom, _stand(tmp_path), "web")
     assert [(x.id, x.paket, x.schwere, x.bom_ref) for x in t] == [
-        ("OSV-2022-15", PURL_ZSTD, "hoch", REF_ZSTD)]
+        ("OSV-2098-15", PURL_ZSTD, "hoch", REF_ZSTD)]
     assert vex.treffer_gate(t, [], date(2026, 10, 7)) == [
-        f"OSV-2022-15 (hoch) {PURL_ZSTD}: keine freigebende VEX-Aussage"]
+        f"OSV-2098-15 (hoch) {PURL_ZSTD}: keine freigebende VEX-Aussage"]
 
 
 def _lock_hashes(tmp_path: Path) -> dict[str, str]:
@@ -308,7 +311,7 @@ def test_vex_widerruf_ueber_alias(tmp_path):
     stand = _stand(tmp_path)
     zstd = next(a for a in stand.funde if a.bom_ref == REF_ZSTD)
     stand = osv.OsvStand(stand.zeit, {**stand.funde,
-                                      zstd: (osv.Fund("OSV-2022-15", ("CVE-2099-7",), ""),)})
+                                      zstd: (osv.Fund("OSV-2098-15", ("CVE-2099-7",), ""),)})
     t = osv.treffer(bom, stand, "web")
     locks = _lock_hashes(tmp_path)
     h = locks[vex.EIGENBAU_LOCKDATEI]
@@ -374,7 +377,7 @@ def test_gleiche_id_aus_commit_und_tag_vereinigt_die_aliase(tmp_path):
     def holen(nutzlast: dict[str, Any]) -> dict[str, Any]:
         if nutzlast.get("commit") == COMMIT_ZSTD:
             return {"vulns": [{"id": "OSV-2099-1", "modified": "2025-01-01"}]}
-        if nutzlast.get("version") == "v1.4.9":
+        if nutzlast.get("version") == "v1.5.7":
             return {"vulns": [{"id": "OSV-2099-1", "aliases": ["CVE-2099-7"],
                                "modified": "2026-01-01"}]}
         return basis(nutzlast)
@@ -385,3 +388,16 @@ def test_gleiche_id_aus_commit_und_tag_vereinigt_die_aliase(tmp_path):
     (fund,) = next(fs for a, fs in stand.funde.items() if a.bom_ref == REF_ZSTD)
     assert fund.aliases == ("CVE-2099-7",)
     assert fund.modified == "2026-01-01"
+
+
+def test_repo_eigenbau_zstd_ab_1_5_2_und_wie_im_bauskript():
+    # B-LK-ZSTD: OSV-2022-15 betrifft zstd v1.4.8 bis v1.5.1 (behoben ab v1.5.2). Der
+    # Basis-Transcoder baut den Decoder von zstd selbst; erklärte Version und der Commit, den
+    # bauen.sh tatsächlich holt, müssen übereinstimmen und hinter dem betroffenen Bereich liegen.
+    (e,) = sbom.lade_eigenbau(WURZEL / "nachweise" / "eigenbau.toml")
+    (z,) = [c for c in e.enthalten if c.name == "zstd"]
+    assert tuple(int(x) for x in z.version.split(".")) >= (1, 5, 2)
+    assert z.tag == f"v{z.version}"
+    skript = (WURZEL / e.bau).read_text(encoding="utf-8")
+    treffer = re.search(r"^ZSTD_COMMIT=([0-9a-f]{40})\b", skript, re.MULTILINE)
+    assert treffer is not None and treffer.group(1) == z.commit

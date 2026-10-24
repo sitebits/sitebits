@@ -2,9 +2,9 @@
    Klicks zur Ansicht durch (pointer-events). Nur Variablen aus tokens.css. */
 #panels { position: absolute; inset: 0; pointer-events: none; font: var(--sv-font); color: var(--sv-fg); }
 .sv-dock { position: absolute; display: flex; flex-direction: column; gap: var(--sv-gap); pointer-events: none; }
-.sv-dock[data-dock='left'] { top: 56px; bottom: 8px; left: 8px; justify-content: flex-start; }
-.sv-dock[data-dock='right'] { top: 56px; bottom: 8px; right: 8px; justify-content: flex-end; }
-.sv-dock[data-dock='bottom'] { left: 50%; transform: translateX(-50%); bottom: 8px; flex-direction: row; align-items: flex-end; max-width: 60%; }
+.sv-dock[data-dock='left'] { top: calc(var(--sv-sa-oben) + 56px); bottom: calc(var(--sv-sa-unten) + 8px); left: calc(var(--sv-sa-links) + 8px); justify-content: flex-start; }
+.sv-dock[data-dock='right'] { top: calc(var(--sv-sa-oben) + 56px); bottom: calc(var(--sv-sa-unten) + 8px); right: calc(var(--sv-sa-rechts) + 8px); justify-content: flex-end; }
+.sv-dock[data-dock='bottom'] { left: 50%; transform: translateX(-50%); bottom: calc(var(--sv-sa-unten) + 8px); flex-direction: row; align-items: flex-end; max-width: 60%; }
 .sv-frame { box-sizing: border-box; pointer-events: auto; display: flex; flex-direction: column; min-height: 0; max-height: 100%;
   background: var(--sv-surface); border: 1px solid var(--sv-border); border-radius: var(--sv-radius); overflow: hidden; }
 .sv-float-layer .sv-frame { position: absolute; box-shadow: 0 6px 24px #0008; }
@@ -34,9 +34,11 @@
 .sv-move-menu { position: absolute; z-index: 10; display: flex; flex-direction: column; padding: var(--sv-gap);
   background: var(--sv-surface); border: 1px solid var(--sv-border); border-radius: var(--sv-radius); pointer-events: auto; }
 .sv-move-menu[hidden] { display: none; }
-#panel-menu { position: absolute; top: 8px; right: 8px; font: var(--sv-font); }
+#panel-menu { position: absolute; top: calc(var(--sv-sa-oben) + 8px); right: calc(var(--sv-sa-rechts) + 8px); font: var(--sv-font); }
 #panel-menu > button { height: 32px; padding: 0 var(--sv-pad); background: var(--sv-surface); color: var(--sv-fg);
   border: 1px solid var(--sv-border); border-radius: var(--sv-radius); cursor: pointer; font: inherit; }
+/* Symbol nur auf dem Handy (dort ohne sichtbaren Text, unten). */
+#panel-menu > button svg { display: none; width: var(--sv-icon); height: var(--sv-icon); fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linejoin: round; }
 #panel-menu [role='menu'] { position: absolute; right: 0; top: 36px; min-width: 220px; display: flex; flex-direction: column; padding: var(--sv-gap);
   background: var(--sv-surface); border: 1px solid var(--sv-border); border-radius: var(--sv-radius); }
 #panel-menu [role='menu'][hidden] { display: none; }
@@ -44,15 +46,39 @@
 #panel-menu [role^='menuitem']:hover, #panel-menu [role^='menuitem']:focus-visible { background: var(--sv-surface-hover); outline: none; }
 #panel-menu [aria-checked='true']::before { content: '✓ '; }
 #panel-menu [aria-checked='false']::before { content: '   '; white-space: pre; }
-/* Mobil (L6): Blatt unten über die volle Breite, kein Ziehen (panels.ts setzt data-mobile). */
-#panels[data-mobile='true'] .sv-dock[data-dock='bottom'] { left: 0; right: 0; transform: none; max-width: none; bottom: 0; }
+/* Handy (panels.ts setzt data-mobile; immer nur ein Panel offen): ein Blatt unten über die volle Breite, höchstens
+   45 % der sichtbaren Höhe — das Modell bleibt zur Hälfte frei. dvh statt vh: in iOS Safari meint 100vh die Höhe
+   ohne Adressleiste, das Blatt liefe sonst unter die Leiste. Kein Ziehen; Kopf mit Tippzielen von 44 px; der Rand
+   unten hält den Home-Indikator frei. */
+#panels[data-mobile='true'] .sv-dock[data-dock='bottom'] { left: var(--sv-sa-links); right: var(--sv-sa-rechts); transform: none; max-width: none; bottom: var(--sv-sa-unten); }
 /* render() setzt frame.style.flex='0 1 auto' inline (Desktop-Vorgabe) — hier mit !important übersteuern,
    sonst bleibt das Blatt schmal statt über die volle Breite. */
-#panels[data-mobile='true'] .sv-dock[data-dock='bottom'] .sv-frame { flex: 1 !important; max-height: 45vh; border-radius: var(--sv-radius) var(--sv-radius) 0 0; }
-#panels[data-mobile='true'] .sv-frame-head { cursor: default; }
-/* #panel-menu sitzt sonst neben der Werkzeugleiste (L4) — auf schmalen Fenstern kollidiert das mit dem
-   Toolbar-Ende; unter die Leiste setzen, an derselben Marke wie die Leisten selbst (top: 56px). */
-#panels[data-mobile='true'] + #panel-menu { top: 56px; }
+#panels[data-mobile='true'] .sv-dock[data-dock='bottom'] .sv-frame { flex: 1 !important; max-height: 45vh; max-height: calc(45dvh - var(--sv-sa-unten));
+  background: #1b1d21f7; }
+/* Touch mit Desktop-Layout (Tablet): Kopfknöpfe mindestens 32 px statt 19–22 px (WCAG 2.5.8 verlangt 24). */
+@media (pointer: coarse) {
+  .sv-frame-head { height: 32px; }
+  .sv-frame-head button { min-width: 32px; min-height: 32px; }
+  .sv-frame-body :is(input, select, button), .sv-fotos-werkzeug input { min-height: 24px; }
+  .sv-frame-body label:has(input) { display: inline-flex; align-items: center; min-height: 24px; }
+}
+#panels[data-mobile='true'] .sv-frame-head { cursor: default; height: var(--sv-tippziel); }
+#panels[data-mobile='true'] .sv-frame-head button { min-width: var(--sv-tippziel); min-height: var(--sv-tippziel); font-size: 15px; }
+#panels[data-mobile='true'] .sv-frame-head [role='tablist'] { overflow-x: auto; scrollbar-width: none; }
+#panels[data-mobile='true'] .sv-frame-head [role='tab'] { flex: 0 0 auto; }
+#panels[data-mobile='true'] .sv-frame-head .sv-move { display: none; }
+/* Inhalt der Panels: Tippziele mindestens 32 px (WCAG 2.5.8 verlangt 24), lil-gui-Zeilen entsprechend höher. */
+#panels[data-mobile='true'] .sv-frame-body { padding: var(--sv-pad) calc(var(--sv-pad) + 2px); }
+#panels[data-mobile='true'] .sv-frame-body :is(button, select, input:not([type='checkbox']):not([type='radio']):not([type='range'])) { min-height: 32px; }
+#panels[data-mobile='true'] .sv-frame-body input[type='checkbox'] { width: 20px; height: 20px; }
+#panels[data-mobile='true'] .sv-frame-body summary { min-height: 32px; display: list-item; line-height: 32px; }
+#panels[data-mobile='true'] .lil-gui { --widget-height: 32px; --spacing: 6px; --font-size: 13px; --input-font-size: 14px; }
+/* Fenster-Menü auf dem Handy: nur das Symbol, Tippziel 44 px, Einträge ebenso hoch. */
+#panels[data-mobile='true'] + #panel-menu > button { width: var(--sv-tippziel); height: var(--sv-tippziel); padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+#panels[data-mobile='true'] + #panel-menu > button svg { display: block; }
+#panels[data-mobile='true'] + #panel-menu > button .sv-knopf-text { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+#panels[data-mobile='true'] + #panel-menu [role='menu'] { top: calc(var(--sv-tippziel) + 4px); max-height: calc(100dvh - var(--sv-zeile) - 16px); overflow-y: auto; }
+#panels[data-mobile='true'] + #panel-menu [role^='menuitem'] { min-height: var(--sv-tippziel); font-size: 15px; }
 
 /* Ebenen-Panel: je Ebene eine Zeile Schalter · Titel · Art, darunter Hinweise und Regler. */
 .sv-ebenen { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sv-gap); }
@@ -68,6 +94,34 @@
 .sv-ebene-genauigkeit summary { cursor: pointer; }
 .sv-ebene-genauigkeit small { display: block; color: var(--sv-fg-muted); }
 .sv-ebenen > li > input[type='range'] { flex: 1 1 0; min-width: 80px; margin-left: 22px; }
+
+/* Panel „Sonne“ */
+.sv-sonne { display: flex; flex-direction: column; gap: var(--sv-gap); }
+.sv-sonne-regler { display: grid; grid-template-columns: 4.5em 1fr auto; align-items: center; gap: 6px; }
+.sv-sonne-regler > input[type='range'] { min-width: 80px; }
+.sv-sonne-regler > output { min-width: 6.5em; text-align: right; font-variant-numeric: tabular-nums; }
+.sv-sonne-knoepfe { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.sv-sonne-werte { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-variant-numeric: tabular-nums; }
+.sv-sonne-werte dt { color: var(--sv-fg-muted); }
+.sv-sonne-werte dd { margin: 0; }
+.sv-sonne-status { margin: 0; min-height: 1.2em; font-size: 12px; }
+.sv-sonne-hinweis { margin: 0; }
+.sv-sonne-ort { color: var(--sv-fg-muted); font-size: 12px; }
+.sv-kp { display: flex; flex-direction: column; gap: var(--sv-gap); }
+.sv-kp-leiste { display: flex; flex-wrap: wrap; gap: 6px; }
+.sv-kp-info, .sv-kp-status, .sv-kp-hinweis { margin: 0; font-size: 12px; }
+.sv-kp-status { min-height: 1.2em; }
+.sv-kp .muted { color: var(--sv-fg-muted); }
+.sv-kp-tabelle { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.sv-kp-tabelle th { text-align: left; font-weight: 600; color: var(--sv-fg-muted); padding: 2px 4px; }
+.sv-kp-tabelle td { padding: 2px 4px; border-top: 1px solid var(--sv-border); vertical-align: top; }
+.sv-kp-tabelle tr[aria-current='true'] { background: var(--sv-surface-hover); }
+.sv-kp-rahmen { overflow-x: auto; }
+.sv-kp-angebot { border: 1px solid var(--sv-accent); border-radius: 4px; padding: 6px; }
+.sv-kp-angebot p { margin: 0 0 6px; }
+.sv-kp-aktion { display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.sv-kp-aktion button[aria-pressed='true'] { background: var(--sv-accent); color: var(--sv-accent-fg); border-color: var(--sv-accent); }
+.sv-kp-go { font-weight: 600; }
 
 /* Fotogalerie (Panel „Fotos“) und Foto-Fenster */
 .sv-galerie-schalter { display: block; padding: 4px 0; font-size: 12px; }
@@ -108,13 +162,10 @@
 .sv-foto-polygon { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 55; fill: #33d1ff22; stroke: var(--sv-accent); stroke-width: 2px; }
 .sv-foto-kreuz { position: fixed; pointer-events: none; z-index: 54; color: var(--sv-warn); font-size: 28px; transform: translate(-50%, -50%); }
 .sv-foto-seite[hidden], .sv-fotos-werkzeug[hidden], .sv-foto-trenner[hidden] { display: none; }
-/* Mobil quer (Handy gekippt, 17.10.): das Blatt rechts über die volle Höhe statt unten; Leiste, Panel-Menü und
-   Hinweise rücken links daneben. render() setzt die Dockhöhe inline — daher !important. */
-#panels[data-mobile='true'][data-quer='true'] .sv-dock[data-dock='bottom'] { left: auto; right: 0; top: 0; bottom: 0;
-  width: min(42vw, 340px) !important; height: auto !important; }
-#panels[data-mobile='true'][data-quer='true'] .sv-dock[data-dock='bottom'] .sv-frame { max-height: 100vh;
-  border-radius: var(--sv-radius) 0 0 var(--sv-radius); }
-#panels[data-mobile='true'][data-quer='true'] + #panel-menu { top: 8px; right: calc(min(42vw, 340px) + 8px); }
-body:has(#panels[data-quer='true']) #toolbar { margin-left: 8px; margin-right: auto; max-width: calc(100vw - min(42vw, 340px) - 120px); }
-body:has(#panels[data-quer='true']) .sv-hinweise,
-body:has(#panels[data-quer='true']) #scan-hint { right: calc(min(42vw, 340px) + 8px); left: auto; transform: none; bottom: 8px; }
+/* Handy quer: das Blatt rechts über die volle Höhe statt unten, sonst bliebe vom Bild kaum etwas. render() setzt die
+   Dockhöhe inline — daher !important. Das Fenster-Menü rückt links neben ein offenes Blatt. Blätter bleiben innerhalb der sicheren Ränder. */
+#panels[data-mobile='true'][data-quer='true'] .sv-dock[data-dock='bottom'] { left: auto; right: var(--sv-sa-rechts); top: var(--sv-sa-oben); bottom: var(--sv-sa-unten);
+  width: min(42vw, 340px) !important; height: auto !important; align-items: stretch; }
+#panels[data-mobile='true'][data-quer='true'] .sv-dock[data-dock='bottom'] .sv-frame { max-height: none; height: 100%; }
+#panels[data-mobile='true'][data-quer='true']:has(.sv-frame) + #panel-menu { right: calc(min(42vw, 340px) + var(--sv-sa-rechts) + 8px); }
+body.sv-handy .sv-fotos-werkzeug { top: calc(var(--sv-zeile) + 8px); left: calc(var(--sv-sa-links) + 8px); right: calc(var(--sv-sa-rechts) + 8px); transform: none; max-width: none; }

@@ -4,7 +4,7 @@ import { measurementsCsv } from '../src/measureCsv';
 import { MessungSync, messungDaten } from '../src/serverMessungen';
 import { PoiStore, parsePoiFile } from '../src/poiStore';
 import { pruefeEntwurf } from '../src/befundEntwurf';
-import { sourceLabel, measurementNotes, sourceReusable } from '../src/pointSources';
+import { sourceLabel, measurementNotes, sourceReusable, anzeigeSprache } from '../src/pointSources';
 import type { PointSource } from '../src/pointSources';
 const mesh: PointSource = {source:'mesh',layerId:'modell'};
 it('Quellen überstehen Eckpunktänderung, Einfügen, Entfernen, Undo, Server und JSON', () => {
@@ -51,4 +51,13 @@ it('Panorama übernimmt keine gespeicherten Mesh-Eckpunkte als Fangpunkte', () =
  expect(sourceReusable({source:'pointcloud',layerId:'punkte'},true)).toBe(true);
  expect(sourceReusable(null,true)).toBe(true);
  expect(sourceReusable(mesh,false)).toBe(true);
+});
+
+it('Modellmaß aus mehreren Ebenen ist eine Meldung mit allen Quellen, auf Englisch nach Browsersprache', () => {
+ const m={pointSources:[mesh,{source:'mesh',layerId:'b'} as PointSource,mesh]};
+ const layers=[{id:'modell',title:'A',provenance:{scaleVerified:false,interpolated:false,scaleSource:'unit:file'}},
+   {id:'b',title:'B',provenance:{scaleVerified:false,interpolated:true,scaleSource:'unit:cli'}}];
+ expect(measurementNotes(m,layers)).toEqual(['Modellmaß — Maßstab nicht belegt (Quelle: unit:file, unit:cli)','Modelloberfläche (teils interpoliert)']);
+ expect(measurementNotes(m,layers,'en')).toEqual(['Model units — scale not verified (source: unit:file, unit:cli)','Model surface (partly interpolated)']);
+ expect(anzeigeSprache(['de-DE','en'])).toBe('de'); expect(anzeigeSprache(['en-US','de'])).toBe('de'); expect(anzeigeSprache(['en-GB'])).toBe('en');
 });

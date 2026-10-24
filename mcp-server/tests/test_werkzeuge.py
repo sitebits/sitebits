@@ -28,6 +28,8 @@ TOKEN = "sv_GEHEIM-token-wert_0123456789abcdefghijklmnop"
 URL = "https://scanview.test"
 PID = "ost"
 EID = "P-1"
+AID = "0123456789abcdef"
+UID = "0123456789abcdef0123456789abcdef"
 
 ENDPUNKTE: list[dict[str, str]] = json.loads(
     resources.files("scanview_mcp").joinpath("endpunkte.json").read_text(encoding="utf-8")
@@ -65,7 +67,7 @@ def fehler(status: int, text: str, **mehr: Any) -> Handler:
 
 
 def pfad(vorlage: str) -> str:
-    return vorlage.replace("{pid}", PID).replace("{eid}", EID)
+    return vorlage.replace("{pid}", PID).replace("{eid}", EID).replace("{aid}", AID)
 
 
 POI_DATEN = {"title": "Schaden", "position": [1.5, -2.0, 3.25]}
@@ -124,6 +126,18 @@ AUFRUFE: dict[str, tuple[dict[str, Any], Any, dict[str, str]]] = {
     ),
     "gewerke_lesen": ({"projekt_id": PID}, None, {}),
     "paket_lesen": ({"projekt_id": PID}, None, {}),
+    "auswertung_starten": (
+        {"projekt_id": PID, "typ": "auswerten_pruefen",
+         "optionen": {"profil": "bestandserfassung"}},
+        {"typ": "auswerten_pruefen", "optionen": {"profil": "bestandserfassung"}}, {},
+    ),
+    "auswertung_status": ({"projekt_id": PID}, None, {}),
+    "auswertung_lesen": ({"projekt_id": PID, "auswertung_id": AID}, None, {}),
+    "import_starten": (
+        {"upload_id": UID, "auftragstyp": "neu_splats", "optionen": {"projekt": "neu"}},
+        {"upload": UID, "typ": "neu_splats", "optionen": {"projekt": "neu"}}, {},
+    ),
+    "import_status": ({}, None, {}),
 }
 
 
@@ -136,12 +150,12 @@ def standard_antwort(request: httpx.Request) -> httpx.Response:
 # --- Tabelle -------------------------------------------------------------------------------------
 
 def test_endpunkte_tabelle_vollstaendig() -> None:
-    assert len(ENDPUNKTE) == 21
+    assert len(ENDPUNKTE) == 26
     assert set(TABELLE) == set(werkzeuge.WERKZEUGE) == set(AUFRUFE)
     for e in ENDPUNKTE:
         assert set(e) == {"werkzeug", "methode", "pfad"}
         assert e["methode"] in {"GET", "POST", "PATCH", "DELETE"}
-        assert e["pfad"].startswith("/api/v1/projekte")
+        assert e["pfad"].startswith(("/api/v1/projekte", "/api/v1/importe"))
 
 
 # --- Leitung: Methode, Pfad, Körper, Bearer, kein Cookie -----------------------------------------
@@ -452,7 +466,7 @@ def test_stdio_rauchtest_tools_list() -> None:
     async def ablauf() -> None:
         async with McpClient(params) as k:
             tools = (await k.list_tools()).tools
-            assert len(tools) == 21
+            assert len(tools) == 26
             assert sorted(t.name for t in tools) == sorted(TABELLE)
             r = await k.call_tool("projekte_auflisten", {})
             assert r.is_error
@@ -575,3 +589,105 @@ def test_409_ohne_stand_nennt_servertext() -> None:
     with pytest.raises(ToolError) as e:
         werkzeuge.frist_setzen(c, projekt_id=PID, poi_id=EID, version=3, frist="2026-11-30")
     assert "schon offen" in str(e.value) and "geändert" not in str(e.value)
+
+
+# --- Auswertungen ---------------------------------------------------------------------------------
+
+ERGEBNIS = {
+    "katalog": {"titel": "Bestandserfassung", "datei": "bestandserfassung.toml", "sha256": "ab"},
+    "gesamt": {"urteil": "nicht erfüllt", "zaehlung": {"erfüllt": 1, "nicht erfüllt": 1}},
+    "eingaenge_sha256": {"wolke/geheim.laz": "cd"},
+    "versionen": {"python": "3.12"},
+    "zeilen": [{"id": "L01", "anforderung": "Bezugssystem", "pruefart": "crs",
+                "parameter": {"epsg": 25833}, "urteil": "erfüllt", "grund": "passt",
+                "belege": ["wolke/a.laz"], "karten": ["L01-a.png"],
+                "tabelle": [{"punkt": "K1", "dz": 0.01}]}],
+}
+
+
+def test_auswertung_lesen_liefert_nur_urteile_keine_rohdaten() -> None:
+    c, auf = client_mit(ok(ERGEBNIS))
+    e = werkzeuge.auswertung_lesen(c, PID, AID)
+    assert auf.anfragen[-1].url.path == f"/api/v1/projekte/{PID}/auswertungen/{AID}/ergebnis"
+    assert set(e) == {"katalog", "gesamt", "zeilen"}
+    assert e["gesamt"]["urteil"] == "nicht erfüllt"
+    assert e["zeilen"] == [{"id": "L01", "anforderung": "Bezugssystem", "pruefart": "crs",
+                            "parameter": {"epsg": 25833}, "urteil": "erfüllt", "grund": "passt",
+                            "belege": ["wolke/a.laz"]}]
+    text = json.dumps(e)
+    assert "geheim.laz" not in text and "tabelle" not in text and "karten" not in text
+
+
+@pytest.mark.parametrize("aid", ["../x", "0123456789ABCDEF", "0123", "0123456789abcdef/../a", ""])
+def test_auswertung_ids_werden_vor_dem_aufruf_geprueft(aid: str) -> None:
+    c, auf = client_mit(ok())
+    with pytest.raises(ToolError, match="Auswertungs-ID ungültig"):
+        werkzeuge.auswertung_lesen(c, PID, aid)
+    with pytest.raises(ToolError, match="Auswertungs-ID ungültig"):
+        werkzeuge.auswertung_status(c, PID, aid)
+    assert auf.anfragen == []
+
+
+@pytest.mark.parametrize("typ", ["../x", "auswerten pruefen", "A", 3])
+def test_auswertung_starten_prueft_typ_und_optionen(typ: Any) -> None:
+    c, auf = client_mit(ok())
+    with pytest.raises(ToolError, match="Auswertungstyp ungültig"):
+        werkzeuge.auswertung_starten(c, PID, typ)
+    with pytest.raises(ToolError, match="optionen muss ein Objekt"):
+        falsch: Any = ["profil"]
+        werkzeuge.auswertung_starten(c, PID, "auswerten_pruefen", falsch)
+    assert auf.anfragen == []
+
+
+def test_auswertung_status_filtert_eine_und_meldet_fehlende() -> None:
+    liste = {"auswertungen": [{"id": AID, "status": "fertig"},
+                              {"id": "f" * 16, "status": "wartend"}], "worker": "aktiv"}
+    c, _auf = client_mit(ok(liste))
+    assert werkzeuge.auswertung_status(c, PID, AID) == {"id": AID, "status": "fertig",
+                                                         "worker": "aktiv"}
+    assert werkzeuge.auswertung_status(c, PID) == liste
+    with pytest.raises(ToolError, match="404"):
+        werkzeuge.auswertung_status(c, PID, "e" * 16)
+
+
+def test_auswertung_starten_meldet_serverabsage_verstaendlich() -> None:
+    c, _auf = client_mit(fehler(422, "Unbekanntes Profil. Erlaubt: bestandserfassung."))
+    with pytest.raises(ToolError, match="Unbekanntes Profil"):
+        werkzeuge.auswertung_starten(c, PID, "auswerten_pruefen", {"profil": "x"})
+    c, _auf = client_mit(fehler(403, "Auswertungen starten und verwalten nur Projektleitung."))
+    with pytest.raises(ToolError, match="403"):
+        werkzeuge.auswertung_starten(c, PID, "auswerten_pruefen")
+
+
+def test_auswertung_status_datensparsam_pseudonymisiert_startende_person() -> None:
+    liste = {"auswertungen": [{"id": AID, "erstelltVon": 7, "erstelltVonName": "Erika Muster"}],
+             "worker": "aktiv"}
+    c, _auf = client_mit(ok(liste))
+    a = werkzeuge.auswertung_status(c, PID, AID)
+    assert "Erika" not in json.dumps(a)
+    assert a["erstelltVon"] == a["erstelltVonName"] and a["erstelltVon"].startswith("Konto-")
+
+
+@pytest.mark.parametrize(("upload", "typ", "optionen"), [
+    ("x" * 32, "neu_mesh", {"projekt": "neu"}),
+    (UID, "neu_wolke", {"projekt": "neu"}),
+    (UID, "auswerten_pruefen", {"projekt": "neu"}),
+    (UID, "neu_mesh", {}),
+    (UID, "neu_mesh", {"projekt": "../x"}),
+    (UID, "neu_mesh", {"projekt": "neu", "datei": "/etc/passwd"}),
+    (UID, "neu_mesh", {"projekt": "neu", "crs": 25833}),
+])
+def test_import_starten_prueft_vor_dem_aufruf(upload: str, typ: str, optionen: Any) -> None:
+    c, auf = client_mit(standard_antwort)
+    with pytest.raises(ToolError):
+        werkzeuge.import_starten(c, upload, typ, optionen)
+    assert auf.anfragen == []
+
+
+def test_import_status_filtert_nach_projekt() -> None:
+    liste = {"importe": [{"id": AID, "projekt": "neu"}, {"id": "e" * 16, "projekt": "alt"}],
+             "worker": "aktiv"}
+    c, _auf = client_mit(ok(liste))
+    assert werkzeuge.import_status(c, "neu") == {"importe": [{"id": AID, "projekt": "neu"}],
+                                                 "worker": "aktiv"}
+    assert werkzeuge.import_status(c) == liste

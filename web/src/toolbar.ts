@@ -189,9 +189,11 @@ export function createToolbar(
     vollbild.setAttribute('aria-pressed', 'false');
     vollbild.addEventListener('click', onVollbild);
   }
-  // Handy: Teilen, Messliste, Hilfe, Einstellungen, Vollbild hinter „Mehr“ (die Leiste passte nicht aufs iPhone,
-  // 17.10.); auf breiten Fenstern ist „Mehr“ ausgeblendet und alles sichtbar (toolbar.css).
-  const ueberlauf = [teilen, list, hilfe, einstellungen, ...(vollbild ? [vollbild] : [])];
+  // Handy: Polylinie, Fläche, Höhe, Teilen, Messliste, Hilfe, Einstellungen, Vollbild hinter „Mehr“ — in der Zeile
+  // bleiben Navigieren, Strecke, Markieren, Begehen; ein gewähltes Werkzeug aus „Mehr“ bleibt sichtbar (toolbar.css).
+  // Auf breiten Fenstern ist „Mehr“ ausgeblendet und alles sichtbar.
+  const ueberlauf = [toolButtons.get('polyline')!, toolButtons.get('area')!, toolButtons.get('height')!,
+    teilen, list, hilfe, einstellungen, ...(vollbild ? [vollbild] : [])];
   for (const b of ueberlauf) b.classList.add('sv-ueberlauf');
   const mehr = button('Mehr', ICON.mehr);
   mehr.classList.add('sv-mehr');

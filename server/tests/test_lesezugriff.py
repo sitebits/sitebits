@@ -550,7 +550,16 @@ def _alle_routen(routen: Any) -> list[tuple[str, set[str]]]:
 
 
 # Leserouten unter /api/v1/projekte/{pid}, die bewusst keinen Eintrag erzeugen, mit Begründung.
-AUSNAHMEN: dict[str, str] = {}
+AUSNAHMEN: dict[str, str] = {
+    "/api/v1/projekte/{pid}/auswertungen":
+        "nur Auftragsstatus, kein Inhalt; braucht jobs.db (Inhalte siehe test_auswertungen)",
+    "/api/v1/projekte/{pid}/auswertungen/{aid}":
+        "nur Status und Urteil des Auftrags, kein Inhalt aus dem Paket",
+    "/api/v1/projekte/{pid}/auswertungen/{aid}/ergebnis":
+        "wird erfasst (art api, objekt auswertung/<id>) — geprüft in test_auswertungen.py",
+    "/api/v1/projekte/{pid}/auswertungen/{aid}/bericht":
+        "wird erfasst (art api, objekt auswertung/<id>) — geprüft in test_auswertungen.py",
+}
 
 
 def test_jede_leseroute_erzeugt_einen_eintrag_oder_ist_begruendet_ausgenommen(

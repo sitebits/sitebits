@@ -1,0 +1,77 @@
+# scanview-import-worker — systemd-Unit für den Jobläufer (Auswertungen isoliert rechnen).
+# Installiert von einrichten.sh nach /etc/systemd/system/, nur mit SCANVIEW_JOBLAEUFER=1 in
+# /etc/scanview/scanview-joblaeufer.env (ab Werk aus). Dazu legt einrichten.sh ein Drop-in
+# scanview-import-worker.service.d/laufzeit.conf mit der uid des Nutzers an (XDG_RUNTIME_DIR,
+# Freigabe von /run/user/<uid>, Abhängigkeit von user@<uid>.service) — systemd kennt in einer
+# System-Unit keinen Platzhalter für die uid von User= (%U ist dort 0).
+#
+# Besonderheiten:
+#  - Der Worker rechnet nicht selbst: jeder Auftrag ist eine transiente Unit im User-Manager des
+#    Nutzers scanview-import (`systemd-run --user`, Linger an). Deshalb liegt die RAM-Grenze für
+#    alle Aufträge zusammen auf user@<uid>.service (Drop-in von einrichten.sh, Wert aus
+#    SCANVIEW_JOBS_RAM_GB); MemoryMax hier begrenzt nur die Warteschlange selbst.
+#  - Der Weg zum User-Manager ist ein Unix-Socket ($XDG_RUNTIME_DIR/bus, braucht
+#    dbus-user-session): darum AF_UNIX erlaubt und /run/user/<uid> trotz ProtectHome sichtbar.
+#    Kein IP-Netz (PrivateNetwork, IPAddressDeny).
+#  - Exit 3 = Selbsttest der Isolation gescheitert: kein Neustart in Schleife
+#    (RestartPreventExitStatus), die Unit bleibt „failed“ und einrichten.sh bricht laut ab.
+[Unit]
+Description=scanview-Jobläufer (Auswertungen isoliert rechnen)
+After=network.target scanview-server.service
+
+[Service]
+Type=exec
+User=scanview-import
+Group=scanview-import
+# scanview: Pakete nur lesen (/srv/scanview/data ist root:scanview 0750, Dateien 0640).
+# scanview-jobs: jobs.db mit dem Webdienst teilen, Berichte schreiben (setgid-Ordner).
+SupplementaryGroups=scanview scanview-jobs
+WorkingDirectory=/
+EnvironmentFile=/etc/scanview/scanview-server.env
+EnvironmentFile=/etc/scanview/scanview-joblaeufer.env
+# Fest, nicht Sache des Betreibers: Aufträge im User-Manager; /home im Auftrag leer; der Auftrag
+# sieht weder Zustand des Webdienstes noch Auftragsdatenbank, Eingang, Konfiguration, Home des
+# Worker-Nutzers, Sicherungen oder Protokolle.
+Environment=SCANVIEW_JOBS_SYSTEMD=user
+Environment=SCANVIEW_JOBS_PROTECT_HOME=tmpfs
+Environment=SCANVIEW_JOBS_UNSICHTBAR=/srv/scanview/state:/srv/scanview/jobs:/srv/scanview/eingang:/etc/scanview:/var/lib/scanview-import:/var/backups/scanview:/var/log/scanview
+ExecStart=/opt/scanview/server/.venv/bin/scanview-import-worker
+Restart=on-failure
+RestartSec=10
+RestartPreventExitStatus=3
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateNetwork=yes
+ProtectSystem=strict
+# tmpfs statt yes: /run/user/<uid> kommt per Drop-in (BindReadOnlyPaths) zurück.
+ProtectHome=tmpfs
+ReadWritePaths=/srv/scanview/jobs /srv/scanview/berichte
+ReadOnlyPaths=/srv/scanview/data
+InaccessiblePaths=/srv/scanview/state /srv/scanview/eingang
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=
+RemoveIPC=yes
+# 0027: Berichte 0640/Ordner 0750, Gruppe aus dem setgid-Ordner (scanview-jobs) — der Webdienst
+# liest sie, schreibt sie nie. jobs.db legt einrichten.sh als root:scanview-jobs 0660 an; SQLite gibt -wal/-shm
+# dieselben Rechte wie der Datenbankdatei, unabhängig von der UMask.
+UMask=0027
+IPAddressDeny=any
+RestrictAddressFamilies=AF_UNIX
+MemoryMax=256M
+MemorySwapMax=0
+TasksMax=32
+
+[Install]
+WantedBy=multi-user.target

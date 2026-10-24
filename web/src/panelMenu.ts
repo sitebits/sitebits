@@ -15,7 +15,18 @@ export function attachPanelMenu(root: HTMLElement, host: PanelHost): PanelMenu {
   button.type = 'button';
   button.setAttribute('aria-haspopup', 'menu');
   button.setAttribute('aria-expanded', 'false');
-  button.textContent = 'Fenster';
+  // Auf dem Handy nur das Symbol (Text bleibt für Hilfstechnik lesbar, panels.css), am Desktop Symbol und Text.
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const pfad = document.createElementNS(ns, 'path');
+  pfad.setAttribute('d', 'M4 5h16v14H4zM4 13h16M12 13v6');
+  svg.append(pfad);
+  const text = document.createElement('span');
+  text.className = 'sv-knopf-text';
+  text.textContent = 'Fenster';
+  button.append(svg, text);
   button.addEventListener('mousedown', (e) => e.preventDefault());
 
   const menu = document.createElement('div');

@@ -37,7 +37,7 @@ Vegetation, Rauschen …).
 
 Ob eine Messung auf Zentimeter stimmt, hängt davon ab, wie die Punktwolke entstanden und geprüft
 ist. scanview zeigt das, wenn der Genauigkeitsnachweis importiert wurde
-(`scanview-import genauigkeit`, aus Metashape).
+(`scanview-import genauigkeit`, aus dem Export der Photogrammetrie-Software).
 
 - **Ebenen-Panel:** Abschnitt „Genauigkeit“ je Punktwolke und Mesh, getrennt nach **Lage** (wo im
   Koordinatensystem) und **Maßstab** (stimmen Strecken). Dazu Quelle (Programm, Datum) und Bericht.
@@ -51,6 +51,46 @@ ist. scanview zeigt das, wenn der Genauigkeitsnachweis importiert wurde
   Messliste und in der Spalte „Hinweis“ der CSV (Viewer und Server).
 - **Für Agenten:** Projektkarte und MCP `projekt_lesen` liefern je Ebene `genauigkeit` mit Text
   und maschinenlesbarem Status; `export.json`, Mängelliste und Git-Export nennen ihn ebenfalls.
+
+## Kontrollpunkte am Modell messen
+
+Panel **Kontrollpunkte** (Panelmenü): eine Kontrollpunktliste laden, jede Marke selbst am Modell
+picken und die Liste mit Ist-Werten speichern. Diese Datei liest der Katalogprüfer
+(`scanview-pruefen`) direkt; mit ihr prüft er Lage (RMSE_H) und Maßstab aus
+Kontrollpunktpaaren, die er sonst nur aus Lieferantenwerten nachrechnen könnte.
+
+- **Liste:** CSV aus einer lokalen Datei (nichts wird hochgeladen), Kopf `id;rolle;e;n;h`, optional
+  `sigma_lage;sigma_hoehe`, Trenner `;` (Dezimalkomma oder -punkt) oder `,` (nur Dezimalpunkt),
+  UTF-8. Pflicht ist die Kommentarzeile `# crs = EPSG:<Lage>+<Höhe>`, z. B. `EPSG:25833+7837`.
+  Rollen `check`/`kontrollpunkt` und `control`/`passpunkt` wie im Prüfer.
+- **Bezugssystem:** Die Liste muss zum Paket passen — Lage wie das Paket (EPSG:25832, 25833 oder
+  3068), Höhe wie dessen Höhensystem (DHHN2016 = EPSG:7837, DHHN92 = EPSG:5783). Sonst wird sie mit
+  Grund abgelehnt; umgerechnet wird nie. Pakete in lokalen Koordinaten können keine Kontrollpunkte
+  aufnehmen.
+- **Streng wie der Prüfer:** unbekannte Spalten, doppelte IDs, fehlende Sollwerte, unklare Zahlen
+  werden abgelehnt. Zusätzlich lehnt der Viewer IDs ab, die mit `= + - @` oder `#` beginnen oder
+  `;` enthalten — sie gingen unverändert in die Exportdatei.
+- **Picken:** Punkt in der Liste wählen → die Kamera fliegt in die Nähe. Mit „Picken“ gehört der
+  nächste Klick in die Ansicht diesem Punkt (die Werkzeugleiste springt auf Navigieren). Gepickt wird
+  wie beim Messen: auf Punktwolke oder Mesh, mit Rückfrage vorn/hinten, „Kanten einrasten“ (Taste E)
+  gilt auch hier. „Neu picken“ überschreibt, „Leeren“ entfernt den Ist-Wert.
+- **Bewusst kein Sollmarker und keine Abweichung:** Die Messung soll unabhängig sein. Wer die
+  Sollposition sieht, pickt sie statt der Marke im Modell. Ausgewertet wird nur im Prüfer.
+- **Export:** `kontrollpunkte-ist-<Projekt>.csv`, Spalten
+  `id;rolle;e;n;h;sigma_lage;sigma_hoehe;ist_e;ist_n;ist_h`, Soll und σ wie geladen, Ist in Metern
+  mit 3 Nachkommastellen, Dezimalpunkt. Oben `# crs = …` wie geladen, `# quelle = siteBits-Viewer
+  <Version>, am Modell gepickt` und je gepicktem Punkt `# ebene <id> = <Ebene>`. Ungepickte Punkte
+  haben leere Ist-Zellen. Ist-Werte, die schon in der geladenen Liste standen, übernimmt der Export
+  nicht (der Viewer sagt das beim Laden).
+- **Entwurf:** Jeder Pick wird in diesem Browser gesichert (je Projekt und Soll-Liste, erkannt am
+  SHA-256 der Datei). Lädt man dieselbe Liste später wieder, fragt das Panel „n gepickte Punkte aus
+  dem Entwurf übernehmen?“ — Übernehmen oder Verwerfen; still übernommen wird nichts. Ein Export
+  lässt den Entwurf stehen; „Entwurf verwerfen“ löscht ihn. Beim Abmelden im Portal werden alle
+  Entwürfe gelöscht. Ohne Browser-Speicher (privates Fenster, gesperrt) gibt es keinen Entwurf.
+- **Exportdatei ist kein Zwischenstand:** lädt man sie wieder, bringt sie ihre Ist-Werte nicht mit
+  (sie zählen wie Lieferantenwerte und werden verworfen).
+- **Prüfer:** die Datei mit `scanview-pruefen … --kontrollpunkte <datei>` übergeben. Liegt sie in
+  der Lieferung neben einer weiteren `*kontrollpunkt*.csv`, ist die Liste dort nicht eindeutig.
 
 ## Fenster-Effekt (Webcam)
 

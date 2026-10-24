@@ -164,6 +164,9 @@ def messhinweise(acc: dict[str, Any]) -> list[str]:
     return out
 
 
+MODELLMASS = "Modellmaß — Maßstab nicht belegt (Quelle: "
+
+
 def _hinweise(art: str, prov: dict[str, Any]) -> tuple[str, ...]:
     """Wie pointSources.measurementNotes für eine Quelle aus dieser Ebene."""
     acc = prov.get("accuracy")
@@ -173,7 +176,7 @@ def _hinweise(art: str, prov: dict[str, Any]) -> tuple[str, ...]:
     elif prov.get("scaleVerified") is False:
         roh = prov.get("scaleSource")
         quelle = roh if isinstance(roh, str) else "unbekannt"
-        out.append(f"Modellmaß — Maßstab nicht belegt (Quelle: {quelle})")
+        out.append(f"{MODELLMASS}{quelle})")
     if art == "mesh" and prov.get("interpolated") is True:
         out.append("Modelloberfläche (teils interpoliert)")
     return tuple(out)
@@ -203,8 +206,15 @@ def ebenen(layers: list[Any]) -> tuple[EbeneGenauigkeit, ...]:
 def mess_hinweis(punktquellen: Any, je_ebene: Mapping[str, tuple[str, ...]]) -> str:
     """Spalte „Hinweis“ einer Messung: Hinweise aller Quell-Ebenen, ohne Doppelte, mit „ · “."""
     gesehen: dict[str, None] = {}
+    # Wie measurementNotes: Ebenen ohne belegten Maßstab ergeben eine Meldung mit allen Quellen.
+    quellen: dict[str, None] = {}
     for q in punktquellen if isinstance(punktquellen, list) else []:
         if isinstance(q, dict) and isinstance(q.get("layerId"), str):
             for h in je_ebene.get(q["layerId"], ()):
+                if h.startswith(MODELLMASS) and h.endswith(")"):
+                    quellen.setdefault(h[len(MODELLMASS) : -1])
+                    h = MODELLMASS
                 gesehen.setdefault(h)
-    return " · ".join(gesehen)
+    return " · ".join(
+        f"{MODELLMASS}{', '.join(quellen)})" if h == MODELLMASS else h for h in gesehen
+    )

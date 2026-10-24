@@ -112,18 +112,35 @@ def test_echte_nur_import_befunde_markiert():
                            "B-SAST-BANDIT-14789B265EC81EA8",
                            # Splat-Import (0.10): Kamera-XML und build-lod-Aufruf
                            "B-SAST-SEMGREP-FDA42991C858C489", "B-SAST-SEMGREP-FF5E75374A3F0D89",
-                           "B-SAST-SEMGREP-BE6EE389B33C057A", "B-SAST-BANDIT-3849E6199464A0A6"}
+                           "B-SAST-SEMGREP-BE6EE389B33C057A", "B-SAST-BANDIT-3849E6199464A0A6",
+                           # Sonnenbericht (0.11): PVGIS-Abruf
+                           "B-SAST-SEMGREP-39F02737D87DD322", "B-SAST-BANDIT-42257C8FDAC5C316",
+                           # PDF-Druck über Chromium (mit 88685ed aus sonne/bericht.py nach
+                           # berichtsatz.py gezogen, Vorgänger BF8CE0C5… gelöscht),
+                           # PDAL-tmpfs (B108)
+                           "B-SAST-SEMGREP-DB7E0B252DC33A74", "B-SAST-BANDIT-723722FF08CF2C61"}
     assert {b.id for b in befunde.values() if b.artefakte} == {
         "B-SCAN-IMG-PDAL", "B-SCAN-IMG-UNTWINE", "B-LK-IMPORT", "B-LK-UNTWINE", "B-SBOM-IMAGES",
         "B-BF-V1", "B-BD-R8-I1", *sast_import,
         "B-SAST-BANDIT-5686B4B81278B8ED", "B-SAST-BANDIT-8B67B85AA135B6D6",
-        "B-SAST-BANDIT-56F8E6847EEB3AB3", "B-RL-N1"}
-    for bid in ("B-SCAN-IMG-PDAL", "B-SCAN-IMG-UNTWINE", "B-LK-IMPORT", "B-LK-UNTWINE",
-                "B-SBOM-IMAGES", *sast_import):
+        "B-SAST-BANDIT-56F8E6847EEB3AB3", "B-RL-N1", "B-LK-EMBREEX", "B-SCAN-IMPORT-LOCK",
+        "B-LK-ZSTD"}
+    for bid in ("B-LK-IMPORT", "B-SBOM-IMAGES", "B-LK-EMBREEX", "B-SCAN-IMPORT-LOCK",
+                *sast_import):
         assert befunde[bid].artefakte == ("import",), bid
         assert len(befunde[bid].artefakte_begruendung or "") >= 20, bid
+    # Neubewertung für Manifest-Schema /3: der Image-Inhalt steht im nicht ausgelieferten
+    # Nachweis-SBOM importbilder (B-SBOM-IMAGES behoben); die Image-Befunde bleiben offen und
+    # gehören zu diesem SBOM, mit Begründung.
+    assert befunde["B-SBOM-IMAGES"].status == "behoben"
+    for bid in ("B-SCAN-IMG-PDAL", "B-SCAN-IMG-UNTWINE", "B-LK-UNTWINE"):
+        assert befunde[bid].artefakte == ("importbilder",), bid
+        assert befunde[bid].status == "offen", bid
+        assert "importbilder" in (befunde[bid].artefakte_begruendung or ""), bid
     # Barrierefreiheit des Viewers: nur das Web-Bundle ist betroffen.
     assert befunde["B-BF-V1"].artefakte == ("web",)
+    # zstd-Decoder im Basis-Transcoder: nur mit dem Viewer ausgeliefert.
+    assert befunde["B-LK-ZSTD"].artefakte == ("web",)
     assert befunde["B-BF-V1"].schwere == "niedrig"
     # Rücksprung nach der Anmeldung: nur das Portal im Web-Bundle wertet `weiter=` aus.
     assert befunde["B-BD-R8-I1"].artefakte == ("web",)

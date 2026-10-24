@@ -3,8 +3,9 @@
 Grundsätze: absolut und Maßstab getrennt; nur **Kontroll**punkte und
 **Kontroll**strecken (nicht im Ausgleich) ergeben einen Nachweis. Passpunkt- und
 Kamera-GNSS-Residuen sind Ausgleichsresiduen — sie stehen im Paket, aber nie als ±-Wert.
-Kennzahlen rechnet der Import selbst aus den Koordinaten; Metashapes eigene Fehlerwerte werden
-nicht übernommen. Ein Bericht-PDF wird nur mit Name und Prüfsumme vermerkt, nicht ins Paket kopiert.
+Kennzahlen rechnet der Import selbst aus den Koordinaten; die eigenen Fehlerwerte der
+Photogrammetrie-Software werden nicht übernommen. Ein Bericht-PDF wird nur mit Name und
+Prüfsumme vermerkt, nicht ins Paket kopiert.
 """
 
 from __future__ import annotations
@@ -20,8 +21,8 @@ from typing import Any
 import numpy as np
 
 from . import hoehen
+from .kameras_import import kamera_umrechnung, pruefe_paket_crs
 from .manifest_io import read_manifest, write_manifest
-from .metashape_import import kamera_umrechnung, pruefe_paket_crs
 
 FORMAT_VERSION = 1
 MAX_EINTRAEGE = 10_000

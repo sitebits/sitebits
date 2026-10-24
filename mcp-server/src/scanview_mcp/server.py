@@ -1,4 +1,4 @@
-"""MCP-Server `scanview` (stdio): vierzehn Werkzeuge über die öffentliche API v1.
+"""MCP-Server `scanview` (stdio): Werkzeuge über die öffentliche API v1.
 
 Start über die Konsole `scanview-mcp`. Umgebung: `SCANVIEW_URL` (https://… oder
 http://localhost…) und `SCANVIEW_TOKEN` (`sv_…`, persönlicher API-Zugang aus dem Portal). Fehlt
@@ -302,6 +302,8 @@ def baue_server(client: Client) -> MCPServer:
                                                begruendung))
 
     _verwaltung(mcp, c)
+    _auswertungen(mcp, c)
+    _importe(mcp, c)
     return mcp
 
 
@@ -384,6 +386,91 @@ def _verwaltung(mcp: MCPServer, c: Client) -> None:
     ))
     def paket_lesen(projekt_id: ProjektId) -> dict[str, Any]:
         return _objekt(werkzeuge.paket_lesen(c, projekt_id))
+
+
+AuswertungId = Annotated[str, Field(
+    description="id einer Auswertung aus auswertung_status oder auswertung_starten.",
+    pattern=r"^[0-9a-f]{16}$",
+)]
+
+
+def _auswertungen(mcp: MCPServer, c: Client) -> None:
+    """Auswertungsjobs: starten, Stand abfragen, Ergebnis lesen."""
+
+    @mcp.tool(description=(
+        "Startet eine Auswertung des aktiven Pakets auf dem Server (isolierter Job, rechnet nur, "
+        "ändert nichts am Projekt). Verfügbar: typ 'auswerten_pruefen' (Lieferung gegen einen "
+        "Anforderungskatalog prüfen) mit optionen {'profil': 'bestandserfassung'}. Andere Typen "
+        "(Sonne, Import) lehnt der Server noch als nicht verfügbar ab. Braucht einen "
+        "Schreib-Token und die Rolle Projektleitung; höchstens 3 offene Aufträge je Projekt. "
+        "Antwort: Auswertung mit id, status (wartend), warteplatz und worker (aktiv|still|aus — "
+        "bei 'still' oder 'aus' rechnet gerade niemand). Den Bericht für Bearbeiter freigeben "
+        "kann nur ein Mensch."
+    ))
+    def auswertung_starten(
+        projekt_id: ProjektId,
+        typ: Annotated[str, Field(description="Auswertungstyp, z. B. 'auswerten_pruefen'.",
+                                  pattern=r"^[a-z_]{1,40}$")],
+        optionen: Annotated[dict[str, str] | None, Field(
+            description="Feste Optionen, z. B. {'profil': 'bestandserfassung'}.")] = None,
+    ) -> dict[str, Any]:
+        return _objekt(werkzeuge.auswertung_starten(c, projekt_id, typ, optionen))
+
+    @mcp.tool(description=(
+        "Stand der Auswertungen eines Projekts: {'auswertungen': [{id, typ, optionen, status "
+        "(wartend|laufend|fertig|fehlgeschlagen|abgebrochen), warteplatz, urteil, zaehlung, "
+        "fehler, freigegeben, erstelltAm, beendetAm}], 'worker'}. Mit auswertung_id nur diese "
+        "eine. Projektleitung sieht alle, Bearbeiter nur freigegebene."
+    ))
+    def auswertung_status(
+        projekt_id: ProjektId, auswertung_id: AuswertungId | None = None,
+    ) -> dict[str, Any]:
+        return _objekt(werkzeuge.auswertung_status(c, projekt_id, auswertung_id))
+
+    @mcp.tool(description=(
+        "Liest das Ergebnis einer fertigen Auswertung: {katalog {titel, sha256}, gesamt {urteil, "
+        "zaehlung}, zeilen [{id, anforderung, pruefart, parameter, urteil (erfüllt|nicht "
+        "erfüllt|nicht prüfbar), grund, belege}]}. Keine Rohdaten, keine Messwerttabellen; den "
+        "vollständigen Bericht (HTML) lädt ein Mensch im Portal. Ergebnis dem Menschen "
+        "vorlegen, nicht selbst als abgenommen werten."
+    ))
+    def auswertung_lesen(projekt_id: ProjektId, auswertung_id: AuswertungId) -> dict[str, Any]:
+        return _objekt(werkzeuge.auswertung_lesen(c, projekt_id, auswertung_id))
+
+
+def _importe(mcp: MCPServer, c: Client) -> None:
+    """Neue Projekte aus fertig hochgeladenen Dateien (nur Admin)."""
+
+    @mcp.tool(description=(
+        "Startet ein neues Projekt aus einem fertig hochgeladenen Upload (Admin der Instanz, "
+        "Schreib-Token; Import muss auf der Instanz eingeschaltet sein). Hochladen selbst geht "
+        "nicht über dieses Werkzeug — große Dateien lädt ein Mensch im Portal (Seite Uploads) "
+        "oder ein Skript über die API hoch; von dort kommt die upload_id. auftragstyp "
+        "'neu_mesh' (eine GLB- oder PLY-Datei ohne Textur) oder 'neu_splats' (eine PLY-, SPZ- "
+        "oder SPLAT-Datei, höchstens 1 Mio. Gaussians). optionen: projekt (Pflicht, neue ID aus "
+        "Kleinbuchstaben, Ziffern, Bindestrich), titel, crs (leer = lokal, Modellmaß; sonst "
+        "'EPSG:<Nummer>'), quellHoehe/zielHoehe (dhhn2016, ellipsoidal-etrs89, dhhn92; nur mit "
+        "crs). Antwort: Import mit id, status (wartend) und worker. Ohne Koordinatensystem sind "
+        "Lage und Maßstab nicht belegt — das dem Menschen sagen."
+    ))
+    def import_starten(
+        upload_id: Annotated[str, Field(description="id eines abgeschlossenen Uploads.",
+                                        pattern=r"^[0-9a-f]{32}$")],
+        auftragstyp: Annotated[str, Field(description="'neu_mesh' oder 'neu_splats'.",
+                                          pattern=r"^neu_(mesh|splats)$")],
+        optionen: Annotated[dict[str, str], Field(
+            description="{'projekt': 'neue-id', 'titel': '…', 'crs': 'EPSG:25833'}.")],
+    ) -> dict[str, Any]:
+        return _objekt(werkzeuge.import_starten(c, upload_id, auftragstyp, optionen))
+
+    @mcp.tool(description=(
+        "Stand der Importe (neue Projekte): {'importe': [{id, typ, projekt, titel, status "
+        "(wartend|laufend|fertig|fehlgeschlagen|abgebrochen), stufe (konvertiert|prueft|"
+        "freischalten), warteplatz, fehler, beendetAm}], 'worker'}. Mit projekt_id nur die "
+        "Importe für dieses Projekt. Nach 'fertig' ist das Projekt in projekte_auflisten."
+    ))
+    def import_status(projekt_id: ProjektId | None = None) -> dict[str, Any]:
+        return _objekt(werkzeuge.import_status(c, projekt_id))
 
 
 def _abbruch(meldung: str) -> NoReturn:

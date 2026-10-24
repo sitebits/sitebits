@@ -12,7 +12,7 @@ Release-Verzeichnis (genau diese Einträge, nichts sonst; `scanview-nachweise de
 stellt es aus dem Archiv zusammen):
 
     manifest.json  manifest.json.sig  abschluss.json  abschluss.json.sig
-    artefakte/scanview-{web,server,mcp}-<version>.tar.gz
+    artefakte/scanview-{web,server,mcp,import}-<version>.tar.gz   (import ab Schema /3)
 
 Ablauf (fail-closed, jede Abweichung → `NACHWEIS-FEHLER <regel>: …`, Exit 2):
 
@@ -23,7 +23,8 @@ Ablauf (fail-closed, jede Abweichung → `NACHWEIS-FEHLER <regel>: …`, Exit 2)
    dieselben Bytes parsen: kanonische Form, alle Pflichtfelder des aktuellen Schemas mit
    vollständigem Inhalt (Exportcommit, SBOMs der ausgelieferten Artefakte, Berichte, Werkzeuge,
    DB-Stand, Veröffentlichung, alle Pflichtprüfungen „bestanden“), kein Trockenlauf,
-   ausgeliefert genau web/server/mcp mit festen Dateinamen.
+   ausgeliefert genau die Menge des Schemas (bis /2 web/server/mcp, ab /3 dazu import) mit festen
+   Dateinamen.
    Danach der Abschlussnachweis (`abschluss.json`, eigener Namespace `scanview-abschluss`,
    entsteht erst nach Archivierung und Tag): Signatur über genau die gelesenen Bytes, kanonisch,
    gehört zu genau diesem Manifest (SHA-256 der Manifest-Bytes, Version, Quell-/Exportcommit).
@@ -32,8 +33,8 @@ Ablauf (fail-closed, jede Abweichung → `NACHWEIS-FEHLER <regel>: …`, Exit 2)
    bilden; alles Weitere liest nur noch diese Kopie (kein Austausch zwischen Prüfen und Entpacken).
 5. Tar-Inhalt prüfen: nur reguläre Dateien und Ordner, relative Pfade ohne `..`, nur unter den
    Wurzeln des Artefakts, keine Doppelten, Modus nur 0644/0755.
-6. `entpacken`: web und server nach `<ziel>/baum` (mcp läuft beim Nutzer, nicht auf dem Host —
-   geprüft, nicht entpackt). Ausgabe auf stdout: `schlüssel=wert`-Zeilen für das
+6. `entpacken`: web, server und (ab /3) import nach `<ziel>/baum` (mcp läuft beim Nutzer, nicht
+   auf dem Host — geprüft, nicht entpackt). Ausgabe auf stdout: `schlüssel=wert`-Zeilen für das
    Update-Protokoll; bei Ablehnung `grund=<regel>` plus die bis dahin feststehenden Felder.
    Die Regel ist ein fester Bezeichner aus `[a-z-]`, also ohne Leerzeichen."""
 
@@ -52,10 +53,11 @@ import tempfile
 from pathlib import Path
 from typing import IO, Any
 
-#: Wie manifest.SCHEMA / PFLICHT_JE_SCHEMA (drift-getestet): neue Manifeste tragen /2; jedes
+#: Wie manifest.SCHEMA / PFLICHT_JE_SCHEMA (drift-getestet): neue Manifeste tragen /3; jedes
 #: bekannte Schema wird gegen seine eigenen Pflichtlisten geprüft, ein unbekanntes abgelehnt.
-SCHEMA = "scanview-release-manifest/2"
+SCHEMA = "scanview-release-manifest/3"
 SCHEMA_1 = "scanview-release-manifest/1"
+SCHEMA_2 = "scanview-release-manifest/2"
 NAMESPACE = "scanview-release"
 KENNUNG = "release@scanview"
 MANIFEST_DATEI = "manifest.json"
@@ -68,7 +70,13 @@ ABSCHLUSS_FELDER = ("schema", "version", "manifest_sha256", "quellcommit", "expo
                     "archiv_commit", "tag", "erstellt")
 ARTEFAKT_ORDNER = "artefakte"
 PRUEFUNG_WERTE = frozenset({"bestanden", "nicht-anwendbar"})
-AUSGELIEFERT = frozenset({"web", "server", "mcp"})
+#: Wie manifest.AUSGELIEFERT_JE_SCHEMA (drift-getestet).
+AUSGELIEFERT_JE_SCHEMA: dict[str, frozenset[str]] = {
+    SCHEMA_1: frozenset({"web", "server", "mcp"}),
+    SCHEMA_2: frozenset({"web", "server", "mcp"}),
+    SCHEMA: frozenset({"web", "server", "mcp", "import"}),
+}
+AUSGELIEFERT = AUSGELIEFERT_JE_SCHEMA[SCHEMA]
 UMGEBUNG_PFLICHT = ("node", "npm", "python", "uv", "docker", "architektur")
 #: Wie manifest.PFLICHT_BERICHTE / PFLICHT_WERKZEUGE (drift-getestet): genau diese.
 _BERICHTE_1 = ("stufe-einfrieren", "stufe-register", "stufe-qualitaetstor", "stufe-sbom",
@@ -91,6 +99,7 @@ PFLICHT_PRUEFUNGEN = (*_PRUEFUNGEN_1, "commit-signatur", "npm-signaturen", "sast
                       "fuzzing", "egress")
 PFLICHT_JE_SCHEMA: dict[str, tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]] = {
     SCHEMA_1: (_BERICHTE_1, _WERKZEUGE_1, _PRUEFUNGEN_1),
+    SCHEMA_2: (PFLICHT_BERICHTE, PFLICHT_WERKZEUGE, PFLICHT_PRUEFUNGEN),
     SCHEMA: (PFLICHT_BERICHTE, PFLICHT_WERKZEUGE, PFLICHT_PRUEFUNGEN),
 }
 FELDER = ("schema", "version", "erstellt", "quellcommit", "exportcommit", "artefakte", "sboms",
@@ -101,10 +110,12 @@ WURZELN: dict[str, tuple[str, ...]] = {
     "web": ("web/dist/",),
     "server": ("server/", "deploy/platform/"),
     "mcp": ("mcp-server/",),
+    "import": ("import/",),
 }
-#: Auf dem Host installiert werden nur diese; mcp läuft beim Nutzer.
-ENTPACKEN = ("web", "server")
-REIHENFOLGE = ("web", "server", "mcp")
+#: Auf dem Host installiert werden nur diese (soweit das Schema sie ausliefert); mcp läuft beim
+#: Nutzer.
+ENTPACKEN = ("web", "server", "import")
+REIHENFOLGE = ("web", "server", "mcp", "import")
 
 _COMMIT = re.compile(r"[0-9a-f]{40}")
 _SHA256 = re.compile(r"[0-9a-f]{64}")
@@ -262,9 +273,10 @@ def _parse(roh: bytes) -> dict[str, Any]:
     if len(set(namen)) != len(namen):
         raise Fehler("manifest", "Artefakt doppelt")
     ausgeliefert = {a["name"] for a in liste if a["ausgeliefert"]}
-    if ausgeliefert != AUSGELIEFERT:
+    soll = AUSGELIEFERT_JE_SCHEMA[daten["schema"]]
+    if ausgeliefert != soll:
         raise Fehler("manifest", f"ausgeliefert: {', '.join(sorted(ausgeliefert)) or '(nichts)'}"
-                                 f" — erwartet genau {', '.join(sorted(AUSGELIEFERT))}")
+                                 f" — erwartet genau {', '.join(sorted(soll))}")
     for a in liste:
         if a["ausgeliefert"] and a["datei"] != f"scanview-{a['name']}-{version}.tar.gz":
             raise Fehler("manifest", f"{a['name']}: Dateiname „{a['datei']}“ unzulässig")
@@ -299,7 +311,7 @@ def _pruefe_inhalt(daten: dict[str, Any]) -> None:
     if not isinstance(sboms, dict) or not all(
             _dateiname(n) and _hex(h, _SHA256) for n, h in sboms.items()):
         raise Fehler("manifest", "SBOM-Liste fehlt oder ist ungültig")
-    fehlend = sorted(n for n in AUSGELIEFERT
+    fehlend = sorted(n for n in AUSGELIEFERT_JE_SCHEMA[daten["schema"]]
                      if f"scanview-{n}-{daten.get('version')}.cdx.json" not in sboms)
     if fehlend:
         raise Fehler("manifest", f"SBOM fehlt für ausgelieferte Artefakte: {', '.join(fehlend)}")
@@ -444,7 +456,8 @@ def _schreibe(tar: tarfile.TarFile, m: tarfile.TarInfo, baum: Path) -> None:
 def pruefe(release: Path, allowed_signers: Path, privat: Path,
            baum: Path | None = None, bekannt: dict[str, str] | None = None) -> dict[str, str]:
     """Vollständige Prüfung; `privat` ist ein leerer, nur für den Aufrufer lesbarer Ordner für
-    die Kopien. Mit `baum` werden web und server dorthin entpackt. Rückgabe: Protokollfelder.
+    die Kopien. Mit `baum` werden web, server und (ab /3) import dorthin entpackt. Rückgabe:
+    Protokollfelder.
     `bekannt` sammelt unterwegs, was für die Protokollzeile eines **abgelehnten** Releases
     feststeht: der Hash der vorgelegten Manifest-Bytes, Version und Quellcommit erst nach
     gültiger Signatur (ungeprüfter Inhalt wird nicht als Version protokolliert)."""
@@ -466,8 +479,9 @@ def pruefe(release: Path, allowed_signers: Path, privat: Path,
     artefakte = _ausgelieferte(daten)
     _pruefe_artefaktordner(release / ARTEFAKT_ORDNER, artefakte)
 
+    reihenfolge = [n for n in REIHENFOLGE if n in artefakte]
     kopien: dict[str, Path] = {}
-    for name in REIHENFOLGE:
+    for name in reihenfolge:
         a = artefakte[name]
         kopie = privat / a["datei"]
         ist256, ist512 = _kopiere_mit_hash(release / ARTEFAKT_ORDNER / a["datei"], kopie)
@@ -478,17 +492,18 @@ def pruefe(release: Path, allowed_signers: Path, privat: Path,
         kopien[name] = kopie
     # Erst alle Tarballs vollständig prüfen, dann entpacken: ein unsicherer Eintrag in einem
     # späteren Artefakt soll keinen halben Baum hinterlassen.
-    for name in REIHENFOLGE:
+    for name in reihenfolge:
         _pruefe_tar(kopien[name], name, None)
     if baum is not None:
         os.mkdir(baum, 0o755)
         for name in ENTPACKEN:
-            _pruefe_tar(kopien[name], name, baum)
+            if name in kopien:
+                _pruefe_tar(kopien[name], name, baum)
     return {
         "version": daten["version"],
         "manifest_sha256": hashlib.sha256(roh).hexdigest(),
         "quellcommit": daten["quellcommit"],
-        "artefakte": ",".join(f"{n}:{artefakte[n]['sha256']}" for n in REIHENFOLGE),
+        "artefakte": ",".join(f"{n}:{artefakte[n]['sha256']}" for n in reihenfolge),
     }
 
 
@@ -506,7 +521,7 @@ def main(argv: list[str]) -> int:
                 felder = pruefe(release, signers, Path(tmp), bekannt=bekannt)
             _ausgabe(felder)
             print(f"Release {felder['version']} geprüft: Signatur gültig, "
-                  f"{len(REIHENFOLGE)} Artefakte übereinstimmend, Inhalt zulässig.",
+                  f"{felder['artefakte'].count(':')} Artefakte übereinstimmend, Inhalt zulässig.",
                   file=sys.stderr)
             return 0
         if len(argv) == 4 and argv[0] == "entpacken":

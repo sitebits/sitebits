@@ -21,7 +21,7 @@ def _projekt(wurzel: Path, version: str = "0.1.0", **abweichend: str) -> Path:
         {"name": "scanview-web", "version": lock, "lockfileVersion": 3,
          "packages": {"": {"name": "scanview-web", "version":
                            abweichend.get("web-lock-root", lock)}}}), encoding="utf-8")
-    for teil in ("server", "mcp-server", "nachweise"):
+    for teil in ("server", "mcp-server", "import", "nachweise"):
         (wurzel / teil).mkdir()
         (wurzel / teil / "pyproject.toml").write_text(
             f'[project]\nname = "x"\nversion = "{abweichend.get(teil, version)}"\n',
@@ -39,18 +39,18 @@ def test_versionen_einheitlich(tmp_path):
 
 
 def test_versionen_einheitlich_im_repo():
-    """Der echte Stand (auch im öffentlichen Abzug, der import/ nicht enthält)."""
-    assert versionen_einheitlich(WURZEL) == "0.10.3"
+    """Der echte Stand (auch im öffentlichen Abzug)."""
+    assert versionen_einheitlich(WURZEL) == "0.11.0"
 
 
 def test_versionen_nennt_jede_quelle(tmp_path):
     gefunden = versionen(_projekt(tmp_path))
     assert set(gefunden) == set(TEILE)
-    assert "import/pyproject.toml" not in gefunden
+    assert "import/pyproject.toml" in gefunden  # ab Schema /3 ausgeliefert
 
 
 @pytest.mark.parametrize("teil", ["web", "web-lock", "web-lock-root", "server", "mcp-server",
-                                  "nachweise", "nachweise-cli"])
+                                  "import", "nachweise", "nachweise-cli"])
 def test_abweichende_version_bricht_ab(tmp_path, teil):
     with pytest.raises(NachweisFehler) as e:
         versionen_einheitlich(_projekt(tmp_path, **{teil: "0.2.0"}))

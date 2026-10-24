@@ -20,10 +20,13 @@ export interface Grenzen {
   meshDateiBytes: number;
   /** Mobilstufe eines Pakets (`mobileUrl`) statt der Vollstufe laden, wenn vorhanden. */
   meshMobil: boolean;
+  /** Kantenlänge der Schattenkarte der Live-Sonne. three 0.180 legt RGBA8 (gepackte Tiefe) + Tiefenpuffer an:
+   *  4096² ≈ 128 MiB, 2048² ≈ 32 MiB Grafikspeicher — außerhalb von meshBytes, nur solange die Sonne an ist (sonne.ts gibt sie beim Ausschalten frei). */
+  schattenKarte: number;
 }
 
-export const DESKTOP: Grenzen = { punkte: 1_000_000, meshBytes: 512 * MIB, panoBytes: 256 * MIB, meshMipsVerwerfen: 0, meshDateiBytes: Number.POSITIVE_INFINITY, meshMobil: false };
-export const TOUCH: Grenzen = { punkte: 500_000, meshBytes: 256 * MIB, panoBytes: 64 * MIB, meshMipsVerwerfen: 1, meshDateiBytes: 128 * MIB, meshMobil: true };
+export const DESKTOP: Grenzen = { punkte: 1_000_000, meshBytes: 512 * MIB, panoBytes: 256 * MIB, meshMipsVerwerfen: 0, meshDateiBytes: Number.POSITIVE_INFINITY, meshMobil: false, schattenKarte: 4096 };
+export const TOUCH: Grenzen = { punkte: 500_000, meshBytes: 256 * MIB, panoBytes: 64 * MIB, meshMipsVerwerfen: 1, meshDateiBytes: 128 * MIB, meshMobil: true, schattenKarte: 2048 };
 
 export function istTouch(mm: ((q: string) => { matches: boolean }) | undefined = globalThis.matchMedia?.bind(globalThis)): boolean {
   try {

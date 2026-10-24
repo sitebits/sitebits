@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { parseManifest } from '../src/manifest';
-import { initialVisibility, visibleBounds } from '../src/layers';
+import { KEINE_WOLKE, parseManifest } from '../src/manifest';
+import { createLayerRegistry, initialVisibility, visibleBounds } from '../src/layers';
 
 const layer = { id: 'sicht', kind: 'splats', title: 'Sichtschicht', format: 'ply',
   url: 'layers/sicht/model.ply', splatCount: 10, sizeBytes: 1000,
@@ -51,4 +51,30 @@ it('liest gestuftes RAD und verwirft RAD ohne Chunk-/LoD-Vertrag', () => {
   for (const change of [{ chunkCount: 0 }, { chunkCount: 1.5 }, { lodMethod: undefined }]) {
     expect(() => parseManifest({ ...raw(), layers: [{ ...rad, ...change }] })).toThrow();
   }
+});
+
+describe('Splats ohne Punktwolke (Paket aus „neu-ohne-wolke“)', () => {
+  const ohne = () => ({ ...raw(), layers: [{ ...layer, format: 'spz', chunkCount: 1, frameCheck: 'keine Wolke' }] });
+  it('wird gelesen und behält die Kennzeichnung', () => {
+    const p = parseManifest(ohne());
+    expect(p.cloud).toBeNull();
+    expect(p.splats[0]?.frameCheck).toBe(KEINE_WOLKE);
+  });
+  it('„keine Wolke“ gilt nicht, wenn das Paket doch eine Punktwolke hat', () => {
+    const wolke = { id: 'punkte', kind: 'pointcloud', title: 'P', url: 'c.laz', pointCount: 1, attributes: [], scale: 0.001,
+      boundsWorld: [[0, 0, 0], [1, 1, 1]], provenance: { kind: 'scan', interpolated: false, scaleVerified: true, scaleSource: 'scanner' } };
+    expect(() => parseManifest({ ...ohne(), layers: [wolke, ohne().layers[0]] })).toThrow(/Rahmenbeleg/);
+  });
+  it('andere Texte als Rahmenbeleg bleiben ungültig', () => {
+    expect(() => parseManifest({ ...raw(), layers: [{ ...layer, frameCheck: 'keine wolke' }] })).toThrow();
+    expect(() => parseManifest({ ...raw(), layers: [{ ...layer, frameCheck: '' }] })).toThrow();
+  });
+  it('die Ebene sagt „Modellmaß – Lage und Maßstab nicht belegt“, mit Wolkenbeleg nicht', () => {
+    const v = { cloud: null, instance: { notifyChange() {}, view: { camera: { fov: 30 } } }, frameAt: () => {} };
+    const notes = (m: unknown): string[] | undefined => createLayerRegistry({ project: parseManifest(m),
+      viewer: v as unknown as import('../src/viewer').Viewer, stationLayer: null, initial: { sicht: true } })
+      .entries().find((e) => e.id === 'sicht')?.notes;
+    expect(notes(ohne())).toEqual(['Modellmaß – Lage und Maßstab nicht belegt', 'Sichtschicht – Messen und Fangen auf Punktwolke oder Mesh']);
+    expect(notes(raw())).toEqual(['Sichtschicht – Messen und Fangen auf Punktwolke oder Mesh']);
+  });
 });

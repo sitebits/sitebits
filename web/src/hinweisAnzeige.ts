@@ -5,20 +5,19 @@
 // fokussierte Element oder ein Panel (die Minikarte liegt per Vorgabe unten rechts), rückt sie nach unten links. Der Zähler liegt je Konto im Browser (Schlüssel aus main.ts).
 import { bewegungReduziert } from './bedienEinstellungen';
 import type { BedienEinstellungen } from './bedienEinstellungen';
-import type { PadAktion } from './gamepad';
-import { echteTastatur, gezaehlt, hinweisFuerAktion, padAktiv, hinweisTaste, ladeHinweise, padTypVon, seiteFuer, sichtbareHinweise, speichereHinweise, zurueckgesetzt } from './hinweise';
-import type { HinweisId, PadTyp } from './hinweise';
+import { echteTastatur, gezaehlt, hinweisFuerAktion, hinweisTaste, ladeHinweise, seiteFuer, sichtbareHinweise, speichereHinweise, zurueckgesetzt } from './hinweise';
+import type { HinweisId } from './hinweise';
 import type { KeyAction, ToolId } from './keymap';
-import { padBelegung } from './tastenbelegung';
-import type { AktionId, Belegung } from './tastenbelegung';
+import type { AktionId } from './tastenbelegung';
 
 export interface HinweisAnzeige {
   /** Eine Ausführung zählen und neu zeichnen. */
   zaehle(id: HinweisId): void;
   /** Tastenaktion aus dem Verteiler (Zielen, Drehen im Panorama-Fadenkreuz). */
   beobachte(a: KeyAction): void;
-  /** Controller-Knopf hat gewirkt: Knopfnamen statt Tasten zeigen, Zielen zählen. */
-  pad(a: PadAktion, runter: boolean): void;
+  /** Controller wird benutzt (true) bzw. Tastatur oder Maus wieder (false): mit Controller tritt die Leiste zurück,
+   *  die Controller-Leiste (padSteuerung.ts) nennt dann die Knöpfe. */
+  padAktiv(an: boolean): void;
   /** Belegung, Einstellungen oder Zustand geändert. */
   aktualisiere(): void;
   /** Alle Zähler dieses Kontos leeren. */
@@ -40,7 +39,6 @@ export function attachHinweisAnzeige(o: {
   empfang?: () => boolean;
   einstellungen: () => BedienEinstellungen;
   systemReduziert: () => boolean;
-  belegung: () => Belegung;
   kuerzel: (a: AktionId) => string;
 }): HinweisAnzeige {
   const leiste = document.createElement('div');
@@ -52,38 +50,31 @@ export function attachHinweisAnzeige(o: {
   let zaehler = ladeHinweise(o.lies(o.schluessel));
   /** Reines Touch-Gerät (kein Mauszeiger): Zeile zu Fingern statt Maus, Tastenhinweise erst nach einer Taste. */
   const nurTouch = window.matchMedia('(hover: none) and (pointer: coarse)');
-  /** Typ des zuletzt benutzten Controllers; null = zuletzt Tastatur (oder nie ein Controller). */
-  let padTyp: PadTyp | null = null;
+  /** Zuletzt wurde ein Controller benutzt: die Leiste tritt zurück. */
+  let padAn = false;
   let letzterText = '';
 
   // Gemessen wird immer am rechten Platz (sonst kippte die Leiste hin und her); Panels sind die Rahmen der
   // Panel-Docks (ein geschlossener Rahmen hat kein Rechteck).
   const lage = (): void => {
-    leiste.classList.remove('sv-links');
+    // Leer (blendet gerade aus): Seite behalten, sonst spränge die verblassende Leiste auf die andere Seite.
     if (leiste.classList.contains('sv-leer')) return;
+    leiste.classList.remove('sv-links', 'sv-verdraengt');
     const fokus = document.activeElement;
     const fokusRechteck = fokus instanceof Element && fokus !== document.body ? fokus.getBoundingClientRect() : null;
-    const panels = Array.from(document.querySelectorAll('.sv-frame'), (f) => f.getBoundingClientRect());
-    if (seiteFuer(leiste.getBoundingClientRect(), document.documentElement.clientWidth, fokusRechteck, panels) === 'links') leiste.classList.add('sv-links');
-  };
-
-  const padId = (): string => {
-    try {
-      const liste = navigator.getGamepads?.() ?? [];
-      for (const p of Array.from(liste)) if (p?.connected && p.mapping === 'standard') return p.id;
-    } catch {
-      /* Gamepad-API gesperrt */
-    }
-    return '';
+    // Panels und andere Hinweise unten (Scan-Hinweis, Koordinate) — darauf soll die Leiste nicht liegen.
+    const panels = Array.from(document.querySelectorAll('.sv-frame, #scan-hint:not([hidden]), .sv-koordinaten:not([hidden])'), (f) => f.getBoundingClientRect());
+    const seite = seiteFuer(leiste.getBoundingClientRect(), document.documentElement.clientWidth, fokusRechteck, panels);
+    if (seite === 'links') leiste.classList.add('sv-links');
+    if (seite === 'keine') leiste.classList.add('sv-verdraengt');
   };
 
   const aktualisiere = (): void => {
     const begehen = o.begehen.aktiv;
-    const gamepad = padAktiv(padTyp, begehen, padId());
-    const pad = gamepad && padTyp !== null ? { typ: padTyp, belegung: padBelegung(o.belegung()) } : null;
+    const gamepad = padAn;
     const taste = (id: HinweisId): string =>
       // Im Panorama ist Begehen nicht verfügbar: kein Hinweis darauf.
-      id === 'begehen' && o.pano.active ? '' : hinweisTaste(id, { kuerzel: o.kuerzel, pad });
+      id === 'begehen' && o.pano.active ? '' : hinweisTaste(id, { kuerzel: o.kuerzel });
     const touch = nurTouch.matches;
     const liste = sichtbareHinweise(
       {
@@ -93,7 +84,7 @@ export function attachHinweisAnzeige(o: {
       },
       zaehler,
       { immer: o.einstellungen().hinweiseImmer, taste },
-    );
+    ).filter(() => !padAn);
     leiste.classList.toggle('sv-ruhig', bewegungReduziert(o.einstellungen(), o.systemReduziert()));
     const text = liste.map((h) => h.text).join('\n');
     if (text !== letzterText) {
@@ -128,13 +119,10 @@ export function attachHinweisAnzeige(o: {
   document.addEventListener('focusin', aktualisiere);
   document.addEventListener('focusout', () => queueMicrotask(aktualisiere));
   window.addEventListener('resize', lage);
+  // main.ts::freieLage hat Scan-Hinweis oder Meldung verschoben.
+  window.addEventListener('sv-hinweise-lage', lage);
   nurTouch.addEventListener('change', aktualisiere);
   o.panels.onChange(() => requestAnimationFrame(lage));
-  // Controller abgesteckt: zurück zu den Tasten.
-  window.addEventListener('gamepaddisconnected', () => {
-    padTyp = null;
-    aktualisiere();
-  });
   // Tastatur benutzt: wieder Tasten statt Controller-Knöpfe zeigen; auf reinen Touch-Geräten erscheinen die
   // Tastenhinweise erst ab jetzt — nicht durch eine Bildschirmtastatur (echteTastatur).
   window.addEventListener('keydown', (ev) => {
@@ -144,9 +132,6 @@ export function attachHinweisAnzeige(o: {
       leiste.classList.add('sv-tastatur');
       if (nurTouch.matches) aktualisiere();
     }
-    if (padTyp === null) return;
-    padTyp = null;
-    aktualisiere();
   }, true);
 
   aktualisiere();
@@ -158,12 +143,10 @@ export function attachHinweisAnzeige(o: {
       const id = hinweisFuerAktion(a, { begehen: o.begehen.aktiv, panoramaZiel: o.panoramaZiel() });
       if (id) zaehle(id);
     },
-    pad: (a, runter) => {
-      const typ = padTypVon(padId());
-      const neu = padTyp !== typ;
-      padTyp = typ;
-      if (a === 'zielen' && runter) zaehle('zielen');
-      if (neu) aktualisiere();
+    padAktiv: (an) => {
+      if (padAn === an) return;
+      padAn = an;
+      aktualisiere();
     },
     aktualisiere,
     zuruecksetzen: () => {

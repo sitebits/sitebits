@@ -70,7 +70,8 @@ def _quellrepo(wurzel: Path) -> Path:
         "mcp-server/pyproject.toml": "[project]\nname='m'\n", "mcp-server/uv.lock": "v\n",
         "import/pyproject.toml": "[project]\nname='i'\n", "import/uv.lock": "v\n",
         "veroeffentlichung/positivliste.txt":
-            "web/**\nserver/**\nmcp-server/**\ndeploy/platform/**\n!deploy/platform/README.md\n",
+            "web/**\nserver/**\nmcp-server/**\nimport/**\ndeploy/platform/**\n"
+            "!deploy/platform/README.md\n",
     }
     for relativ, inhalt in dateien.items():
         (wurzel / relativ).parent.mkdir(parents=True, exist_ok=True)
@@ -138,9 +139,9 @@ def test_ende_zu_ende_archiv_abschluss_deploy_ordner_host(tmp_path, archiviert, 
         "abschluss.json", "abschluss.json.sig", "artefakte", "manifest.json",
         "manifest.json.sig"]
     assert sorted(p.name for p in (ordner / "artefakte").iterdir()) == [
-        f"scanview-{n}-{VERSION}.tar.gz" for n in ("mcp", "server", "web")]
+        f"scanview-{n}-{VERSION}.tar.gz" for n in ("import", "mcp", "server", "web")]
     # Der Host-Prüfer akzeptiert genau diesen Ordner — echte baue_artefakte-Ausgabe durch
-    # _pruefe_tar — und entpackt web und server.
+    # _pruefe_tar — und entpackt web, server und import (Schema /3).
     r = _pruefer("pruefen", str(ordner), str(signers))
     assert r.returncode == 0, r.stderr
     r = _pruefer("entpacken", str(ordner), str(signers), str(tmp_path / "entpackt"))
@@ -148,7 +149,9 @@ def test_ende_zu_ende_archiv_abschluss_deploy_ordner_host(tmp_path, archiviert, 
     baum = tmp_path / "entpackt" / "baum"
     assert (baum / "web/dist/index.html").is_file()
     assert (baum / "deploy/platform/einrichten.sh").is_file()
+    assert (baum / "import/pyproject.toml").is_file() and (baum / "import/uv.lock").is_file()
     assert not (baum / "deploy/platform/README.md").exists()
+    assert not (baum / "mcp-server").exists()
 
 
 def test_abschluss_signatur_nur_im_eigenen_namensraum(archiviert, schluessel):

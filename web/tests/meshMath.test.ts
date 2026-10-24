@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { datenSparen, gltfToWorld, leseBegrenzt, MeshDateiZuGross, meshRootTransform, shouldLoadFull, stageBytes } from '../src/meshMath';
+import { datenSparen, drahtBytes, drahtIndex, gltfToWorld, leseBegrenzt, MeshDateiZuGross, meshRootTransform, shouldLoadFull, stageBytes } from '../src/meshMath';
 import type { Vec3 } from '../src/manifest';
 it('Mesh-Testfall: glTF-Bounds landen auf Weltbounds (±0,2 mm)', () => {
   const o: Vec3 = [3, 3, 1];
@@ -68,4 +68,14 @@ describe('leseBegrenzt', () => {
     expect((fehler as MeshDateiZuGross).bytes).toBe(8);
     expect(abgebrochen).toBe(true);
   });
+});
+
+describe('drahtIndex', () => {
+  it('indiziert: drei Kanten je Dreieck in Umlaufrichtung', () => {
+    expect([...drahtIndex([0, 1, 2, 2, 1, 3], 4)]).toEqual([0, 1, 1, 2, 2, 0, 2, 1, 1, 3, 3, 2]);
+  });
+  it('ohne Index: Ecken der Reihe nach', () => {
+    expect([...drahtIndex(null, 6)]).toEqual([0, 1, 1, 2, 2, 0, 3, 4, 4, 5, 5, 3]);
+  });
+  it('Budget: 24 Byte je Dreieck', () => { expect(drahtBytes(4_000_000)).toBe(96_000_000); });
 });

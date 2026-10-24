@@ -10,6 +10,221 @@ Kennungen `B-…` verweisen auf das [Befundregister](docs/public/befunde.md).
 
 ## [Unreleased]
 
+## [0.11.0] – 2026-10-24
+
+Upload im Browser, Auswertungen auf dem Server, Sonnen- und Prüfberichte, eine typisierte API mit Client und eine
+neue Controller- und Handy-Bedienung. Zum ersten Mal liefert das Release auch das Import-Werkzeug aus.
+
+**Betreiber, bitte vor dem Update lesen:**
+- **Startskript erneuern (alle Hosts):** Das Release nutzt Manifest-Schema `/3`. Ein altes
+  `/root/scanview-bootstrap.sh` lehnt es ab. Erst den Block aus `docs/public/betrieb.md` übernehmen, dann wie gewohnt
+  einspielen (Abschnitt „Sicherheit“ unten).
+- **Neue Funktionen sind ab Werk aus:** Jobläufer (`SCANVIEW_JOBLAEUFER=1`, verlangt systemd ≥ 257) und Import/Upload
+  (`SCANVIEW_IMPORT=1` mit Pflichtwert `SCANVIEW_UPLOAD_QUOTE_GB`). Ohne diese Schalter verhält sich die Instanz
+  wie 0.10.
+- **Migrationen 0014 und 0015** laufen beim Start automatisch (0014 Freigaben für Auswertungen, 0015 Uploads).
+  Rücksprung auf 0.10 nur mit Datenbanksicherung.
+- **Umbenannte Import-Befehle:** `panos-kameras` und `fotos-kameras` (Abschnitt „Geändert“).
+
+```
+⣿⢛⢟⡻⡻⣻⢻⡻⣻⢻⣻⡻⣟⣿⣻⣟⡿⣻⣻⣟⣿⣻⡿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢿⣿⣿⢿⡿⣿⡿⣿⢿⡿⣿⢿⣟⣿⣻⡻⣻⣻⣻⡿⣿⢿⡿⣿⢿⣟⣿⣻⢟⣟⡟⣟⢟⢿
+⣿⣪⢗⡝⡮⣓⢯⢺⡪⡗⣗⢽⣕⣗⣗⢗⢯⢻⣺⣺⣺⣳⣟⣯⣷⢿⣻⢽⢳⡫⡻⡫⣟⢽⣯⣿⣾⣿⣿⣷⣿⣻⣽⣷⣿⣿⢿⣿⣿⣿⣻⡾⣺⢽⡪⣎⢮⢫⢯⣻⢽⢯⢟⡞⡞⣎⢯⣚⡞⣞⢮⣿
+⣿⢪⡳⣝⢮⡳⣳⡣⣗⢷⢵⣣⢧⢧⡳⣝⡵⡳⣪⡪⡮⣺⢼⢺⣪⣫⡪⣎⢮⣪⣺⢝⣞⡽⣝⣟⣿⢿⣿⢿⣿⡿⣿⣗⣿⣞⣿⣺⣳⢯⡯⣿⢽⡯⣟⡮⣗⡯⣟⡾⣽⣹⣕⡯⣫⣞⢗⣗⢽⣪⢗⣿
+⣿⡽⣞⣗⣯⢾⡵⡯⡾⣽⣳⢽⡳⡯⡯⣗⣯⣟⣾⣺⢽⣳⢯⣟⣾⣺⢾⡯⣟⡷⣯⣟⡷⣟⣯⢿⡽⣯⢿⢯⡷⡿⡯⡿⡷⡿⣯⢿⡽⣿⣻⣽⢿⣻⣽⢿⣽⢯⡿⣽⢷⣻⣞⣯⡷⣯⢿⣞⣿⣺⣗⣿
+⣟⠌⠪⠐⠅⠅⠕⠡⢃⠑⠌⡊⠜⢘⢘⢘⢐⠰⠐⠌⡊⠢⢑⠢⢂⠊⢆⠕⠥⠣⢒⠢⢃⠣⠪⠪⠪⠊⠎⠕⡊⠪⢊⠪⠪⡘⠄⠕⢅⠕⡰⢘⠌⢆⠕⡑⢌⠕⡑⡑⢅⢃⠪⢐⠡⠡⡑⠰⡐⢌⢂⢿
+⡷⠈⠌⠌⠌⠌⠌⠌⠄⠅⠂⠐⠈⢄⢔⢔⢄⠂⡁⠡⢀⠑⡐⢈⠐⡈⠄⠨⠠⠁⠢⠂⠂⡐⢂⠢⠂⠡⠈⡐⢈⢈⠄⠨⠐⠀⠁⢁⠐⠀⡈⠠⠈⠐⠐⠈⠄⠅⢌⢐⠡⠐⡈⢐⠨⠐⠌⡂⠌⡐⠄⢿
+⡯⠀⠅⠨⠐⠈⠄⡁⠂⡂⠡⠨⠐⠐⡀⢂⠡⠐⡀⠅⠐⡀⠂⡐⢀⠂⠈⠄⠌⡈⠂⠌⠠⡀⢢⢢⡢⡈⡔⡀⠂⠅⡅⠅⠂⡁⠌⠀⠐⠀⢂⠐⠈⡀⠡⠁⡈⢈⠠⠐⡀⠅⠐⠠⠨⠈⠄⠂⠡⠐⠀⣻
+⡯⠠⠁⠡⠈⡐⠐⠀⠡⠀⡈⠠⠈⠠⠀⡂⢀⠁⠄⢀⢐⢔⢀⡀⠄⠂⠁⠐⠀⡀⠂⢂⠀⠄⠑⢐⠪⡂⠕⠀⠂⡁⢄⠢⠀⡀⠄⠈⠔⡁⢇⠏⢖⠐⠄⠁⠓⠉⠊⠀⠀⠂⠁⢐⠀⡁⠠⠁⠂⠁⡁⢽
+⡯⠀⠌⠐⠐⠀⡀⢁⠐⠠⠀⠠⠈⠀⠂⠀⠂⠈⠀⠁⠁⠄⢄⠈⠠⠀⡁⡐⡀⠠⠐⠀⠄⠂⢈⠠⢐⣰⣨⣄⡁⠀⠄⠀⢂⠤⡦⡢⡡⡪⡓⡎⡐⡐⠠⠁⡀⠁⠄⠁⡈⠠⠁⠄⠠⠀⠄⠐⢀⠁⡀⢽
+⡯⠀⠈⢀⠈⠠⠀⠄⠐⠀⠈⠀⢀⠐⠀⠄⠂⠐⠀⠂⠢⠊⠠⢑⠢⡑⡐⠄⣂⢢⠪⡝⢌⢁⢐⢐⠕⠝⠟⢟⠻⡐⡈⢨⢢⢣⢇⢪⡸⠨⠊⠊⠀⠂⠂⢂⠄⠐⠀⠁⢀⠀⠄⠂⠐⠀⠀⠂⠠⠀⠀⣽
+⡯⢂⠡⠀⡀⠂⠂⠐⢀⠁⠄⠡⠐⠀⠁⡀⠂⠠⠀⠄⠨⢈⢂⠠⡂⡐⠌⡃⠕⠡⠃⢂⠂⠂⠂⠂⡁⢁⠁⠄⢁⠈⢀⠁⡁⡑⢌⢃⠪⠈⡂⠅⠁⡀⠁⠐⠀⠠⠀⠁⠀⡀⠂⠁⠈⠀⠡⡈⠠⣲⢅⢾
+⣿⣔⣵⣱⣔⣕⣬⣴⣤⣢⣬⣤⣬⣰⣤⣰⣌⣎⣎⣎⣥⣥⣥⣅⣎⣬⣰⣨⣨⣬⣌⣆⣆⣥⣮⣢⣔⣔⣔⣌⣔⣬⣰⣠⣢⣤⣢⣔⣤⣤⣠⣄⣅⣄⣆⣅⣤⣄⣤⣄⣥⣠⣢⣢⣢⣕⣥⣢⣽⣜⣵⣿
+```
+
+Bild der Version: `telegrafenberg-panorama` · © 2026 André Stiebitz · CC BY 4.0
+
+### Hinzugefügt
+
+- Neues Projekt aus hochgeladenen Daten (Etappe U2a, nur Admins, ab Werk aus): Upload in Stücken zu 64 MiB mit
+  SHA-256 je Stück, fortsetzbar (`/api/v1/uploads`), Importauftrag `neu_mesh` (GLB oder PLY ohne Textur) bzw.
+  `neu_splats` (PLY, SPZ, SPLAT) über `/api/v1/importe`; der Import-Worker baut das Paket isoliert mit
+  `scanview-import neu-ohne-wolke`, prüft es mit `verify` und schaltet es über die Übergabe und das unveränderte
+  Freischalt-Skript frei. Portal-Seite „Uploads“, MCP-Werkzeuge `import_starten` und `import_status` (Hochladen
+  bleibt bei Mensch oder Skript). Ohne Koordinatensystem trägt das Paket „lokal, Modellmaß“, der Viewer weist darauf
+  hin. Einschalten: `SCANVIEW_IMPORT=1` mit Pflichtwert `SCANVIEW_UPLOAD_QUOTE_GB` in
+  `/etc/scanview/scanview-joblaeufer.env` (setzt den Jobläufer voraus); Caddy erlaubt 65 MiB nur für Upload-Stücke und 13 MiB für die Upload-Ankündigung.
+- Skripte statt Werkzeuge (Etappe C1/C2): öffentliche OpenAPI-Beschreibung der API v1 unter
+  `docs/public/api/openapi.json` — genau die Operationen, die ein API-Token erreicht, mit beschriebenen Antworten
+  (Sitzung, Projekte, POIs, Messungen, Auswertungen, Ergebnis) und einem einheitlichen Fehlerschema. Offline aus
+  dem Server erzeugt (`python -m scanview_server.openapi_v1`); der Dienst liefert weiterhin keine öffentliche
+  OpenAPI-Route aus, die angemeldete Sicht `GET /api/v1/openapi.json` zeigt dieselben Beschreibungen. Dazu der
+  Client `sitebits` (`clients/sitebits/`, TypeScript ohne Laufzeit-Abhängigkeiten, nur `fetch`) mit typisierten
+  Funktionen je Operation, Beispielskripten (rote Zeilen aller Projekte, POIs als CSV, Auswertung starten und
+  warten) und der Anleitung [Skripte statt Werkzeuge](docs/public/skripte.md).
+- Auswertungen auf dem Server (Etappe U1b/U1c): Projektleitung und Admins reihen einen Prüfbericht ein
+  (`POST /api/v1/projekte/{pid}/auswertungen`, Typ `auswerten_pruefen`, Profil aus fester Liste), lesen Stand,
+  `ergebnis.json` und den Bericht (HTML als Download ohne Skripte) und geben ihn für Bearbeiter frei; Löschen
+  entfernt Bericht, Auftrag und Freigabe. Ein Token für KI-Agenten darf starten, nicht freigeben oder löschen.
+  MCP-Werkzeuge `auswertung_starten`, `auswertung_status`, `auswertung_lesen` (nur Urteile je Zeile, keine
+  Rohdaten). Ab Werk aus (`SCANVIEW_JOBS_DB`, `SCANVIEW_BERICHTE`); Migration 0014 (Freigaben).
+- `scanview-import-worker`: eigener Dienst, der Aufträge aus `jobs.db` FIFO und einzeln abarbeitet — je Auftrag eine
+  transiente systemd-Unit ohne Netz und ohne Unix-Sockets, Paket nur lesend, nur der Arbeitsordner beschreibbar,
+  RAM (Prüfen 2 GB), Laufzeit und Prozesse begrenzt; Herzschlag (`/api/gesundheit` meldet `worker`), neustartfest,
+  Selbsttest der Isolation vor dem Start.
+- `einrichten.sh` richtet den Jobläufer mit ein, ab Werk aus: Schalter `SCANVIEW_JOBLAEUFER=1` in der neuen
+  `/etc/scanview/scanview-joblaeufer.env`. Prüft vor jeder Änderung systemd ≥ 257, cgroup v2 mit `memory`, logind,
+  `dbus-user-session`, Arbeitsspeicher (Budget `SCANVIEW_JOBS_RAM_GB` + 1 GB) und die Import-Umgebung und bricht
+  sonst ab; legt Nutzer `scanview-import` (Linger), Gruppe `scanview-jobs`, `/srv/scanview/{jobs,berichte}` und die
+  Unit `scanview-import-worker` an, begrenzt den RAM aller Aufträge auf `user@<uid>.service` und wartet auf den
+  bestandenen Selbsttest. Webdienst und Sicherung bekommen Drop-ins (Hauptunits unverändert); die Sicherung nimmt
+  `jobs.db` (7 Stände) und einen Spiegel der Berichte mit. `0` hält den Dienst wieder an und entfernt Units,
+  Drop-ins und Linger, Daten bleiben. Weitere Instanzen auf demselben Host bekommen keinen Jobläufer; die
+  Instanznamen `import` und `jobs` sind gesperrt.
+- `scanview-import fotos-colmap` und `fotos-odm`: orientierte Fotos aus COLMAP und OpenDroneMap, ohne eigenen
+  Kameraexport. Prüfungen wie bei `fotos-kameras`; das Kameramodell belegen die Merkmalspositionen der Rekonstruktion
+  (Median-Restvektor ≤ 0,1 px, `provenance.modelCheck`). ODM: eigene UTM-Umrechnung mit echter Kameradrehung
+  (am Testdatensatz Aukerman Rückprojektion 1,49 statt 2,02 px gegenüber ODMs eigener Fassung).
+- Viewer, Mesh-Ebenen: Darstellung wie in Modell-Inspektoren — Fläche **Textur / Grau / Normalen / Aus** und
+  **Drahtgitter** (allein oder über der Fläche); „Schattierung“ wirkt weiter als Licht auf die Textur, Grau ist immer
+  beleuchtet. Ohne Normalen im Paket schattieren Grau und Normalen flach im Shader (kein Zusatzspeicher); passt die
+  Schattierung nicht ins Grafikbudget, wird sie flach statt abgelehnt. Drahtgitter kostet 24 Byte je Dreieck im
+  Mesh-Budget und bleibt über dem Budget aus; Messen und Verdecken laufen immer über die Fläche (bei „Aus“ gar nicht).
+- Viewer: Panel **Sonne** (Pakete mit Mesh-Ebene und georeferenziertem Koordinatensystem): Sonnenstand zu Datum und
+  Uhrzeit (Ortszeit Berlin, MEZ/MESZ), Zeitraffer, Sonnenbahn mit Sommer-/Wintersonnenwende, Azimut/Höhe und
+  Auf-/Untergang. Mesh-Ebenen werfen und empfangen Schatten; Schattenkoordinaten präzise auch in UTM (Rechenfehler
+  < 1 mm statt mehrerer Dezimeter auf dem three.js-Standardweg). Punktwolken und Sichtschichten werfen noch keine
+  Schatten. Bei lokalem Koordinatensystem ist die Sonne nicht verfügbar (Hinweis).
+- Viewer: Panel **Kontrollpunkte** (J3b): Kontrollpunktliste (CSV im Schema des Katalogprüfers, `# crs = EPSG:…+…`)
+  lokal laden, Punkt wählen (Kamera fliegt hin), Marke am Modell picken (Punktwolke oder Mesh, wie beim Messen) und
+  die Liste mit Ist-Werten exportieren, die `scanview-pruefen --kontrollpunkte` direkt liest (Lage RMSE_H,
+  Maßstab). Bezugssystem muss zum Paket passen, sonst Ablehnung ohne Umrechnung. Bewusst ohne Sollmarker und ohne
+  Abweichungsanzeige (unabhängige Messung). Picks werden als lokaler Entwurf je Projekt und Soll-Liste (SHA-256)
+  gesichert und beim erneuten Laden derselben Liste zum Übernehmen angeboten; Abmelden im Portal löscht sie.
+- `nachweise/codekarte/codekarte.sh`: Code-Karte (CodeCharta) eines Git-Stands als statische Datei — Analyse ohne
+  Netz im festen Image, ohne Autoren, mit derselben Begriffsprüfung wie die Export-Probe. Für sitebits.de/code/
+  nur aus dem öffentlichen Export erzeugt; README verlinkt die Karte.
+- `scanview-sonne bericht` (Extra `[sonne]`): Verschattung und Ertrag für eine gemessene Fläche am Mesh eines
+  Pakets. Richtungskarte je Stichpunkt (Embree-Raycast), Direktmaske, Himmelssicht und Horizontband getrennt,
+  Wetter aus PVGIS 5.3 (2005–2023, eigener Fernhorizont statt PVGIS-Horizont), pvlib mit Huld-Modell, Faiman und
+  AC-Kappung; Ertrag mit Band P50/P90, Sonnenstunden je Monat, Wärmekarte, PDF-Bericht mit PVGIS-Gegenprobe.
+  `scanview-sonne gegenprobe` vergleicht den Rechenweg ohne Verschattung mit PVGIS PVcalc.
+- `scanview-sonne garten`: Sonnenbericht für eine Gartenfläche im Grundriss. Boden je Stichpunkt per Strahl von
+  unten (Suchfenster um die Eckenebene), direkte Sonnenstunden je Punkt und Monat, Lichtlage nach RHS
+  (Juni/Juli-Mittel, Grenzbereich ±0,4 h), Himmelssicht, Kategorien- und Stundenkarte, PDF nach der Berichts-Norm.
+  Zweite Rechnung mit geschlossenen Baumkronen (Kronen im Mesh sind löchrig), alle Zahlen als Spanne.
+  Pflanzenliste noch nicht enthalten.
+- `scanview-pruefen` (Etappe P, Stufe P1): Lieferung gegen Anforderungskatalog (TOML) prüfen, Urteil je Zeile
+  erfüllt / nicht erfüllt / nicht prüfbar mit Grund und Belegen, Prüfbericht nach der Berichts-Norm (HTML/PDF) und
+  deterministisches `ergebnis.json`. Prüfarten Bezugssystem, Klassen, Raster (GeoTIFF ohne GDAL), Formate,
+  Prüfsummen, Anhang, Bericht; Beispielprofil „Bestandserfassung Liegenschaft“ mit 18 Zeilen.
+- `scanview-pruefen` Stufe P2: Punktdichte, Datenlücken und Bodenauflösung über der Auftragsfläche des
+  Auftraggebers (`--flaeche`, GeoJSON), mit Lücken- und Dichtekarte im Bericht. Doppelt gelieferte Wolken zählen
+  nicht doppelt (Maximum je Zelle); die Bodenauflösung kommt aus den orientierten Fotos eines Pakets.
+- `scanview-pruefen` Stufe P3 (Genauigkeitsnachweis F15 Teil 2): Kontrollpunkte als CSV aus der Lieferung oder vom
+  Auftraggeber. Höhe von siteBits an der Wolke gemessen, Lage aus den Ist-Werten der Liste nachgerechnet, RMSE mit
+  eingerechneter Genauigkeit der Kontrollpunkte; Passpunkte zählen nie, Bezugssysteme werden nie still umgerechnet.
+  Maßstab aus Kontrollpunktpaaren.
+- `scanview-pruefen` Stufe B1: Boden gegen das amtliche DGM des Auftraggebers (`--dgm`). Je DGM-Pixel wird das Mittel
+  der Bodenpunkte mit dem DGM verglichen; `klassen_richtig` findet Dächer oder Bewuchs, die als Boden klassifiziert
+  sind (mit Karte), `einpassung` die mittlere Höhenabweichung auf dem Boden. Beispielprofil um Zeile L19 ergänzt.
+- `scanview-pruefen`: Kontrollpunktlisten aus dem Viewer (am Modell gepickt) werden als solche ausgewiesen; jeder RMSE
+  wird zur Orientierung in BFR-Verm OGL/OGH, USIBD LOA und Eckstein-Stufen eingeordnet. Bezugssystem-Deklarationen
+  gelten unabhängig von der Schreibweise, ein BOM am Dateianfang stört nicht mehr.
+- `scanview-pruefen` Bodenauflösung (L06): Mit Referenz-DGM misst sie bis zum DGM statt bis zur Bodenklasse der
+  Lieferung — als Boden klassifizierte Dächer machten sie sonst zu günstig. Ohne DGM nennt der Beleg diesen Vorbehalt.
+- `scanview-import convert --rgb-8bit`: LAS/LAZ mit Farbe 0 bis 255 in den 16-bit-Feldern (ODM) auf 16 bit skalieren;
+  bricht ab, wenn ein Wert über 255 liegt.
+
+### Geändert
+
+- **Viewer, Controller:** Die Steuerung ist neu und folgt der Konvention von Konsolen- und PC-Spielen. Sie wirkt jetzt
+  in der Übersicht, im Begehen, im Panorama und in Dialogen statt nur im Begehen. Linker Stick bewegt, rechter Stick
+  schaut bzw. dreht um den Drehpunkt. L2/R2 (LT/RT) sind analog die Höhe bzw. der Zoom, L1/R1 wechseln das Werkzeug.
+  ✕/A setzt und bestätigt, ○/B geht zurück wie Esc, □/X zielt bzw. schaltet den Fang, △/Y startet das Begehen bzw.
+  setzt einen Befund. Options öffnet ein Menü, Create bzw. der Touchpad-Klick zeigt die Belegung.
+  Die Sticks haben eine radiale Totzone (0,15), eine Ansprechkurve und eine Beschleunigung beim Halten. Alles rechnet
+  mit der Bildzeit, unter reduzierter Bewegung ohne Nachlauf. Beim Verbinden erscheint eine Meldung, und eine
+  Kontextleiste nennt die Knöpfe. Die Symbole folgen dem Controller (PlayStation, Xbox, sonst neutral). Neu sind die
+  Einstellungen „Controller-Empfindlichkeit“ und „Vibration“. Die Belegung steht im Dialog „Bedienung“ und in
+  [Controller-Steuerung](docs/public/controller.md).
+  Gegenüber bisher setzt ✕/A statt R2, Zielen liegt auf □/X statt L2, die Höhe auf L2/R2 statt auf dem Steuerkreuz,
+  Options öffnet das Menü statt der Karte. Eigene Controller-Umbelegungen aus früheren Versionen werden verworfen.
+  Tastatur und Maus sind unverändert.
+- **Viewer und Portal auf Handy und Tablet:** Auf dem Handy eine Leistenzeile oben (Pfeil statt „← Projekte“,
+  Werkzeuge, Fenster-Symbol), seltene Werkzeuge hinter „Mehr“, Tippziele 44 px. Der Viewer startet ohne offene
+  Panels, es ist immer nur ein Panel als Blatt offen (quer rechts), Befundformular und Entwurf ebenfalls als Blatt.
+  Leisten, Docks, Blätter und Dialoge halten sichere Ränder ein (Notch). Auf Desktop und Tablet stehen Meldungszeile
+  und Scan-Hinweis in der freien Lücke zwischen Panels und Leisten; Tastenhinweise treten zurück, wenn sie verdeckt
+  wären. Geprüft über 15 Geräte (hoch und quer) ohne sich überdeckende Bedienelemente.
+- Release-Manifest Schema `/3`: Das Import-Werkzeug (`scanview-import-X.Y.Z.tar.gz`) wird ausgeliefert und auf dem
+  Host entpackt, weil der Jobläufer daraus die Import-Umgebung baut. Es zählt damit in Scan-, Lizenz- und
+  Befund-Gate und im Wochenscan wie web, server und mcp. Archivierte Manifeste `/1` und `/2` bleiben gegen ihre
+  eigene Auslieferungsmenge prüfbar; ein `/2`-Manifest mit ausgeliefertem import oder ein `/3`-Manifest ohne wird
+  abgelehnt. `import/` trägt jetzt die gemeinsame Produktversion. Der Inhalt der Werkzeug-Images des Imports
+  (PDAL, untwine) steht in einem eigenen, nicht ausgelieferten Nachweis-SBOM `scanview-importbilder-X.Y.Z.cdx.json`;
+  das ausgelieferte Import-SBOM beschreibt nur die Umgebung aus `import/uv.lock`.
+- `scanview-server.env.beispiel` trägt die Auswertungspfade nicht mehr; sie stehen in
+  `scanview-joblaeufer.env.beispiel` und erreichen den Webdienst nur mit eingeschaltetem Jobläufer.
+- Viewer: Der Hinweis „Modellmaß — Maßstab nicht belegt“ erscheint bei Messungen über mehrere Ebenen einmal mit
+  allen Quellen; Anzeige englisch, wenn der Browser nicht auf Deutsch steht. Exporte bleiben deutsch.
+- Foto-Importe akzeptieren ein Paket-CRS ohne EPSG-Autorität, wenn PROJ es als gleichwertig erkennt (ODM-LAZ).
+- `images.json`: `provenance.maxReferenceErrorPx` steht nur noch, wenn Referenzpaare geprüft wurden.
+- Import: Die bisherigen Befehle `panos-…` und `fotos-…` mit Herstellerbezug im Namen heißen jetzt
+  `panos-kameras` und `fotos-kameras` (neben `fotos-colmap` und `fotos-odm`); die alten Namen entfallen ohne
+  Alias, Skripte bitte anpassen. Ebenso heißt der vorgesehene Auftragstyp jetzt `ergaenzen_fotos_kameras`.
+  `kameras.json` ist als herstellerneutrales Austauschformat beschrieben (Felder, Einheiten, Bezugssystem,
+  Achsen, Kameramodell; `import/README.md`), so dass jede Photogrammetrie-Software es erzeugen kann.
+  Exportskripte für einzelne Programme gehören nicht mehr zum Repository. Neue Fotoebenen vermerken
+  `provenance.source: "kameras"`; vorhandene Pakete behalten ihren bisherigen Wert.
+- `kameras.json`: Sensoren tragen `rollingShutter` und `calibrationAdjusted`. `fotos-kameras` bricht ab, wenn ein
+  Sensor Rolling-Shutter-Kompensation nutzt oder keine angepasste Kalibrierung hat — bisher prüfte das nur das
+  Exportskript. Fehlen die Felder (ältere Exporte), gilt `false` bzw. `true`.
+
+### Behoben
+
+- Upload-Ankündigung (`POST /api/v1/uploads`) mit langer Dateiliste: Caddy kappte den Körper bei 1 MB, das Schema
+  erlaubt bis 10 001 Einträge mit Pfaden bis 1300 Zeichen (≈ 12,8 MiB). Schon ab durchschnittlich ~65 Zeichen
+  Pfadlänge bei voller Liste kam ein leeres 413 von Caddy statt einer Antwort des Dienstes. Eigene Grenze 13 MiB nur
+  für diese Route, Rechenweg in `scanview.caddy`, Drift-Test gegen das Schema (B-FUZZ-5). Betraf nur unveröffentlichte
+  Stände.
+- OpenAPI: Fehlerantworten der Datei-Routen (CSV, XLSX, JSON Lines, Prüfbericht) als `application/json` beschrieben
+  statt mit dem Medientyp der Datei; HEAD des Upload-Stands ohne Fehlerkörper beschrieben. Nur Beschreibung und
+  Client-Typen, Verhalten unverändert.
+
+### Sicherheit
+
+- certifi 2026.7.22 → 2026.10.19 in MCP-Server und Import (GHSA-6q48-6c7w-9gw2, kritisch: das CA-Bündel
+  enthielt die emSign-Wurzel, deren Zwischenzertifikate kompromittiert sind; betroffen sind alle bisherigen
+  Stände mit MCP-Server). Pillow 12.3.0 → 13.0.0 im Import (29 Schwachstellen in Bilddecodern und -encodern,
+  darunter CVE-2026-112393, CVE-2026-112403 und CVE-2026-112900 kritisch; der Import wird mit diesem Release
+  erstmals ausgeliefert, kein früherer ausgelieferter Stand ist betroffen). Befund B-SCAN-IMPORT-LOCK.
+  Betreiber: Update einspielen, keine weitere Maßnahme.
+- Neu ist eine Vertrauensgrenze: Der Server liest mit Auswertungsjobs fremde
+  Dateien; das geschieht nur im Import-Worker mit Isolation je Auftrag (Bedrohungsmodell
+  `docs/public/sicherheitsarchitektur.md`). Ab Werk aus. Mit dem Import kommen zwei weitere hinzu (Uploader ↔
+  Webdienst, Worker ↔ Übergabe ↔ Freischalten), ebenfalls ab Werk aus.
+- Der KTX2-Transcoder des Viewers enthält jetzt den Zstandard-Decoder 1.5.7 statt 1.4.9 (eigener Bau aus
+  gepinnter Quelle, Schnittstelle zu three unverändert; Lieferketten-Befund B-LK-ZSTD behoben). Für 1.4.9 meldet
+  OSV `OSV-2022-15`; die Lücke liegt im zstd-Kompressor, der nie eingebaut war, also keine ausnutzbare
+  Schwachstelle in ausgelieferten Ständen. Weil Mesh-Texturen inzwischen aus hochgeladenen Paketen kommen, läuft
+  der Decoder auf aktuellem Stand statt mit einer VEX-Ausnahme. Betreiber: keine Maßnahme.
+- Lieferkette des Imports gehärtet (B-LK-IMPORT): fester Mindestalter-Stichtag in `import/pyproject.toml` und
+  `uv.lock`, Build-Backend `hatchling==1.32.3` gepinnt, Fremdpakete nur als Wheel.
+- **Maßnahme der Betreiber (alle Hosts, vor dem ersten Release mit Manifest-Schema `/3`):** Die vorhandene geprüfte
+  Skriptkopie (`/root/scanview-deploy/<alte Version>`) lehnt `/3` ab (`NACHWEIS-FEHLER manifest: unbekanntes
+  Schema …`, nichts wird verändert), und das bisherige `/root/scanview-bootstrap.sh` bricht mit
+  `Abbruch: Artefakte` ab, weil es genau drei Archive erwartet. Ablauf:
+  1. `/root/scanview-bootstrap.sh` durch den Block aus [`docs/public/betrieb.md`](docs/public/betrieb.md),
+     Abschnitt „Aktualisieren“, Schritt 2 ersetzen — aus der Anleitung (Quelltext oder öffentliches Repository),
+     **nie aus dem Release**. Er kennt die Auslieferungsmenge je Schema (`/1`, `/2`: web, server, mcp; `/3`: dazu
+     import) und bricht bei einem unbekannten Schema ab.
+  2. Release-Ordner wie gewohnt hochladen und `sudo bash /root/scanview-bootstrap.sh <upload-ordner> X.Y.Z`
+     ausführen. Das Skript prüft Signaturen gegen `/etc/scanview/allowed_signers`, Abschluss und die Prüfsummen
+     aller vier Archive, entpackt erst danach die Prüfskripte aus dem geprüften Server-Archiv nach
+     `/root/scanview-deploy/X.Y.Z` und richtet mit ihnen ein (`einrichten.sh --release` prüft alles noch einmal).
+  3. Künftige Updates laufen wieder mit dieser neuen Skriptkopie. Nie den `release_pruefen.py` oder das
+     `einrichten.sh` eines noch ungeprüften Releases direkt aufrufen.
+
 ## [0.10.3] – 2026-10-19
 
 Erste öffentliche Version auf GitHub. Inhaltlich wie 0.10.2, dazu Dokumente für die öffentliche Ablage und ein paar
@@ -60,7 +275,7 @@ Bild der Version: `2023-06-21-dji360-1410-verbessert-nr-panorama` · © 2026 And
 ## [0.10.2] – 2026-10-18
 
 Patch für die Bedienung auf dem Handy: Flächen schließen, Werkzeugleiste, Hinweise, Messbeschriftungen, Querformat.
-Dazu ein Fix im Metashape-Kameraexport des Imports. Keine Migration, keine neuen Pflicht-Variablen.
+Dazu ein Fix im Kameraexport des Imports. Keine Migration, keine neuen Pflicht-Variablen.
 
 **Betreiber:** nur aktualisieren.
 
@@ -79,8 +294,9 @@ Dazu ein Fix im Metashape-Kameraexport des Imports. Keine Migration, keine neuen
   lief eine einzige lange Zeile über den Bildschirmrand und überlagerte andere Messungen.
 - Handy quer: bekommt jetzt das mobile Layout mit dem Panel als Leiste rechts (vorher schwebende Desktop-Panels,
   die das Bild zudeckten).
-- Import, Kameraexport aus Metashape (`kameras_exportieren.py`): Tie Points im Unendlichen (homogene Koordinate
-  w = 0) werden übersprungen. Vorher brach der Export mit einer Division durch null ab, und Metashape stürzte danach ab.
+- Import, Kameraexport (Exportskript der Photogrammetrie-Software): Tie Points im Unendlichen (homogene Koordinate
+  w = 0) werden übersprungen. Vorher brach der Export mit einer Division durch null ab, und die Software stürzte
+  danach ab.
 
 ### Sicherheit
 
@@ -345,16 +561,16 @@ neuen Umgebungsvariablen.
 
 ### Hinzugefügt
 
-- `fotos-metashape --rueckprojektion-grenze PX` (Standard 2, höchstens 10): hebt die
+- `fotos-kameras --rueckprojektion-grenze PX` (Standard 2, höchstens 10): hebt die
   Rückprojektionsgrenze ausdrücklich an; `images.json` nennt Grenze, Standard und die Fotos über
   2 px (`provenance.reprojection.aboveDefault`).
-- `fotos-metashape --exif-drehung-ignorieren`: Fotos mit EXIF-Orientation 5 bis 8 werden als
-  Sensorpixel übernommen, wenn ihre Rohpixelmaße Metashapes Kamera entsprechen (nicht quadratisch);
+- `fotos-kameras --exif-drehung-ignorieren`: Fotos mit EXIF-Orientation 5 bis 8 werden als
+  Sensorpixel übernommen, wenn ihre Rohpixelmaße der exportierten Kamera entsprechen (nicht quadratisch);
   Spiegeln/180° bleiben gesperrt. Vermerk in `images.json` (`provenance.exifOrientationIgnored`).
 - Lageanpassung im Import: `convert --verschiebung DX,DY` (oder JSON mit `dx_m`/`dy_m`) bzw.
   `--transformation` mit einer starren 4x4-Matrix (Drehung + Verschiebung, Maßstab 1), etwa zur
-  Anpassung einer Drohnenwolke an LoD2/DGM1. Vermerk in `sourceOptions.lage`; `panos-metashape`/
-  `fotos-metashape` (Position, Blickrichtung, Tie Points), `add` (Mesh-Vertices, Vermerk in der
+  Anpassung einer Drohnenwolke an LoD2/DGM1. Vermerk in `sourceOptions.lage`; `panos-kameras`/
+  `fotos-kameras` (Position, Blickrichtung, Tie Points), `add` (Mesh-Vertices, Vermerk in der
   Mesh-Ebene; frameCheck gegen die Wolke) und `verify` übernehmen sie aus dem Paket.
 - Mesh-frameCheck misst nur Wolkenpunkte im Grundriss des Meshes (1-m-Raster aus den
   Dreiecksrechtecken, `frameCheck.within`). Ein Teil-Mesh (z. B. ein Gebäude im Gelände) scheiterte
@@ -378,7 +594,7 @@ neuen Umgebungsvariablen.
   rechnen Punktwolken (LAS/LAZ/PLY/PTS/Text) und Meshes zwischen ellipsoidisch und DHHN2016 um,
   über das Quasigeoid GCG2016 des BKG (mitgeliefert, CC BY 4.0) und eine explizite PROJ-Pipeline;
   fehlendes Gitter oder Punkte außerhalb brechen ab, ohne Quellangabe wird nichts angenommen.
-  `panos-metashape`/`fotos-metashape` rechnen Kamerahöhen und Tie Points ins Paket-Höhensystem um.
+  `panos-kameras`/`fotos-kameras` rechnen Kamerahöhen und Tie Points ins Paket-Höhensystem um.
   `verify` vergleicht mit gleich umgerechneten Quellpunkten; `sourceOptions.hoehe` belegt Quelle,
   Ziel und Gitter-Prüfsumme. E57 nur Deklaration. Neue Abhängigkeit `pyproj`.
 - Messen auf Meshes: Messungen und POIs treffen sichtbare Mesh-Vollstufen; Vertex- und
@@ -480,14 +696,14 @@ Umgebungsvariablen, `scanview.caddy` ist unverändert. Betreiber müssen nichts 
 - Fotos: Kamerapyramiden hinter Wänden lassen sich nicht mehr anklicken; eine Größenänderung des
   Foto-Fensters behält Zoom und Bildausschnitt.
 - Fotos-Import: Kalibrierungen mit p3/p4 ≠ 0 und Kamerabezeichnungen in mehreren Gruppen werden mit
-  Grund abgelehnt, statt still falsch oder ohne Erklärung zu scheitern. Der Metashape-Export rechnet
+  Grund abgelehnt, statt still falsch oder ohne Erklärung zu scheitern. Der Kameraexport rechnet
   nur noch die Stichprobe der Tie Points um (schneller bei großen Projekten).
 - Messen und Befunde: Ein zweiter Punkt kurz nach dem ersten (oder die Suche nach einer Rückfrage) läuft
   nicht mehr in die grobe Stufe. Dekodierte Punktknoten werden zwischen Suchen geteilt (bis 64 MB),
   Folgesuchen in derselben Gegend brauchen 10–200 ms statt bis zu 500 ms.
 - SBOM: Mehrere ausgelieferte Dateien desselben Pakets tragen jeweils ihren SHA-512
   in verschachtelten Dateikomponenten mit Lieferpfad; der Paket-Tarball-Hash bleibt erhalten.
-- Fotos-Export (Metashape-Skript): Die Referenzpaare zur Prüfung des Verzeichnungsmodells decken
+- Fotos-Export (Exportskript): Die Referenzpaare zur Prüfung des Verzeichnungsmodells decken
   jetzt auch den Bildrand ab, wo k3/k4 am stärksten wirken. Der Import kann damit Exporte abweisen,
   deren Modell erst am Rand abweicht.
 
@@ -506,7 +722,7 @@ Foto-Fenster, „Durch die Kamera“) und im Panorama sichtbare Nachbar-Marken m
 Doppelklick. Der Server liefert Fotos ohne freigegebene Anonymisierung nur an Bearbeiter,
 Projektleitung und Admin; die beiden breiten Ausnahmebehandlungen im Katalog sind eingeengt. Der
 MCP-Server ist bis auf die Version unverändert. Der Import (nicht ausgeliefert) übernimmt
-Metashape-Rahmenkameras als Fotos und weist E57 mit Float32-Koordinaten ab — die in 0.7.0
+Rahmenkameras aus `kameras.json` als Fotos und weist E57 mit Float32-Koordinaten ab — die in 0.7.0
 angekündigte Korrektur. Es gibt keine Migration, das Schema bleibt bei 10, keine neuen
 Umgebungsvariablen; `scanview.caddy` ist unverändert (Fotos liegen unter `/data/` und laufen durch die
 vorhandene Rechteprüfung). Die nginx-Beispielkonfiguration gibt Fotos bewusst nicht frei. Betreiber
@@ -514,10 +730,10 @@ müssen nichts übernehmen.
 
 ### Hinzugefügt
 
-- Orientierte Fotos: `scanview-import fotos-metashape` übernimmt Metashape-Rahmenkameras (etwa
+- Orientierte Fotos: `scanview-import fotos-kameras` übernimmt Rahmenkameras aus `kameras.json` (etwa
   Drohnenbilder) mit angepasster Kalibrierung, entzerrt sie auf eine Lochkamera und schreibt die
   Ebene „Fotos“ (Stufen bis 4096 px, wahlweise Kacheln in voller Auflösung). Der Import prüft das
-  Verzeichnungsmodell gegen Metashape, den Ausrichtungsstand gegen die Punktwolke und die
+  Verzeichnungsmodell gegen die Referenzpaare des Exports, den Ausrichtungsstand gegen die Punktwolke und die
   Rückprojektion je Foto (≤ 2 px). Der Viewer zeigt Blickpyramiden je Gruppe, ein Foto-Fenster
   und „Durch die Kamera“ mit Überblendung. Doku `docs/public/fotos.md`.
 
@@ -535,7 +751,7 @@ müssen nichts übernehmen.
 ### Behoben
 
 - Panorama: Nachbar-Standpunkte erscheinen als Marken fester Bildschirmgröße. Bisher lagen sie als flache
-  Scheiben auf Scannerhöhe, wenn ein Standpunkt keine Bodenhöhe hatte (etwa Metashape-Panoramen ohne
+  Scheiben auf Scannerhöhe, wenn ein Standpunkt keine Bodenhöhe hatte (etwa Panoramen aus `kameras.json` ohne
   `overview`), und waren vom Nachbarn aus nur von der Kante zu sehen. Liegt kein Nachbar innerhalb von 25 m,
   zeigen die nächsten drei bis 100 m. Neu: Doppelklick im Panorama wechselt zum Standpunkt in dieser Richtung.
 
@@ -639,7 +855,7 @@ MCP-Server (`mcp-server`); alle drei sind bis auf die Version unverändert. Neu 
 mehrere Instanzen betreiben kann: `einrichten.sh --instanz <name> --port <port>` richtet eine weitere
 Instanz mit eigenen Konten, Pfaden, Units, Rechten und Sicherungen ein. Ohne `--instanz` verhalten
 sich `einrichten.sh`, das Freischalt-Skript und alle Vorlagen bytegleich wie in 0.5.0. Der Import
-liest Kugelpanoramen aus Metashape als Standpunkte (`panos-metashape`). Es gibt keine Migration, das
+liest Kugelpanoramen aus `kameras.json` als Standpunkte (`panos-kameras`). Es gibt keine Migration, das
 Schema bleibt bei 10, keine neuen Umgebungsvariablen; `scanview.caddy` ist unverändert, Betreiber der
 Standardinstanz müssen nichts übernehmen.
 
@@ -651,7 +867,7 @@ Standardinstanz müssen nichts übernehmen.
 - `paket-bereitstellen.sh --instanz <name>` und dokumentierter `sv-beispiel`-Helfer.
   Caddy und fail2ban erhalten eigene gerenderte Betreiberdateien; benannte Instanzen bekommen
   keine Git-Export-Units.
-- Import von Metashape-Kugelpanoramen als Standpunkte über `panos-metashape`: geprüftes
+- Import von Kugelpanoramen als Standpunkte über `panos-kameras`: geprüftes
   Kameraformat, bilineare Würfelseiten und Exportskript mit numerischen Gitterrotationen.
   Paket-CRS und Höhensystem müssen übereinstimmen; unbekannte Pakethöhen brauchen eine
   ausdrückliche Erklärung. Gruppen erscheinen als Präfix im Standpunktnamen. Große

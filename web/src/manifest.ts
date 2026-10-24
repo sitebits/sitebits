@@ -125,10 +125,15 @@ export interface SplatsLayer {
   shDegree: 0 | 1 | 2 | 3;
   chunkCount?: number;
   lodMethod?: 'bhatt-lod';
-  frameCheck: { ok: true; samples: number; p50M: number; p95M: number };
+  /** Rahmenbeleg gegen die Punktwolke — oder `'keine Wolke'` bei einem Paket ohne Punktwolke
+   * (dann sind Lage und Maßstab nicht belegt, der Viewer sagt es an der Ebene). */
+  frameCheck: { ok: true; samples: number; p50M: number; p95M: number } | typeof KEINE_WOLKE;
   /** false = beim Start ausgeblendet (Voreinstellung ohne ly=); fehlt = sichtbar. */
   startVisible?: boolean;
 }
+
+/** frameCheck einer Splat-Ebene in einem Paket ohne Punktwolke (`scanview-import neu-ohne-wolke`). */
+export const KEINE_WOLKE = 'keine Wolke';
 
 /** Orientierte Fotos (images.json); Inhalt lädt images.ts. */
 export interface ImagesLayer {
@@ -466,7 +471,9 @@ function parseV2(m: Record<string, unknown>): Project {
     // Wie beim Mesh: erst ein erklärtes Format macht die Ebene prüfpflichtig; der alte Platzhalter ohne format
     // bleibt „nicht unterstützt“, der Rest des Pakets lädt.
     if (l.kind === 'splats' && l.format !== undefined) {
-      const c = l.frameCheck as SplatsLayer['frameCheck'] | undefined;
+      const ohneWolke = l.frameCheck === KEINE_WOLKE && !cloudIds.size;
+      const c = (ohneWolke ? { ok: true, samples: 1000, p50M: 0, p95M: 0 } : l.frameCheck) as
+        Exclude<SplatsLayer['frameCheck'], typeof KEINE_WOLKE> | undefined;
       if (!['ply', 'spz', 'rad'].includes(l.format as string) || typeof l.url !== 'string' || !l.url || ![0, 1, 2, 3].includes(l.shDegree as number) ||
           (l.format === 'rad' ? (!Number.isSafeInteger(l.chunkCount) || (l.chunkCount as number) < 1 || l.lodMethod !== 'bhatt-lod') : (l.chunkCount !== undefined && l.chunkCount !== 1)) ||
           !Number.isSafeInteger(l.splatCount) || (l.splatCount as number) <= 0 ||
@@ -482,7 +489,7 @@ function parseV2(m: Record<string, unknown>): Project {
         boundsWorld: l.boundsWorld as [Vec3, Vec3], shDegree: l.shDegree as SplatsLayer['shDegree'],
         ...(l.chunkCount !== undefined ? { chunkCount: l.chunkCount as number } : {}),
         ...(l.format === 'rad' ? { lodMethod: 'bhatt-lod' as const } : {}),
-        frameCheck: { ok: true, samples: c.samples, p50M: c.p50M, p95M: c.p95M } };
+        frameCheck: ohneWolke ? KEINE_WOLKE : { ok: true, samples: c.samples, p50M: c.p50M, p95M: c.p95M } };
     }
     if (l.kind === 'mesh' && l.format === 'gltf') {
       const where = `Ebene ${id}`;

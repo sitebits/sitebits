@@ -15,7 +15,7 @@ Sicherheitsaspekte (Vertrauensgrenzen, Bedrohungen, Maßnahmen) stehen in der
 
 | Komponente | Verzeichnis | Technik | Läuft |
 |---|---|---|---|
-| Import-Werkzeug `scanview-import` | `import/` | Python-CLI; PDAL und untwine als externe Prozesse in Containern | beim Aufbereiten der Daten, ohne Netz (internes Werkzeug, derzeit nicht ausgeliefert) |
+| Import-Werkzeug `scanview-import` | `import/` | Python-CLI; PDAL und untwine als externe Prozesse in Containern | beim Aufbereiten der Daten, ohne Netz; ab Manifest-Schema /3 ausgeliefert: auf dem Host nur in den isolierten Aufträgen des Jobläufers (neue Projekte aus Mesh oder Splats, ohne Container) |
 | Viewer | `web/` (`index.html`) | TypeScript, Vite, Giro3D/Three.js | im Browser |
 | Portal | `web/` (`portal.html`, `src/portal/`) | TypeScript ohne Framework, gemeinsames Designsystem (`tokens.css`) | im Browser |
 | Plattform-Server `scanview-server` | `server/` | Python, FastAPI, uvicorn (ein Prozess), SQLite | auf dem Host, nur Loopback |

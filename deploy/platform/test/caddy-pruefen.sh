@@ -196,6 +196,35 @@ s=$(head -c 1100000 /dev/zero | tr '\0' 'a' | curl -sS -o /dev/null -w '%{http_c
 	--data-binary @- "$BASIS/api/v1/projekte/$PROJEKT/pois" || true)
 s=${s:-000}
 [[ $s == 413 ]] && ok "/api/* mit 1,1 MB Körper → 413" || nok "/api/* Körpergrenze" "Status $s (erwartet 413)"
+# 9e Stücke eines Uploads: nur PUT …/uploads/<id>/dateien/<nr> darf über 1 MB (bis 65 MiB). 1,1 MB
+# kommen dort beim Dienst an (er antwortet selbst, nie 413 von Caddy); über 65 MiB → 413.
+UPLOAD_STUECK="$BASIS/api/v1/uploads/00000000000000000000000000000000/dateien/1"
+s=$(head -c 1100000 /dev/zero | curl -sS -o /dev/null -w '%{http_code}' -X PUT \
+	-H "Cookie: $COOKIE" --data-binary @- "$UPLOAD_STUECK" || true)
+s=${s:-000}
+[[ $s != 413 && $s != 000 ]] && ok "Upload-Stück 1,1 MB erreicht den Dienst → $s" || nok "Upload-Stück 1,1 MB" "Status $s (erwartet ≠ 413)"
+s=$(head -c $((65 * 1024 * 1024 + 1)) /dev/zero | curl -sS -o /dev/null -w '%{http_code}' -X PUT \
+	-H "Cookie: $COOKIE" --data-binary @- "$UPLOAD_STUECK" || true)
+s=${s:-000}
+[[ $s == 413 ]] && ok "Upload-Stück über 65 MiB → 413" || nok "Upload-Stück Körpergrenze" "Status $s (erwartet 413)"
+s=$(head -c 1100000 /dev/zero | curl -sS -o /dev/null -w '%{http_code}' -X POST \
+	-H "Origin: $BASIS" -H 'X-Scanview: 1' -H "Cookie: $COOKIE" --data-binary @- "$UPLOAD_STUECK" || true)
+s=${s:-000}
+[[ $s == 413 ]] && ok "POST 1,1 MB auf den Stück-Pfad → 413" || nok "POST auf Stück-Pfad" "Status $s (erwartet 413)"
+# 9f Ankündigung eines Uploads (POST /api/v1/uploads, Dateiliste als JSON): bis 13 MiB, Rechenweg
+# in scanview.caddy (B-FUZZ-5). 1,1 MB kommen beim Dienst an (er antwortet selbst, je nach Import
+# 404 oder 422, nie 413 von Caddy); über 13 MiB → 413.
+UPLOAD_NEU="$BASIS/api/v1/uploads"
+s=$(head -c 1100000 /dev/zero | curl -sS -o /dev/null -w '%{http_code}' -X POST \
+	-H "Origin: $BASIS" -H 'X-Scanview: 1' -H 'Content-Type: application/json' -H "Cookie: $COOKIE" \
+	--data-binary @- "$UPLOAD_NEU" || true)
+s=${s:-000}
+[[ $s != 413 && $s != 000 ]] && ok "Upload-Ankündigung 1,1 MB erreicht den Dienst → $s" || nok "Upload-Ankündigung 1,1 MB" "Status $s (erwartet ≠ 413)"
+s=$(head -c $((13 * 1024 * 1024 + 1)) /dev/zero | curl -sS -o /dev/null -w '%{http_code}' -X POST \
+	-H "Origin: $BASIS" -H 'X-Scanview: 1' -H 'Content-Type: application/json' -H "Cookie: $COOKIE" \
+	--data-binary @- "$UPLOAD_NEU" || true)
+s=${s:-000}
+[[ $s == 413 ]] && ok "Upload-Ankündigung über 13 MiB → 413" || nok "Upload-Ankündigung Körpergrenze" "Status $s (erwartet 413)"
 
 # 9d Ein Bearer-Token öffnet nie /data (forward_auth reicht Authorization durch, /api/authz
 # wertet nur das Cookie aus) — auch ein syntaktisch passender Wert → 401.
