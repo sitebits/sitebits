@@ -47,6 +47,9 @@ NUR_BROWSER: frozenset[tuple[str, str]] = frozenset({
     ("get", "/api/v1/projekte/{pid}/teilen"),
     ("post", "/api/v1/projekte/{pid}/teilen"),
     ("delete", "/api/v1/projekte/{pid}/teilen/{lid}"),
+    # Freigabe von Personenbildern: Mensch entscheidet (F20), Lesen bleibt per Token offen.
+    ("post", "/api/v1/projekte/{pid}/freigaben/{ebene}"),
+    ("delete", "/api/v1/projekte/{pid}/freigaben/{ebene}"),
 })
 
 _METHODEN = frozenset({"get", "put", "post", "delete", "patch", "head", "options", "trace"})

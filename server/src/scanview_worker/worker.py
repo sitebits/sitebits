@@ -84,6 +84,47 @@ MELDUNGEN: dict[str, str] = {
     "FREISCHALTEN": "Das Freischalten ist fehlgeschlagen.",
 }
 F_MELDUNG = "Freischalten abgelehnt ({wort})."
+F_ANHANG_AUS = "Anhänge sind auf dieser Instanz nicht eingerichtet."
+F_ANHANG_FEHLT = "Anhang nicht gefunden oder nicht lesbar."
+F_ANHANG_KAPUTT = "Das Bild ließ sich nicht verarbeiten."
+ANHANG_EIN_MAX = 20 * 1024 * 1024
+ANHANG_BILD_MAX = 32 * 1024 * 1024
+ANHANG_AUSGABE = ("bild.jpg", "info.json")
+ANHANG_EIN_THREAD = ("OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS")
+ANHANG_FRIST_S = 7 * 24 * 3600
+_AUFNAHME_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
+
+
+def anhang_ausgabe_pruefen(aus: Path) -> dict[str, Any]:
+    """Ausgabe des Decoders ist fremd: genau `bild.jpg` (JPEG-Kopf, Größe) und `info.json`
+    (Maße 1…8192, optional Aufnahmezeit), reguläre Dateien mit einem Namen. Wirft ValueError."""
+    namen = sorted(p.name for p in aus.iterdir())
+    if namen != sorted(ANHANG_AUSGABE):
+        raise ValueError(f"unerwartete Ausgabe: {namen[:5]}")
+    for name in ANHANG_AUSGABE:
+        st = (aus / name).lstat()
+        if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
+            raise ValueError("keine reguläre Datei")
+    bild = aus / "bild.jpg"
+    if not 0 < bild.stat().st_size <= ANHANG_BILD_MAX:
+        raise ValueError("Bildgröße")
+    with bild.open("rb") as f:
+        if f.read(3) != b"\xff\xd8\xff":
+            raise ValueError("kein JPEG")
+    roh = (aus / "info.json").read_bytes()
+    if len(roh) > 4096:
+        raise ValueError("info.json zu groß")
+    info = json.loads(roh)
+    if not isinstance(info, dict) or set(info) - {"breite", "hoehe", "aufnahme"}:
+        raise ValueError("info.json Form")
+    for k in ("breite", "hoehe"):
+        if type(info.get(k)) is not int or not 0 < info[k] <= 8192:
+            raise ValueError("Maße")
+    aufnahme = info.get("aufnahme")
+    if aufnahme is not None and (not isinstance(aufnahme, str)
+                                 or not _AUFNAHME_RE.fullmatch(aufnahme)):
+        raise ValueError("Aufnahmezeit")
+    return info
 UEBERGABE_WARTEN_S = 15 * 60
 PAKET_MAX_DATEIEN = 20_000
 PAKET_MAX_BYTES = 200 * 1024**3
@@ -114,6 +155,9 @@ class Einstellungen:
     uploads: Path | None = None
     uebergabe: Path | None = None
     meldungen: Path | None = None
+    # Bildanhänge am Befund-Faden (F7): Wurzel mit `eingang/` (Webdienst schreibt, Worker liest)
+    # und `geprueft/` (Worker schreibt, Webdienst übernimmt). None = Anhänge aus.
+    anhaenge: Path | None = None
 
     @staticmethod
     def aus_umgebung(env: dict[str, str] | None = None) -> tuple[Einstellungen, SystemdLaeufer]:
@@ -142,7 +186,9 @@ class Einstellungen:
         if any(gesetzt) and not all(gesetzt):
             raise SystemExit(f"{', '.join(namen)} nur gemeinsam setzen.")
         imp = [pfad(n) for n in namen] if all(gesetzt) else [None, None, None]
+        anh = pfad("SCANVIEW_ANHAENGE") if e.get("SCANVIEW_ANHAENGE", "").strip() else None
         s = Einstellungen(
+            anhaenge=anh,
             jobs_db=pfad("SCANVIEW_JOBS_DB"), berichte=pfad("SCANVIEW_BERICHTE"),
             data_dir=pfad("SCANVIEW_DATA"), import_bin=pfad("SCANVIEW_IMPORT_BIN"),
             reserve_bytes=int(roh_reserve) * 1024**3,
@@ -309,6 +355,7 @@ class Worker:
             A.entfernen(self.conn, aid)
             n += 1
         self._uebergabe_raeumen()
+        self.anhaenge_raeumen()
         return n
 
     def _uebergabe_raeumen(self) -> None:
@@ -382,6 +429,9 @@ class Worker:
             self._abbruch.clear()
             self._importieren(a, optionen)
             return
+        if a.typ in A.ANHAENGE:
+            self._anhang(a, optionen["anhang"])
+            return
         paket = self.s.data_dir / a.projekt
         if paket.is_symlink() or not (paket / "project.json").is_file():
             A.abschliessen(self.conn, a.id, A.FEHLGESCHLAGEN, fehler=F_PAKET)
@@ -450,6 +500,87 @@ class Worker:
             self.conn, a.id, A.FERTIG, urteil=str(gesamt["urteil"])[:80],
             zaehlung=zaehlung if isinstance(zaehlung, dict) else None,
         )
+
+    # --- Bildanhang am Befund-Faden (F7) ------------------------------------------------
+
+    def _anhang(self, a: A.Auftrag, anhang: str) -> None:
+        """Bild isoliert dekodieren und neu kodieren lassen; nur geprüfte Ausgabe übernehmen."""
+        anh = self.s.anhaenge
+        if anh is None:
+            A.abschliessen(self.conn, a.id, A.FEHLGESCHLAGEN, fehler=F_ANHANG_AUS)
+            return
+        ein = anh / "eingang" / anhang
+        try:
+            st = ein.lstat()
+        except OSError:
+            st = None
+        if (st is None or not stat.S_ISREG(st.st_mode) or st.st_nlink != 1
+                or not 0 < st.st_size <= ANHANG_EIN_MAX):
+            A.abschliessen(self.conn, a.id, A.FEHLGESCHLAGEN, fehler=F_ANHANG_FEHLT)
+            return
+        geprueft = anh / "geprueft"
+        geprueft.mkdir(mode=0o750, exist_ok=True)
+        ziel = geprueft / anhang
+        arbeit = geprueft / f"{ARBEIT_PRAEFIX}{a.id}"
+        _weg(arbeit)
+        arbeit.mkdir(mode=0o750)
+        aus = arbeit / "aus"
+        budget = A.BUDGETS[a.typ]
+        s = self.s
+        lauf = Lauf(
+            name=_unit(a.id),
+            argv=[str(s.import_bin / "scanview-import"), "anhang-bereinigen", str(ein), str(aus)],
+            arbeit=arbeit, protokoll=arbeit / "lauf.log",
+            grenzen=Grenzen(ram_mb=budget.ram_mb, zeit_s=budget.zeit_s, prozesse=budget.prozesse,
+                            datei_mb=64),
+            # Ein Thread genügt: OpenBLAS startet sonst je Kern einen Thread, scheitert an TasksMax
+            # und blockiert den numpy-Import bis zum Zeitlimit (gemessen im echten Lauf).
+            umgebung={v: "1" for v in ANHANG_EIN_THREAD},
+            # Nichts außer der einen Eingabedatei (lesend) und dem eigenen Arbeitsordner.
+            verbergen=tuple(p for p in (s.data_dir, s.berichte, s.uploads, s.uebergabe, anh)
+                            if p is not None),
+            lesen=(ein,),
+        )
+        try:
+            log.info("Auftrag %s (%s, Projekt %s) startet", a.id, a.typ, a.projekt)
+            e = self.laeufer.ausfuehren(lauf)
+            log.info("Auftrag %s: %s (Status %s) nach %.1f s", a.id, e.ausgang, e.status,
+                     e.dauer_s)
+            if self._grenzfehler(a, e):
+                return
+            if e.ausgang != "ok":
+                meldung = _letzte_zeile(lauf.protokoll) if e.status == 2 else None
+                if meldung is None:
+                    self._protokoll_ins_journal(a, lauf)
+                A.abschliessen(self.conn, a.id, A.FEHLGESCHLAGEN,
+                               fehler=meldung or F_ANHANG_KAPUTT)
+                return
+            try:
+                info = anhang_ausgabe_pruefen(aus)
+            except (OSError, ValueError) as fehler:
+                log.error("Auftrag %s: Ausgabe des Anhangs ungültig: %s", a.id, fehler)
+                A.abschliessen(self.conn, a.id, A.FEHLGESCHLAGEN, fehler=F_ANHANG_KAPUTT)
+                return
+            _weg(ziel)
+            ziel.mkdir(mode=0o750)
+            for name in ANHANG_AUSGABE:
+                os.rename(aus / name, ziel / name)
+            A.abschliessen(self.conn, a.id, A.FERTIG, urteil="bereit",
+                           zaehlung={"breite": info["breite"], "hoehe": info["hoehe"]})
+        finally:
+            _weg(arbeit)
+
+    def anhaenge_raeumen(self, jetzt: float | None = None) -> int:
+        """Geprüfte Anhänge, die der Webdienst nach ANHANG_FRIST_S nicht übernommen hat, weg."""
+        if self.s.anhaenge is None or not (self.s.anhaenge / "geprueft").is_dir():
+            return 0
+        grenze = (time.time() if jetzt is None else jetzt) - ANHANG_FRIST_S
+        n = 0
+        for d in (self.s.anhaenge / "geprueft").iterdir():
+            if A.ANHANG_ID_RE.fullmatch(d.name) and d.lstat().st_mtime < grenze:
+                _weg(d)
+                n += 1
+        return n
 
     # --- Import: neues Projekt aus einem Upload ------------------------------------------
 

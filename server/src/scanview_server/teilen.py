@@ -8,7 +8,7 @@ Ablauf, Widerruf und den Projekt-Schalter neu (sofort wirksam).
 
 Ein Gast ist keine Rolle: `zugriff.projekt()` kennt ihn nicht (alle /api/v1-Wege bleiben 401),
 `/api/authz` lässt ihn nur an die Dateien der Positivliste (`gast_paket`) und nur im Projekt des
-Links. Die Positivliste entsteht exakt aus den Ebenen `pointcloud` und `mesh` (glTF-Verweise
+Links. Die Positivliste entsteht exakt aus `pointcloud`, `mesh` und `mesh-tiles` (glTF-Verweise
 rekursiv aufgelöst) plus der Draufsicht der Wolke — keine Präfixe. Ein Verweis, der das Paket
 verlässt oder kodiert ist, nimmt die ganze Mesh-Ebene aus der Gast-Ansicht (fail closed).
 """
@@ -28,8 +28,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from . import fotos_tor, protokoll
+from . import freigabe, protokoll
 from .db import transaktion
+from .katalog import MAX_PROJECT_JSON
 from .tokens import hash_token, new_token
 
 log = logging.getLogger("scanview.teilen")
@@ -46,6 +47,9 @@ _TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{43}$")
 # Paketpfad wie in routen_api._DATA_RE, ohne führendes /data/<pid>/.
 _REST_RE = re.compile(r"^[A-Za-z0-9._/-]+$")
 _GLB_JSON_MAX = 16 * 1024 * 1024
+_TILESET_TIEFE_MAX = 32
+_TILESET_KNOTEN_MAX = 4096
+_TILESET_INHALTE_MAX = 8192
 # Abrufe je Link und Minute über /api/authz (jede Range-Anfrage der Wolke zählt). Der Viewer holt
 # beim schnellen Bewegen einige hundert COPC-Knoten je Minute; die Grenze bremst nur Massenabzug.
 ABRUFE_PRO_MINUTE = 3000
@@ -223,8 +227,8 @@ def _paketpfad(basis: str, ref: str) -> str | None:
         return None
     if not _REST_RE.fullmatch(pfad) or any(not s or s.startswith(".") for s in pfad.split("/")):
         return None
-    # Fotos (Personen) nie über einen Gast-Link, auch nicht als Mesh-Textur.
-    if fotos_tor.ist_fotopfad(pfad):
+    # Fotos und Panoramen (Personen) nie über einen Gast-Link, auch nicht als Mesh-Textur.
+    if freigabe.ebene_von(pfad) is not None:
         return None
     return pfad
 
@@ -293,9 +297,94 @@ class GastPaket:
     dateien: frozenset[str]
 
 
-_GAST_EBENEN = ("pointcloud", "mesh")
+_GAST_EBENEN = ("pointcloud", "mesh", "mesh-tiles")
 # Kopfteile des Manifests, die der Viewer braucht und die keine anderen Ebenen beschreiben.
 _GAST_KOPF = ("schemaVersion", "projectId", "revision", "title", "frame", "initialView")
+
+
+def _ohne_symlink(paket: Path, pfad: str) -> bool:
+    """Auch Verzeichnis-Symlinks dürfen keine Dateien außerhalb des Pakets freigeben."""
+    datei = paket
+    for segment in pfad.split("/"):
+        datei /= segment
+        if datei.is_symlink():
+            return False
+    return datei.is_file()
+
+
+def _tileset_json(paket: Path, pfad: str) -> dict[str, Any] | None:
+    if posixpath.basename(pfad) != "tileset.json" or not _ohne_symlink(paket, pfad):
+        return None
+    try:
+        with (paket / pfad).open("rb") as f:
+            roh = f.read(MAX_PROJECT_JSON + 1)
+        if len(roh) > MAX_PROJECT_JSON:
+            return None
+        daten = json.loads(roh)
+    except (OSError, ValueError, RecursionError):
+        return None
+    return daten if isinstance(daten, dict) else None
+
+
+def _kachel_inhalte(knoten: dict[str, Any]) -> list[Any] | None:
+    # Implizite Hierarchien sind kein explizites Paket und erzeugen zusätzliche Dateiverweise.
+    if "implicitTiling" in knoten:
+        return None
+    inhalte = knoten.get("contents", [])
+    if not isinstance(inhalte, list):
+        return None
+    return [knoten["content"], *inhalte] if "content" in knoten else inhalte
+
+
+def _tileset_verweise(daten: dict[str, Any]) -> list[str] | None:
+    offen = [(daten.get("root"), 0)]
+    verweise: list[str] = []
+    anzahl = 1
+    while offen:
+        knoten, tiefe = offen.pop()
+        if not isinstance(knoten, dict) or tiefe > _TILESET_TIEFE_MAX:
+            return None
+        inhalte = _kachel_inhalte(knoten)
+        if inhalte is None or len(verweise) + len(inhalte) > _TILESET_INHALTE_MAX:
+            return None
+        for inhalt in inhalte:
+            uri = inhalt.get("uri") if isinstance(inhalt, dict) else None
+            if not isinstance(uri, str):
+                return None
+            verweise.append(uri)
+        kinder = knoten.get("children", [])
+        if not isinstance(kinder, list):
+            return None
+        anzahl += len(kinder)
+        if anzahl > _TILESET_KNOTEN_MAX:
+            return None
+        offen.extend((kind, tiefe + 1) for kind in kinder)
+    return verweise
+
+
+def _tileset_dateien(paket: Path, ebene: dict[str, Any]) -> set[str] | None:
+    if ebene.get("format") != "3dtiles" or not isinstance(ebene.get("url"), str):
+        return None
+    pfad = _paketpfad("project.json", ebene["url"])
+    daten = _tileset_json(paket, pfad) if pfad is not None else None
+    if daten is None or pfad is None:
+        return None
+    verweise = _tileset_verweise(daten)
+    if verweise is None:
+        return None
+    teile = {pfad}
+    for uri in verweise:
+        ziel = _paketpfad(pfad, uri)
+        # Externe Tilesets (.json) und andere Inhaltstypen bewusst nicht unterstützen.
+        if ziel is None or not ziel.lower().endswith((".glb", ".gltf")):
+            return None
+        if not _ohne_symlink(paket, ziel):
+            return None
+        gefunden = _gltf_dateien(paket, ziel)
+        if gefunden is None or any(not _ohne_symlink(paket, p) for p in gefunden):
+            return None
+        teile |= gefunden
+    return teile
 
 
 def _mobilstufe(paket: Path, ebene: dict[str, Any], teile: set[str]) -> dict[str, Any]:
@@ -312,6 +401,17 @@ def _mobilstufe(paket: Path, ebene: dict[str, Any], teile: set[str]) -> dict[str
         return {k: v for k, v in ebene.items() if not k.startswith("mobile")}
     teile |= mobil
     return ebene
+
+
+def _mesh_dateien(paket: Path, ebene: dict[str, Any]) -> set[str]:
+    teile: set[str] = set()
+    for feld in ("url", "previewUrl"):
+        ziel = _paketpfad("project.json", str(ebene.get(feld, "")))
+        gefunden = _gltf_dateien(paket, ziel) if ziel is not None else None
+        if gefunden is None:
+            return set()
+        teile |= gefunden
+    return teile
 
 
 def _bauen(paket: Path) -> GastPaket | None:
@@ -333,17 +433,18 @@ def _bauen(paket: Path) -> GastPaket | None:
                             ebene.get("id"))
                 continue
             dateien.add(ziel)
+        elif ebene["kind"] == "mesh-tiles":
+            kacheln = _tileset_dateien(paket, ebene)
+            if kacheln is None:
+                log.warning("Gast-Ansicht %s: Mesh-Kacheln %s ausgelassen "
+                            "(Tileset oder Verweis unzulässig oder fehlt)",
+                            paket.name, ebene.get("id"))
+                continue
+            dateien |= kacheln
         else:
             if ebene.get("format") != "gltf":
                 continue
-            teile: set[str] = set()
-            for feld in ("url", "previewUrl"):
-                ziel = _paketpfad("project.json", str(ebene.get(feld, "")))
-                gefunden = _gltf_dateien(paket, ziel) if ziel is not None else None
-                if gefunden is None:
-                    teile = set()
-                    break
-                teile |= gefunden
+            teile = _mesh_dateien(paket, ebene)
             if not teile:
                 log.warning("Gast-Ansicht %s: Mesh %s ausgelassen (Verweis unzulässig oder fehlt)",
                             paket.name, ebene.get("id"))

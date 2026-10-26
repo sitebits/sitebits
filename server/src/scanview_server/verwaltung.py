@@ -398,6 +398,10 @@ def anonymisieren(
             "UPDATE invites SET email=?, name=? WHERE email=?", (ersatz, name, email),
         ).rowcount
         conn.execute("DELETE FROM challenges WHERE user_id=?", (uid,))
+        # E-Mail-Benachrichtigung (F8): Einwilligung, Abbestellungen, Ausgang ohne Text.
+        from . import post
+
+        out.update(post.loeschen(conn, uid))
         conn.execute("DELETE FROM throttle WHERE key=?",
                      (passwort.schluessel(email.strip().lower()),))
         conn.execute(

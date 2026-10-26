@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from . import fotos_tor, konten, lesezugriff, paket, projektverwaltung, protokoll
+from . import freigabe, lesezugriff, paket, projektverwaltung, protokoll
 from .api_modelle import Projekt, ProjektBasis, Version, antwort
 from .db import transaktion
 from .katalog import PaketFehler
@@ -108,6 +108,11 @@ def projekt_lesen(pid: str, request: Request,
     lesezugriff.erfasse_anfrage(request, conn, z, "oeffnen")
     karte = _karte(conn, z, _meta(conn, pid))
     karte["kategorien"] = [k.als_json() for k in projektverwaltung.kategorien(conn, pid)]
+    # F20: Panoramen für diese Rolle freigegeben? Der Viewer fragt sonst keine Bilder an (das
+    # Server-Tor sperrt sie ohnehin, einzelne ausgetauschte Dateien eingeschlossen).
+    karte["panoramen_sichtbar"] = freigabe.sichtbar(
+        conn, request.app.state.katalog.data_dir / pid, pid, "panos", z.rolle,
+        projektverwaltung.einstellungen(conn, pid).panoramen_nur_freigegeben)
     return JSONResponse(karte)
 
 
@@ -117,9 +122,11 @@ def paket_lesen(pid: str, request: Request, conn: sqlite3.Connection = Depends(d
     z = projekt(request, conn, pid)
     lesezugriff.erfasse_anfrage(request, conn, z, "api", "paket")
     d = request.app.state.katalog.data_dir / pid
-    sichtbar = konten.mindestens(z.rolle, fotos_tor.MINDESTROLLE) or fotos_tor.freigegeben(d)
+    nur = projektverwaltung.einstellungen(conn, pid).panoramen_nur_freigegeben
     try:
-        return JSONResponse(paket.uebersicht(d, fotos_sichtbar=sichtbar))
+        return JSONResponse(paket.uebersicht(
+            d, fotos_sichtbar=freigabe.sichtbar(conn, d, pid, "fotos", z.rolle, nur),
+            panos_sichtbar=freigabe.sichtbar(conn, d, pid, "panos", z.rolle, nur)))
     except (OSError, PaketFehler):
         return fehler(404, "nicht gefunden")
 

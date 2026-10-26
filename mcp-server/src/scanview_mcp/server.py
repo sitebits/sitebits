@@ -304,6 +304,7 @@ def baue_server(client: Client) -> MCPServer:
     _verwaltung(mcp, c)
     _auswertungen(mcp, c)
     _importe(mcp, c)
+    _benachrichtigung(mcp, c)
     return mcp
 
 
@@ -386,6 +387,18 @@ def _verwaltung(mcp: MCPServer, c: Client) -> None:
     ))
     def paket_lesen(projekt_id: ProjektId) -> dict[str, Any]:
         return _objekt(werkzeuge.paket_lesen(c, projekt_id))
+
+    @mcp.tool(description=(
+        "Liest den Freigabestand der Personenbilder (Bearbeiter+): {panoramenNurFreigegeben, "
+        "ebenen [{ebene: panos|fotos, vorhanden, torAktiv, dateien, anonymisierung {status, "
+        "werkzeug, manifestSha256, geprueft}, freigabe {art, dateien, abweichend, …} | null}]}. "
+        "Betrachter und Rückmelder sehen Panoramen/Fotos nur mit aktiver Freigabe und nur "
+        "Dateien, deren Hash noch passt. pruefen=true hasht alle freigegebenen Dateien (Sekunden "
+        "je GB) und liefert abweichend (> 0: nach der Freigabe getauscht). "
+        "Freigeben selbst ist eine menschliche Entscheidung im Portal, nicht per Agent."
+    ))
+    def freigaben_lesen(projekt_id: ProjektId, pruefen: bool = False) -> dict[str, Any]:
+        return _objekt(werkzeuge.freigaben_lesen(c, projekt_id, pruefen))
 
 
 AuswertungId = Annotated[str, Field(
@@ -471,6 +484,48 @@ def _importe(mcp: MCPServer, c: Client) -> None:
     ))
     def import_status(projekt_id: ProjektId | None = None) -> dict[str, Any]:
         return _objekt(werkzeuge.import_status(c, projekt_id))
+
+
+def _benachrichtigung(mcp: MCPServer, c: Client) -> None:
+    """E-Mails zu einem Befund ab- oder anbestellen (nur eigenes Konto)."""
+
+    @mcp.tool(description=(
+        "Hängt eine lokale Datei (Pfad auf dem Rechner dieses MCP-Servers) als Foto (JPEG, PNG) "
+        "oder PDF an den Befund-Faden, höchstens 20 MB; der Typ kommt aus dem Dateiinhalt. Bilder "
+        "prüft der Server isoliert und speichert sie ohne Metadaten (GPS, Gerät) neu; bis dahin "
+        "steht anhang.status auf 'pruefung' (anhang_stand fragt nach). Nicht intern; Recht wie "
+        "Kommentieren." + SICHTBAR_FADEN
+    ))
+    def anhang_hochladen(projekt_id: ProjektId, poi_id: EintragId,
+                         pfad: Annotated[str, Field(min_length=1, max_length=1000)]
+                         ) -> dict[str, Any]:
+        return _objekt(werkzeuge.anhang_hochladen(c, projekt_id, poi_id, pfad))
+
+    @mcp.tool(description=(
+        "Stand eines Anhangs: {id, typ, status (pruefung|bereit|abgelehnt), name, groesse, "
+        "breite, hoehe, aufnahme, fehler}. Die Datei selbst liefert die API (anhang_laden), "
+        "nicht dieses Werkzeug."
+    ))
+    def anhang_stand(projekt_id: ProjektId, poi_id: EintragId,
+                     anhang_id: Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
+                     ) -> dict[str, Any]:
+        return _objekt(werkzeuge.anhang_stand(c, projekt_id, poi_id, anhang_id))
+
+    @mcp.tool(description=(
+        "Liest, ob das eigene Konto zu diesem Befund E-Mails bekommt: {aus, konto {eingeschaltet, "
+        "bestaetigt, bestaetigungOffen}}. Nur auf Instanzen mit eingerichtetem Postdienst "
+        "(sonst nicht gefunden). Einwilligung und Adressbestätigung gibt es nur im Portal."
+    ))
+    def benachrichtigung_lesen(projekt_id: ProjektId, poi_id: EintragId) -> dict[str, Any]:
+        return _objekt(werkzeuge.benachrichtigung_lesen(c, projekt_id, poi_id))
+
+    @mcp.tool(description=(
+        "Bestellt E-Mails zu diesem Befund für das eigene Konto ab (aus = true) oder wieder an "
+        "(aus = false). Wirkt nur auf das Konto des Tokens."
+    ))
+    def benachrichtigung_setzen(projekt_id: ProjektId, poi_id: EintragId,
+                                aus: bool) -> dict[str, Any]:
+        return _objekt(werkzeuge.benachrichtigung_setzen(c, projekt_id, poi_id, aus))
 
 
 def _abbruch(meldung: str) -> NoReturn:

@@ -22,6 +22,7 @@ const TITEL: Record<string, string> = {
   '/anmelden': 'Anmelden',
   '/einladung': 'Einladung annehmen',
   '/teilen': '3D-Ansicht öffnen',
+  '/abmelden': 'E-Mails abbestellen',
   '/verlauf': 'Verlauf',
   '/maengelliste': 'Mängelliste',
   '/befunde': 'Befunde',

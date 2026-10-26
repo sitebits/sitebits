@@ -44,6 +44,8 @@ def test_cli_convert_routes_mesh(tmp_path):
     assert main(["convert", str(src), str(tmp_path / "pkg"), "--unit", "m", "--dreiecke", "0"]) == 0
 
 
+# Echte KTX2-Kodierung/Dekodierung braucht Docker; separat im Docker-Gate ausführen.
+@pytest.mark.docker
 def test_textured_cube_real_ktx(tmp_path):
     from gltf_fixture import box_source_mesh_data, gradient_texture_bytes
 
@@ -84,6 +86,8 @@ def test_textured_cube_real_ktx(tmp_path):
     assert report["stages"]["preview"]["colors"]["meanAbsDeltaRGB"] is not None
 
 
+# Echte KTX2-Kodierung/Dekodierung braucht Docker; separat im Docker-Gate ausführen.
+@pytest.mark.docker
 def test_texturierte_vollstufe_ohne_vertexfarben(tmp_path):
     """Vertexfarben plus Textur: glTF multipliziert beide — die Vollstufe trägt nur die Textur,
     die Vorschau (ohne Textur) behält die Vertexfarben."""

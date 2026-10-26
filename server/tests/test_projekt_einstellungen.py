@@ -40,7 +40,8 @@ def test_vorgaben_ohne_einrichtung_und_lesen_schreibt_nicht(projektwelt: Welt) -
         k["aktiv"] for k in r["kategorien"]
     )
     assert r["einstellungen"] == {"vorlage": None, "rueckmeldungen": True, "exportBearbeiter": True,
-                                  "befundFaeden": False, "nurLeseLinks": False}
+                                  "befundFaeden": False, "nurLeseLinks": False,
+                                  "panoramenNurFreigegeben": False, "benachrichtigung": True}
     assert _projekte_zeilen(bet) == 0
     liste = bet.get("/api/v1/projekte").json()["projekte"]
     assert liste[0]["einstellungen"]["vorlage"] is None

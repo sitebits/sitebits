@@ -24,7 +24,7 @@ handle /api/authz {
 }
 # API: JSON-Körper bleiben klein (POIs, Messungen bis 1000 Eckpunkte ≈ 60 KB) — größere Körper
 # gar nicht erst an den Dienst durchreichen (413).
-# Zwei Ausnahmen; die drei Matcher schließen sich aus: nie zwei Grenzen auf einer Anfrage.
+# Drei Ausnahmen; die vier Matcher schließen sich aus: nie zwei Grenzen auf einer Anfrage.
 # - Ein Stück eines Uploads (PUT …/uploads/<id>/dateien/<nr>, höchstens 64 MiB je Stück) darf bis
 #   65 MiB groß sein. Der Dienst zählt die Bytes selbst noch einmal; diese Grenze ist nur die äußere
 #   Wand.
@@ -37,6 +37,8 @@ handle /api/authz {
 #     im Schnitt ein leeres 413 von Caddy bekommen. Der Dienst hat dort keine eigene Körpergrenze,
 #     er prüft Anzahl, Länge und Form der Einträge (422). Drift-Test:
 #     server/tests/test_caddy_grenzen.py.
+# - Ein Foto oder PDF am Befund-Faden (POST …/pois/<id>/faden/anhaenge, roher Körper, höchstens
+#   20 MiB) darf bis 21 MiB groß sein; der Dienst zählt selbst und bricht über 20 MiB mit 413 ab.
 handle /api/* {
 	@upload_stueck {
 		method PUT
@@ -45,6 +47,10 @@ handle /api/* {
 	@upload_ankuendigung {
 		method POST
 		path /api/v1/uploads
+	}
+	@faden_anhang {
+		method POST
+		path_regexp ^/api/v1/projekte/[^/]+/pois/[^/]+/faden/anhaenge$
 	}
 	@api_klein {
 		not {
@@ -55,12 +61,19 @@ handle /api/* {
 			method POST
 			path /api/v1/uploads
 		}
+		not {
+			method POST
+			path_regexp ^/api/v1/projekte/[^/]+/pois/[^/]+/faden/anhaenge$
+		}
 	}
 	request_body @upload_stueck {
 		max_size 65MiB
 	}
 	request_body @upload_ankuendigung {
 		max_size 13MiB
+	}
+	request_body @faden_anhang {
+		max_size 21MiB
 	}
 	request_body @api_klein {
 		max_size 1MB

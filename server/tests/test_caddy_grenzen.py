@@ -11,6 +11,7 @@ import json
 import re
 from pathlib import Path
 
+from scanview_server import anhaenge as ANH
 from scanview_server import uploads as U
 from scanview_server.routen_uploads import UploadIn
 
@@ -69,11 +70,25 @@ def test_stueck_grenze_passt_zum_protokoll() -> None:
 def test_ausnahmen_nicht_unter_der_allgemeinen_grenze() -> None:
     block = _api_block()
     grenzen = _grenzen(block)
-    assert set(grenzen) == {"upload_stueck", "upload_ankuendigung", "api_klein"}
+    assert set(grenzen) == {"upload_stueck", "upload_ankuendigung", "faden_anhang", "api_klein"}
     assert grenzen["api_klein"] == 1000**2
     klein = _matcher(block, "api_klein")
-    for name in ("upload_stueck", "upload_ankuendigung"):
+    for name in ("upload_stueck", "upload_ankuendigung", "faden_anhang"):
         bedingungen = [z.strip() for z in _matcher(block, name).splitlines()]
         nicht = re.search(r"not \{\n" + r"\n".join(r"\s*" + re.escape(b) for b in bedingungen)
                           + r"\n\s*\}", klein)
         assert nicht, f"@api_klein nimmt @{name} nicht aus"
+
+
+def test_anhang_grenze_passt_zur_route() -> None:
+    import re as _re
+
+    block = _api_block()
+    grenze = _grenzen(block)["faden_anhang"]
+    assert ANH.MAX_BYTES < grenze <= ANH.MAX_BYTES + MIB, (ANH.MAX_BYTES, grenze)
+    muster = _re.search(r"path_regexp (\S+)", _matcher(block, "faden_anhang"))
+    assert muster
+    passt = _re.compile(muster.group(1))
+    assert passt.fullmatch("/api/v1/projekte/ost/pois/P-1/faden/anhaenge")
+    assert not passt.fullmatch("/api/v1/projekte/ost/pois/P-1/faden")
+    assert not passt.fullmatch("/api/v1/projekte/ost/pois/P-1/faden/anhaenge/x")

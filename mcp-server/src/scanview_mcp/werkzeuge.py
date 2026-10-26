@@ -12,6 +12,7 @@ import math
 import re
 from collections.abc import Callable
 from importlib import resources
+from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import quote
 
@@ -71,7 +72,7 @@ def _pfad(werkzeug: str, projekt_id: str | None = None, eintrag_id: str | None =
         vorlage = vorlage.replace("{pid}", _id(projekt_id or "", PROJEKT_ID_RE, "Projekt-ID"))
     if "{eid}" in vorlage:
         vorlage = vorlage.replace("{eid}", _id(eintrag_id or "", ID_RE, "Eintrags-ID"))
-    if "{aid}" in vorlage:
+    if "{aid}" in vorlage and "{eid}" not in ENDPUNKTE[werkzeug][1]:
         vorlage = vorlage.replace("{aid}", _id(eintrag_id or "", AUSWERTUNG_ID_RE,
                                               "Auswertungs-ID"))
     return vorlage
@@ -130,6 +131,8 @@ def _aufruf(c: Client, werkzeug: str, pfad: str, *, json_koerper: Any = None,
             return c.post(pfad, json_koerper)
         if methode == "PATCH":
             return c.patch(pfad, json_koerper)
+        if methode == "PUT":
+            return c.put(pfad, json_koerper)
         return c.delete(pfad, json_koerper, **params)
     except ApiFehler as e:
         raise ToolError(_meldung(e, konflikt=konflikt)) from None
@@ -319,6 +322,52 @@ def paket_lesen(c: Client, projekt_id: str) -> Any:
     return _aufruf(c, "paket_lesen", _pfad("paket_lesen", projekt_id))
 
 
+def benachrichtigung_lesen(c: Client, projekt_id: str, poi_id: str) -> Any:
+    return _aufruf(c, "benachrichtigung_lesen", _pfad("benachrichtigung_lesen", projekt_id, poi_id))
+
+
+def benachrichtigung_setzen(c: Client, projekt_id: str, poi_id: str, aus: bool) -> Any:
+    return _aufruf(c, "benachrichtigung_setzen", _pfad("benachrichtigung_setzen", projekt_id,
+                                                       poi_id), json_koerper={"aus": aus})
+
+
+ANHANG_MAX = 20 * 1024 * 1024
+ANHANG_TYPEN = ((b"\xff\xd8\xff", "image/jpeg"), (b"\x89PNG\r\n\x1a\n", "image/png"),
+                (b"%PDF-", "application/pdf"))
+
+
+def anhang_hochladen(c: Client, projekt_id: str, poi_id: str, pfad: str) -> Any:
+    """Lokale Datei (beim MCP-Server) als Anhang an den Faden; Typ aus den Kopfbytes."""
+    datei = Path(pfad).expanduser()
+    if not datei.is_file() or datei.is_symlink():
+        raise ToolError("Datei nicht gefunden (nur reguläre Dateien, keine Verknüpfungen).")
+    if datei.stat().st_size > ANHANG_MAX:
+        raise ToolError("Höchstens 20 MB je Anhang.")
+    daten = datei.read_bytes()
+    typ = next((t for kopf, t in ANHANG_TYPEN if daten.startswith(kopf)), None)
+    if typ is None:
+        raise ToolError("Nur JPEG, PNG oder PDF.")
+    ziel = _pfad("anhang_hochladen", projekt_id, poi_id)
+    try:
+        return c.post_roh(ziel, daten, typ, name=datei.name)
+    except ApiFehler as e:
+        raise ToolError(_meldung(e, konflikt=None)) from None
+
+
+ANHANG_ID_RE = re.compile(r"^[0-9a-f]{32}$")
+
+
+def anhang_stand(c: Client, projekt_id: str, poi_id: str, anhang_id: str) -> Any:
+    pfad = _pfad("anhang_stand", projekt_id, poi_id).replace(
+        "{aid}", _id(anhang_id, ANHANG_ID_RE, "Anhang-ID"))
+    return _aufruf(c, "anhang_stand", pfad)
+
+
+def freigaben_lesen(c: Client, projekt_id: str, pruefen: bool = False) -> Any:
+    return _aufruf(c, "freigaben_lesen", _pfad("freigaben_lesen", projekt_id),
+                   pruefen="true" if pruefen else None)
+
+
 def gewerke_lesen(c: Client, projekt_id: str) -> Any:
     return _aufruf(c, "gewerke_lesen", _pfad("gewerke_lesen", projekt_id))
 
@@ -422,6 +471,11 @@ WERKZEUGE: dict[str, Callable[..., Any]] = {
     "frist_setzen": frist_setzen,
     "gewerke_lesen": gewerke_lesen,
     "paket_lesen": paket_lesen,
+    "freigaben_lesen": freigaben_lesen,
+    "anhang_hochladen": anhang_hochladen,
+    "anhang_stand": anhang_stand,
+    "benachrichtigung_lesen": benachrichtigung_lesen,
+    "benachrichtigung_setzen": benachrichtigung_setzen,
     "kommentar_anlegen": kommentar_anlegen,
     "status_setzen": status_setzen,
     "auswertung_starten": auswertung_starten,

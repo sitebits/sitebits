@@ -77,6 +77,8 @@ class Einstellungen(_Streng):
     exportBearbeiter: bool
     befundFaeden: bool
     nurLeseLinks: bool
+    panoramenNurFreigegeben: bool
+    benachrichtigung: bool
 
 
 class Kategorie(_Streng):
@@ -119,6 +121,7 @@ class Projekt(ProjektBasis):
     """Ein Projekt mit seinen Kategorien."""
 
     kategorien: list[Kategorie]
+    panoramen_sichtbar: bool = Field(description="Panoramen für diese Rolle freigegeben (F20)")
 
 
 # --- POIs und Messungen ---------------------------------------------------------------------

@@ -1,6 +1,6 @@
 // Ebenen-Register für Punktwolken, Panoramen, glTF-Meshes, Splats und Fotos.
 import { KEINE_WOLKE } from './manifest';
-import type { ImagesLayer, Layer, MeshLayer, SplatsLayer, PanoramasLayer, PointcloudLayer, Project, Vec3 } from './manifest';
+import type { ImagesLayer, Layer, MeshLayer, SplatsLayer, PanoramasLayer, PointcloudLayer, Project, TilesLayer, Vec3 } from './manifest';
 import type { Station } from './stations';
 import type { StationLayer } from './stationLayer';
 import type { Viewer } from './viewer';
@@ -50,9 +50,9 @@ export interface LayerEntry {
   groups?: { id: string; title: string; count: number; visible: boolean }[];
 }
 
-function isSupported(l: Layer): l is PointcloudLayer | PanoramasLayer | MeshLayer | SplatsLayer | ImagesLayer {
+function isSupported(l: Layer): l is PointcloudLayer | PanoramasLayer | MeshLayer | TilesLayer | SplatsLayer | ImagesLayer {
   return !('unsupported' in l) &&
-    (l.kind === 'pointcloud' || l.kind === 'panoramas' || l.kind === 'mesh' || l.kind === 'splats' || l.kind === 'images');
+    (l.kind === 'pointcloud' || l.kind === 'panoramas' || l.kind === 'mesh' || l.kind === 'mesh-tiles' || l.kind === 'splats' || l.kind === 'images');
 }
 
 const defaultOn = (l: Layer): boolean =>
@@ -139,7 +139,7 @@ export function createLayerRegistry(o: {
 }): LayerRegistry {
   const { project, viewer, stationLayer, initial, stations, meshes = [], images = null } = o;
   const supported = (l: Layer): boolean => isSupported(l) &&
-    !((l.kind === 'mesh' || l.kind === 'splats') && meshes.find((m) => m.id === l.id)?.disabled) &&
+    !((l.kind === 'mesh' || l.kind === 'mesh-tiles' || l.kind === 'splats') && meshes.find((m) => m.id === l.id)?.disabled) &&
     !(l.kind === 'images' && (images === null || project.images?.id !== l.id));
   const byId = new Map(project.layers.map((l) => [l.id, l] as const));
   const visible: Record<string, boolean> = {};
@@ -158,7 +158,7 @@ export function createLayerRegistry(o: {
       viewer.instance.notifyChange(viewer.cloud);
     } else if (l.kind === 'panoramas' && project.stations?.id === l.id) {
       stationLayer?.setVisible(on);
-    } else if (isSupported(l) && (l.kind === 'mesh' || l.kind === 'splats')) {
+    } else if (isSupported(l) && (l.kind === 'mesh' || l.kind === 'mesh-tiles' || l.kind === 'splats')) {
       meshes.find((m) => m.id === l.id)?.setVisible(on);
     } else if (isSupported(l) && l.kind === 'images' && project.images?.id === l.id) {
       images?.setVisible(on);
@@ -188,7 +188,7 @@ export function createLayerRegistry(o: {
         keyNumber: isSupported(l) ? project.layers.filter(isSupported).findIndex((x) => x.id === l.id) + 1 : undefined,
         visible: visible[l.id] ?? false,
         opacity: opacity[l.id] ?? 1,
-        ...(!('unsupported' in l) && (l.kind === 'pointcloud' || l.kind === 'mesh')
+        ...(!('unsupported' in l) && (l.kind === 'pointcloud' || l.kind === 'mesh' || l.kind === 'mesh-tiles')
           ? { genauigkeit: panelZeilen(l.provenance.accuracy) } : {}),
         ...(!('unsupported' in l) && l.kind === 'mesh' ? {
           notes: [!l.provenance.scaleVerified ? 'Modellmaß – Maßstab nicht belegt' : '',
@@ -196,6 +196,12 @@ export function createLayerRegistry(o: {
           shading: meshes.find((m) => m.id === l.id)?.shading ?? false,
           flaeche: meshes.find((m) => m.id === l.id)?.flaeche ?? 'textur',
           draht: meshes.find((m) => m.id === l.id)?.draht ?? false,
+        } : {}),
+        // Gekachelt: dieselben Herkunftshinweise wie beim Mesh; Fläche/Schattierung/Drahtgitter gibt es hier nicht.
+        ...(!('unsupported' in l) && l.kind === 'mesh-tiles' ? {
+          notes: [!l.provenance.scaleVerified ? 'Modellmaß – Maßstab nicht belegt' : '',
+            l.provenance.interpolated ? 'Oberfläche teils interpoliert' : '',
+            'Gekachelt – Messen nur auf der feinsten Stufe'].filter(Boolean),
         } : {}),
         ...(!('unsupported' in l) && l.kind === 'splats' ? { notes: [
           ...(l.frameCheck === KEINE_WOLKE ? ['Modellmaß – Lage und Maßstab nicht belegt'] : []),
@@ -212,13 +218,13 @@ export function createLayerRegistry(o: {
     },
     setOpacity: (id, x) => {
       const l = byId.get(id);
-      if (!l || !isSupported(l) || (l.kind !== 'pointcloud' && l.kind !== 'mesh' && l.kind !== 'splats')) return;
+      if (!l || !isSupported(l) || (l.kind !== 'pointcloud' && l.kind !== 'mesh' && l.kind !== 'mesh-tiles' && l.kind !== 'splats')) return;
       opacity[id] = x;
       if (project.cloud?.id === id && viewer.cloud) {
         viewer.cloud.opacity = x;
         viewer.instance.notifyChange(viewer.cloud);
       }
-      if (l.kind === 'mesh' || l.kind === 'splats') meshes.find((m) => m.id === id)?.setOpacity(x);
+      if (l.kind === 'mesh' || l.kind === 'mesh-tiles' || l.kind === 'splats') meshes.find((m) => m.id === id)?.setOpacity(x);
       fireChange();
     },
     setShading: (id, on) => {
@@ -244,7 +250,7 @@ export function createLayerRegistry(o: {
       const l = byId.get(id);
       if (!l || !isSupported(l)) return;
       const fov = verticalFov(viewer);
-      if (l.kind === 'pointcloud' || l.kind === 'mesh' || l.kind === 'splats') {
+      if (l.kind === 'pointcloud' || l.kind === 'mesh' || l.kind === 'mesh-tiles' || l.kind === 'splats') {
         viewer.frameAt(centerOf(l.boundsWorld), fitDistance(l.boundsWorld, fov));
         return;
       }
@@ -261,5 +267,5 @@ export function createLayerRegistry(o: {
 /** Rahmung aller sichtbaren räumlichen Ebenen; die Minikarte bleibt unverändert. */
 export function visibleBounds(project: Project, isVisible: (id: string) => boolean): [Vec3, Vec3] | null {
   return boundsOfPoints(project.layers.flatMap((l) =>
-    isSupported(l) && (l.kind === 'pointcloud' || l.kind === 'mesh' || l.kind === 'splats') && isVisible(l.id) ? l.boundsWorld : []));
+    isSupported(l) && (l.kind === 'pointcloud' || l.kind === 'mesh' || l.kind === 'mesh-tiles' || l.kind === 'splats') && isVisible(l.id) ? l.boundsWorld : []));
 }

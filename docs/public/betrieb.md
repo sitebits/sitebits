@@ -1019,6 +1019,145 @@ Unit, Drop-ins und Linger entfernt; die Auswertungsrouten antworten wieder 404. 
 Auftragsdatenbank und Berichte bleiben liegen; sie zu löschen ist ein bewusster eigener Schritt
 (Berichte können Ort und Lage eines Projekts nennen).
 
+## Panoramen und Fotos freigeben
+
+Personen auf Panoramen und Baustellenfotos sehen Betrachter und Rückmelder erst nach einer Freigabe
+in den Projekt-Einstellungen („Freigabe von Panoramen und Fotos“). Die Freigabe gilt genau für die
+Dateien, die beim Freigeben vorlagen: Der Server speichert Pfad und SHA-256 jeder Datei. Wer danach
+ein Bild austauscht (oder neu importiert), muss neu freigeben; bis dahin ist die geänderte Datei für
+Betrachter gesperrt. Original- und Sicherungsordner im Paket (`panos.alt/`, `fotos-alt/` …) sind
+für sie nie sichtbar — trotzdem gehören unanonymisierte Originale **nicht** ins Paketverzeichnis,
+sondern an einen eigenen Ort mit Löschfrist.
+
+- **Panoramen mit geprüfter Anonymisierung:** `scanview-import panos-kameras --anonymisiert
+  <manifest.json>` (siehe `import/README.md`), danach im Portal „freigeben (anonymisiert)“.
+- **Ohne Personen** (Altbestand, Innenräume ohne Menschen): ein Admin erklärt die Ebene als
+  „personenfrei“. Die Erklärung steht mit Namen im Verlauf.
+- **Übergang für Altpakete:** Panoramen ohne Anonymisierungsblock bleiben sichtbar, bis die
+  Projektleitung „Panoramen nur freigegeben zeigen“ einschaltet. Neu eingerichtete Projekte haben
+  den Schalter an. Fotos waren schon vorher gesperrt; eine Freigabe über `images.json` allein gilt
+  nicht mehr.
+- „Dateien jetzt prüfen“ hasht alle freigegebenen Dateien (Sekunden je GB) und zeigt, ob welche
+  seit der Freigabe verändert wurden.
+
+## Fotos und PDFs am Befund-Faden (optional)
+
+Ab Werk aus. Setze `SCANVIEW_ANHAENGE` für Webdienst und Import-Worker auf denselben absoluten
+Pfad außerhalb von `SCANVIEW_DATA`, zum Beispiel `/srv/scanview/anhaenge`. Ohne diesen Wert sind
+die Anhang-Routen nicht verfügbar (404). Voraussetzung ist der eingerichtete Jobläufer mit
+`SCANVIEW_JOBS_DB`, `SCANVIEW_BERICHTE`, `SCANVIEW_DATA` und `SCANVIEW_IMPORT_BIN`; seine
+Import-Umgebung muss den Befehl `scanview-import anhang-bereinigen` einschließlich Pillow enthalten.
+Ein Upload-Import mit `SCANVIEW_IMPORT=1` ist dafür nicht nötig.
+
+Die Einrichtung erfolgt von Hand; `einrichten.sh` richtet die Anhang-Ablage noch nicht ein:
+
+1. Lege die Wurzel root-eigen und für `scanview-jobs` durchsuchbar an (0750). Darunter braucht
+   `eingang` den Eigentümer `scanview:scanview-jobs`, `geprueft` den Eigentümer
+   `scanview-import:scanview-jobs`, jeweils Modus 2750. `ablage` gehört
+   `scanview:scanview` mit Modus 0750. Der Webdienst schreibt Eingang und Ablage und liest die
+   geprüfte Ausgabe; der Worker liest den Eingang und schreibt ausschließlich unter `geprueft`.
+2. Trage `SCANVIEW_ANHAENGE=/srv/scanview/anhaenge` in
+   `/etc/scanview/scanview-server.env` ein, die auch der Worker liest. Optional begrenzt
+   `SCANVIEW_ANHAENGE_QUOTE_MB` die Ablage je Projekt (Standard **2048 MB**, ganze Zahl ab 1).
+   Die Quote zählt bereite und noch geprüfte Anhänge; vor jedem Upload müssen zusätzlich
+   20 MB frei in der Quote sein. Höchstens **50 Anhänge je Befund**, je Datei **20 MB**;
+   die Ablage hält 10 Prozent Plattenreserve frei.
+3. Ergänze die vorhandenen systemd-Drop-ins: Webdienst mit `SupplementaryGroups=scanview-jobs`,
+   `ReadWritePaths=/srv/scanview/anhaenge/eingang /srv/scanview/anhaenge/ablage` und
+   `ReadOnlyPaths=/srv/scanview/anhaenge/geprueft`; Worker mit
+   `ReadOnlyPaths=/srv/scanview/anhaenge/eingang` und
+   `ReadWritePaths=/srv/scanview/anhaenge/geprueft`. Der Pfad liegt außerhalb der Paketwurzel
+   und wird niemals direkt von Caddy ausgeliefert. Verwende die aktuelle Caddy-Konfiguration,
+   die den rohen Uploadkörper dieser Route gesondert auf 21 MiB begrenzt. Der Webdienst
+   erzwingt selbst die 20-MiB-Grenze.
+4. Lade systemd neu und starte Webdienst und Worker neu. Prüfe danach im Browser mit einem
+   synthetischen Foto den Übergang von „in Prüfung“ zum Bild und ein PDF als Download.
+   Bei Ablehnung zeigt der Faden die Fehlermeldung. Ein Lesekonto darf nichts hochladen,
+   ein Gast-Link darf keinen Anhang erreichen.
+
+Die Worker-Umgebung bleibt ohne Netz. Jeder Bildauftrag setzt `OPENBLAS_NUM_THREADS=1`,
+`OMP_NUM_THREADS=1` und `MKL_NUM_THREADS=1`, damit Bibliotheken nicht die Prozessgrenze durch
+zusätzliche Threads verbrauchen. Diese Werte setzt der Worker selbst im isolierten Auftrag;
+Budget: 512 MB, 60 Sekunden, 8 Prozesse. Für die Neukodierung wurde eine Speicherspitze von
+324,5 MB für 40 Megapixel protokolliert (gedreht 353,6 MB, Stand `5bea336`);
+diese Einzelmessungen ersetzen nicht die Grenze. Bilder werden zu JPEG ohne
+EXIF/GPS und Geräte- oder Personennamen in den Metadaten, PDFs bleiben unverändert und werden
+nur als Download mit dem Hinweis „PDF aus externer Quelle“ angeboten. Personen in Bildpixeln
+werden dadurch nicht anonymisiert.
+
+**Löschverhalten:** Bereite Anhänge haben keine automatische Altersfrist. Zieht der Verfasser
+seinen Eintrag zurück, wird die Datei sofort entfernt, sofern kein anderer aktiver Anhang im
+selben Projekt denselben Hash nutzt. Der Protokolleintrag bleibt. Bei erfolgreicher Übernahme
+wird das Original im Eingang entfernt; bei fehlgeschlagenen Aufträgen geschieht dies beim
+nächsten Abgleich durch einen Faden-/Anhangabruf. Nicht übernommene geprüfte Worker-Ausgaben
+unter `geprueft` räumt der Worker nach **7 Tagen** auf. Das Löschen eines Befunds sperrt den
+Zugriff sofort, löscht aber nicht automatisch alle zugehörigen Anhang-Dateien. Plane daher die
+Aufbewahrung und Sicherung der Ablage mit der Projektdatenbank gemeinsam; eine allgemeine
+Löschfrist für Originale im Eingang oder bereite Dateien ist nicht implementiert. Sicherungskopien
+und Dateisystemreste haben die Aufbewahrung des Betreibers.
+
+## E-Mail-Benachrichtigung (optional)
+
+Ab Werk aus. Beteiligte, die in ihren Einstellungen einwilligen und ihre Adresse bestätigen,
+bekommen bei Neuem an ihren Befunden (Kommentar, Link, Status, Zuständigkeit) eine kurze Mail:
+nur die Art des Ereignisses und Links, **keine** Projektnamen, Titel, Texte oder Koordinaten.
+Geantwortet wird im Browser; Antworten auf die Mail kommen nicht an. Entscheidung: ADR 0017.
+
+Der Webdienst bleibt ohne Netz. Er legt fertige Nachrichten in ein Spool-Verzeichnis; versendet
+werden sie vom eigenen Dienst `scanview-post` (eigener Nutzer, keine Datenbank). `einrichten.sh`
+richtet ihn noch nicht ein — die Schritte von Hand:
+
+1. Nutzer und Ordner (Gruppen trennen die Richtungen):
+
+   ```bash
+   sudo useradd --system --no-create-home --shell /usr/sbin/nologin scanview-post
+   sudo install -d -o root -g root -m 0755 /srv/scanview/post
+   sudo install -d -o scanview -g scanview-post -m 2750 /srv/scanview/post/ausgang
+   sudo install -d -o scanview-post -g scanview -m 2750 /srv/scanview/post/erledigt
+   ```
+2. Webdienst: in `/etc/scanview/scanview-server.env` `SCANVIEW_POST=/srv/scanview/post` und
+   `SCANVIEW_POST_ABSENDER=benachrichtigung@<domain>`; Drop-in
+   `deploy/platform/scanview-server.service.d/post.conf.beispiel` als
+   `/etc/systemd/system/scanview-server.service.d/post.conf` installieren.
+3. Postdienst: `deploy/platform/scanview-post.env.beispiel` nach `/etc/scanview/scanview-post.env`
+   (root:scanview-post, 0640), SMTP-Host, Sicherheit (`tls` oder `starttls`), Benutzer und Absender
+   eintragen. Das Passwort (Anwendungspasswort des Anbieters) in eine eigene Datei
+   `/etc/scanview/scanview-post.passwort` mit Eigentümer `scanview-post` und Rechten **0600** — der
+   Dienst startet nicht, wenn sie für andere lesbar ist. Nie ins Repository, nie in die
+   Umgebungsdatei, nie in ein Ticket.
+4. Netz: `deploy/platform/scanview-post.service` installieren. Die Unit hat ab Werk kein Netz;
+   ein Drop-in `/etc/systemd/system/scanview-post.service.d/smtp.conf` gibt nur den SMTP-Server und
+   den Resolver frei:
+
+   ```ini
+   [Service]
+   IPAddressAllow=<IPv4 des SMTP-Servers> <IPv6 des SMTP-Servers> 127.0.0.53
+   ```
+
+   Ändert der Anbieter seine Adressen, stockt der Versand (Journal: „später erneut“), bis der Drop-in
+   nachgezogen ist; nichts geht verloren.
+5. `sudo systemctl daemon-reload && sudo systemctl restart scanview-server && sudo systemctl enable
+   --now scanview-post`. Prüfen: im Portal in den Einstellungen „E-Mail bei Neuem …“ einschalten,
+   die Bestätigungsmail muss ankommen (`journalctl -u scanview-post` zeigt nur ID, Zustand und
+   SMTP-Code).
+6. Absenderdomain: SPF, DKIM und DMARC nach Anleitung des Anbieters, sonst landen die Mails im Spam.
+
+Projektleitungen können Mails im Projekt ganz ausschalten (Schalter „E-Mail-Benachrichtigungen“).
+Grenzen: höchstens 10 Mails je Person und Stunde, eine je Befund in 15 Minuten.
+
+**Datenschutz (für das Verzeichnis der Verarbeitungstätigkeiten des Betreibers):**
+
+- Zweck: Benachrichtigung über Neues an Befunden, an denen die Person beteiligt ist. Rechtsgrundlage
+  in der Regel Einwilligung; Widerruf jederzeit in den Einstellungen oder per Link in jeder Mail.
+- Daten: die Konto-Adresse (wie bisher), dazu nur der SHA-256 der bestätigten Adresse mit Zeitpunkt,
+  Abbestellungen je Befund, Mail-Ausgang ohne Text (Konto, Projekt, Befund, Ereignisart, Zustand,
+  Zeiten). „Konto löschen (DSGVO)“ entfernt all das.
+- Löschfristen: Ausgangszeilen nach 91 Tagen automatisch; Spool-Dateien, sobald der Postdienst das
+  Ergebnis gemeldet hat; Ergebnisdateien nach 30 Tagen; Einwilligung und Abbestellungen bis zum
+  Anonymisieren des Kontos (Ausschalten beendet den Versand sofort).
+- Empfänger: der SMTP-Anbieter des Betreibers (Auftragsverarbeitung prüfen) und das Postfach der
+  Person. Projektinhalte gehen nicht mit.
+
 ## Git-Export der Bearbeitungen (optional)
 
 Ab Werk aus. `SCANVIEW_GIT_EXPORT=1` in der Umgebungsdatei und erneutes `einrichten.sh` schalten

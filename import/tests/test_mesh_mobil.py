@@ -311,6 +311,8 @@ def test_cli_mobilstufe(tmp_path, capsys):
     assert main(["mobilstufe", str(quelle), str(ziel)]) == 1
 
 
+# Echte KTX2-Kodierung/Dekodierung braucht Docker; separat im Docker-Gate ausführen.
+@pytest.mark.docker
 def test_texturierte_mobilstufe_etc1s_2048(tmp_path):
     """Echter KTX-Container: Import mit Mobilstufe und nachträgliche Ableitung aus UASTC."""
     from scanview_import.mesh_textures import ktx_info

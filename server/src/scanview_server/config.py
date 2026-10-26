@@ -55,6 +55,15 @@ class Settings:
     upload_quote_bytes: int = 0
     # Freier Platz, der nach einem angekündigten Upload im Upload-Ordner bleiben muss.
     upload_reserve_bytes: int = 10 * 1024**3
+    # Fotos und PDFs am Befund-Faden (F7): aus, bis SCANVIEW_ANHAENGE gesetzt ist (Ordner außerhalb
+    # der Paketwurzel; braucht den Jobläufer, der Bilder isoliert neu kodiert). Quote je Projekt.
+    anhaenge_dir: Path | None = None
+    anhaenge_quote_bytes: int = 2 * 1024**3
+    # E-Mail-Benachrichtigung (F8): aus, bis SCANVIEW_POST (Spool-Verzeichnis für den eigenen
+    # Dienst scanview-post) und SCANVIEW_POST_ABSENDER gesetzt sind. SMTP-Zugang kennt nur
+    # scanview-post, nie der Webdienst.
+    post_dir: Path | None = None
+    post_absender: str | None = None
 
     @property
     def db_path(self) -> Path:
@@ -113,7 +122,13 @@ class Settings:
                                  "Zahl von 1 bis 100000 (kein Standardwert).")
             if Path(uploads).resolve().is_relative_to(Path(need("SCANVIEW_DATA")).resolve()):
                 raise SystemExit("SCANVIEW_UPLOADS darf nicht unter SCANVIEW_DATA liegen.")
+        anhaenge, aquote = _anhaenge_aus_env(bool(jobs_db), need("SCANVIEW_DATA"))
+        post, absender = _post_aus_env(need("SCANVIEW_DATA"))
         return Settings(
+            post_dir=Path(post) if post else None,
+            post_absender=absender or None,
+            anhaenge_dir=Path(anhaenge) if anhaenge else None,
+            anhaenge_quote_bytes=aquote,
             import_enabled=import_an,
             uploads_dir=Path(uploads) if import_an else None,
             upload_quote_bytes=int(roh_quote) * 1024**3 if import_an else 0,
@@ -135,3 +150,45 @@ class Settings:
             rechtliches=Rechtliches.aus_umgebung(os.environ),
         )
 
+
+
+def _ausserhalb(name: str, wert: str, data: str) -> None:
+    if not Path(wert).is_absolute():
+        raise SystemExit(f"{name} muss ein absoluter Pfad sein.")
+    if Path(wert).resolve().is_relative_to(Path(data).resolve()):
+        raise SystemExit(f"{name} darf nicht unter SCANVIEW_DATA liegen.")
+
+
+def _anhaenge_aus_env(jobs: bool, data: str) -> tuple[str, int]:
+    """SCANVIEW_ANHAENGE (Ordner außerhalb der Paketwurzel, braucht den Jobläufer) und Quote."""
+    anhaenge = os.environ.get("SCANVIEW_ANHAENGE", "").strip()
+    roh = os.environ.get("SCANVIEW_ANHAENGE_QUOTE_MB", "").strip() or "2048"
+    if anhaenge:
+        if not jobs:
+            raise SystemExit("SCANVIEW_ANHAENGE braucht den Jobläufer (SCANVIEW_JOBS_DB).")
+        _ausserhalb("SCANVIEW_ANHAENGE", anhaenge, data)
+    if not (roh.isascii() and roh.isdigit() and 0 < int(roh) <= 10**7):
+        raise SystemExit("SCANVIEW_ANHAENGE_QUOTE_MB muss eine ganze Zahl ab 1 sein.")
+    return anhaenge, int(roh) * 1024**2
+
+
+def _post_aus_env(data: str) -> tuple[str, str]:
+    """SCANVIEW_POST (Spool) und SCANVIEW_POST_ABSENDER, nur gemeinsam; Absender streng geprüft."""
+    from email.errors import HeaderParseError
+    from email.headerregistry import Address
+
+    post = os.environ.get("SCANVIEW_POST", "").strip()
+    absender = os.environ.get("SCANVIEW_POST_ABSENDER", "").strip()
+    if bool(post) != bool(absender):
+        raise SystemExit("SCANVIEW_POST und SCANVIEW_POST_ABSENDER nur gemeinsam setzen.")
+    if not post:
+        return "", ""
+    _ausserhalb("SCANVIEW_POST", post, data)
+    try:
+        a: Address | None = Address(addr_spec=absender)
+    except (ValueError, IndexError, HeaderParseError):
+        a = None
+    if a is None or not a.username or not a.domain or any(
+            ord(c) < 33 or ord(c) == 127 for c in absender):
+        raise SystemExit("SCANVIEW_POST_ABSENDER muss eine einzelne E-Mail-Adresse sein.")
+    return post, absender

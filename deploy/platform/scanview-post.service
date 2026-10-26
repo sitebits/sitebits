@@ -1,0 +1,59 @@
+# scanview-post — systemd-Unit für den Postdienst (E-Mail-Benachrichtigungen versenden, F8).
+# Ab Werk nicht installiert; Einrichtung von Hand nach docs/public/betrieb.md, Abschnitt
+# „E-Mail-Benachrichtigung“ (einrichten.sh legt den Dienst noch nicht an).
+#
+# Besonderheiten:
+#  - Eigener Nutzer scanview-post, keine Datenbank, keine Pakete: liest nur
+#    /srv/scanview/post/ausgang (Webdienst schreibt, Gruppe scanview-post) und schreibt nur
+#    /srv/scanview/post/erledigt (Webdienst liest, Gruppe scanview).
+#  - SMTP-Zugang nur hier: /etc/scanview/scanview-post.env (0640 root:scanview-post), Passwort in
+#    einer eigenen Datei mit Rechten 0600 (SCANVIEW_SMTP_PASSWORT_DATEI), gehört scanview-post.
+#  - Netz: ab Werk gar keins (IPAddressDeny=any). Der Betreiber öffnet per Drop-in nur die Adressen
+#    seines SMTP-Servers und DNS, siehe betrieb.md. Der Webdienst bleibt ohne Außenverbindung.
+[Unit]
+Description=scanview-Postdienst (Benachrichtigungen per SMTP)
+After=network-online.target scanview-server.service
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=scanview-post
+Group=scanview-post
+WorkingDirectory=/
+EnvironmentFile=/etc/scanview/scanview-post.env
+ExecStart=/opt/scanview/server/.venv/bin/scanview-post
+Restart=on-failure
+RestartSec=30
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/srv/scanview/post/erledigt
+ReadOnlyPaths=/srv/scanview/post/ausgang
+InaccessiblePaths=/srv/scanview/state /srv/scanview/data /srv/scanview/jobs /srv/scanview/berichte
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=
+RemoveIPC=yes
+UMask=0027
+# Ab Werk kein Netz. Freigabe per Drop-in /etc/systemd/system/scanview-post.service.d/smtp.conf:
+#   [Service]
+#   IPAddressAllow=<IPv4 des SMTP-Servers> <IPv6 des SMTP-Servers> <DNS-Resolver>
+IPAddressDeny=any
+RestrictAddressFamilies=AF_INET AF_INET6
+MemoryMax=128M
+TasksMax=16
+
+[Install]
+WantedBy=multi-user.target

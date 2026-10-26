@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from . import hoehen
+from . import anonymisiert, hoehen
 from .kameras import hoehen_umrechnen, kamera_station_sources, lage_anwenden, read_cameras
 from .lage import aus_paket
 from .manifest_io import cloud_of, read_manifest, write_manifest
@@ -105,12 +105,18 @@ def paket_datum(datum: str) -> str:
 
 
 def import_kameras(
-    cameras: Path, pkg: Path, levels: tuple[int, ...], height_system: str | None = None
+    cameras: Path,
+    pkg: Path,
+    levels: tuple[int, ...],
+    height_system: str | None = None,
+    anonymisiert_manifest: Path | None = None,
 ) -> dict[str, Any]:
     """Vorabprüfung aller Quellen und CRS; dann Schreiben über die bestehende Adapter-Naht.
 
     `height_system` deklariert ein bisher unbekanntes Paket-Höhensystem ausdrücklich.
     Ein schon deklariertes Höhensystem darf damit nicht überschrieben werden.
+    `anonymisiert_manifest` (F20): Pixel nur aus dem geprüften Anonymisierungslauf
+    (`anonymisiert.py`); jede Kamera muss darin stehen, sonst bricht der Import ab.
     """
     export = read_cameras(cameras)
     declared, datum = pruefe_paket_crs(pkg, export.epsg, export.vertical_datum, height_system)
@@ -122,7 +128,15 @@ def import_kameras(
         export = lage_anwenden(export, lagematrix)
     if not levels or any(type(level) is not int or level <= 0 for level in levels):
         raise ValueError("Stufen müssen positive ganze Seitengrößen sein")
-    sources = kamera_station_sources(export)
+    uebernahmen: list[anonymisiert.Uebernahme] = []
+    anon_block: dict[str, Any] | None = None
+    if anonymisiert_manifest is not None:
+        m = anonymisiert.lade(anonymisiert_manifest)
+        uebernahmen = anonymisiert.zuordnen(
+            m, [(c.label, c.image_path, c.width, c.height) for c in export.cameras])
+        anon_block = {"status": "reviewed", "tool": anonymisiert.WERKZEUG,
+                      "manifestSha256": m.sha256}
+    sources = kamera_station_sources(export, {u.quelle: u.pixel for u in uebernahmen})
     selected = []
     skipped = list(export.skipped)
     for source in sources:
@@ -132,9 +146,17 @@ def import_kameras(
             skipped.append({"label": source.name, "reason": "keine erreichbare Stufe"})
     if not selected:
         raise ValueError("Es bleibt keine Kamera mit erreichbarer Stufe übrig")
-    write_stations(pkg, selected, tuple(sorted(set(levels))))
+    write_stations(pkg, selected, tuple(sorted(set(levels))), anonymization=anon_block,
+                   vor_abschluss=lambda: anonymisiert.nachpruefen(uebernahmen))
     if declared is None:
         manifest = read_manifest(pkg)
         manifest.get("frame", manifest)["crs"]["verticalDatum"] = paket_datum(datum)
         write_manifest(pkg, manifest)
-    return {"exported": [source.name for source in selected], "skipped": skipped}
+    bericht: dict[str, Any] = {"exported": [source.name for source in selected],
+                               "skipped": skipped}
+    if anon_block is not None:
+        bericht["anonymisierung"] = {
+            **anon_block,
+            "panos": [{"pano": u.pano, "aktion": u.aktion} for u in uebernahmen],
+        }
+    return bericht

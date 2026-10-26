@@ -40,7 +40,7 @@ def test_versionen_einheitlich(tmp_path):
 
 def test_versionen_einheitlich_im_repo():
     """Der echte Stand (auch im öffentlichen Abzug)."""
-    assert versionen_einheitlich(WURZEL) == "0.11.0"
+    assert versionen_einheitlich(WURZEL) == "0.12.0"
 
 
 def test_versionen_nennt_jede_quelle(tmp_path):

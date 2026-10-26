@@ -141,7 +141,9 @@ def test_anonymisieren_entfernt_alle_personendaten(conn: sqlite3.Connection) -> 
     andere = _konto(conn, "bleibt@b.de", {"p1": "betrachter"})
     z = verwaltung.anonymisieren(conn, uid, von=None, kanal="cli")
     assert z == {"sitzungen": 1, "passkeys": 1, "passwort": 1, "tokens": 1, "rechte": 2,
-                 "einladungenGeloescht": 1, "einladungenGeschwaerzt": 1}
+                 "einladungenGeloescht": 1, "einladungenGeschwaerzt": 1,
+                 "benachrichtigungKonto": 0, "benachrichtigungAus": 0,
+                 "benachrichtigungAusgang": 0}
     row = conn.execute("SELECT name, email, disabled, is_admin FROM users WHERE id=?",
                        (uid,)).fetchone()
     assert tuple(row) == (f"Gelöschtes Konto {uid}", f"geloescht-{uid}@invalid", 1, 0)

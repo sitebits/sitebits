@@ -1,6 +1,11 @@
 [
   {"werkzeug": "projekte_auflisten", "methode": "GET", "pfad": "/api/v1/projekte"},
   {"werkzeug": "projekt_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}"},
+  {"werkzeug": "freigaben_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/freigaben"},
+  {"werkzeug": "anhang_hochladen", "methode": "POST", "pfad": "/api/v1/projekte/{pid}/pois/{eid}/faden/anhaenge"},
+  {"werkzeug": "anhang_stand", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/pois/{eid}/faden/anhaenge/{aid}/stand"},
+  {"werkzeug": "benachrichtigung_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/pois/{eid}/faden/benachrichtigung"},
+  {"werkzeug": "benachrichtigung_setzen", "methode": "PUT", "pfad": "/api/v1/projekte/{pid}/pois/{eid}/faden/benachrichtigung"},
   {"werkzeug": "beteiligte_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/beteiligte"},
   {"werkzeug": "beschreibung_setzen", "methode": "PATCH", "pfad": "/api/v1/projekte/{pid}"},
   {"werkzeug": "pois_lesen", "methode": "GET", "pfad": "/api/v1/projekte/{pid}/pois"},

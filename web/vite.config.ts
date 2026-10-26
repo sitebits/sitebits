@@ -210,7 +210,11 @@ export default defineConfig({
       // immutable, der Hash im Namen wechselt nur bei geändertem Inhalt). SBOM: die Datei fällt wie
       // jedes Bundle unter die Hauptkomponente, die Pakete selbst stehen aus der Lockdatei im SBOM.
       output: {
+        // Der Preload-Helfer von Vite (dynamische import()) bekommt einen eigenen Chunk: Landet er in
+        // 'vendor', lädt das Portal die ganze 3D-Bibliothek mit, und deren Meshopt-Dekoder kompiliert
+        // beim Laden WebAssembly, was die Portal-CSP (ohne 'wasm-unsafe-eval') zu Recht verbietet.
         manualChunks(id: string): string | undefined {
+          if (id.includes('vite/preload-helper')) return 'preload';
           return /[\\/]node_modules[\\/](?:three|@giro3d[\\/]giro3d|proj4)[\\/]/.test(id) ? 'vendor' : undefined;
         },
       },

@@ -225,6 +225,9 @@ class EinstellungenIn(BaseModel):
     export_bearbeiter: StrictBool | None = Field(default=None, alias="exportBearbeiter")
     befund_faeden: StrictBool | None = Field(default=None, alias="befundFaeden")
     nur_lese_links: StrictBool | None = Field(default=None, alias="nurLeseLinks")
+    panoramen_nur_freigegeben: StrictBool | None = Field(default=None,
+                                                         alias="panoramenNurFreigegeben")
+    benachrichtigung: StrictBool | None = None
 
 
 class KategorieIn(BaseModel):
@@ -248,15 +251,19 @@ NUR_ADMIN_VORLAGE = "Die Vorlage wählt die Instanzverwaltung beim Einrichten de
 
 @router.patch("/einstellungen", dependencies=[Depends(csrf)],
               summary="Schalter: Rückmeldungen erlaubt, Export für Bearbeiter, Befund-Fäden, "
-              "Nur-Lese-Links (Projektleitung/Admin)")
+              "Nur-Lese-Links, Panoramen nur freigegeben, E-Mail-Benachrichtigung "
+              "(Projektleitung/Admin)")
 def einstellungen_aendern(pid: str, body: EinstellungenIn, request: Request,
                           conn: sqlite3.Connection = Depends(db)) -> JSONResponse:
     z = leitung(request, conn, pid)
     if not body.model_fields_set:
-        raise Ungueltig("Rückmeldungen, Export, Befund-Fäden oder Nur-Lese-Links angeben.")
+        raise Ungueltig("Rückmeldungen, Export, Befund-Fäden, Nur-Lese-Links, "
+                        "Panoramen nur freigegeben oder Benachrichtigung angeben.")
     e = projektverwaltung.einstellungen_aendern(
         conn, pid, rueckmeldungen=body.rueckmeldungen, export_bearbeiter=body.export_bearbeiter,
-        befund_faeden=body.befund_faeden, nur_lese_links=body.nur_lese_links, von=z.nutzer.id)
+        befund_faeden=body.befund_faeden, nur_lese_links=body.nur_lese_links,
+        panoramen_nur_freigegeben=body.panoramen_nur_freigegeben,
+        benachrichtigung=body.benachrichtigung, von=z.nutzer.id)
     return JSONResponse({"einstellungen": e.als_json()})
 
 

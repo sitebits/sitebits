@@ -34,6 +34,13 @@ import/**
 !import/scripts/spike/**
 !import/docker/spike/**
 !import/tests/spike/**
+# Ausnahme: die Vertragsprüfer des eigenen Kachlers (eigener Code, ohne Fremdwerkzeuge). Die Kachel-Tests
+# (import/tests/test_kacheln*.py) prüfen ihre Ausgabe damit; ohne sie wäre der öffentliche Abzug nicht testbar.
+import/scripts/spike/__init__.py
+import/scripts/spike/obj_read.py
+import/scripts/spike/source_mesh.py
+import/scripts/spike/tiles_contract.py
+import/scripts/spike/textur_mehrseitig.py
 
 # Plattform-Server und MCP-Server
 server/**

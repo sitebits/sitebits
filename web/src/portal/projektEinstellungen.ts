@@ -7,6 +7,8 @@ import { rolleText } from './rechte';
 import { abschnitt, el, feld, fehlerText, knopf, tabelle, tabelleRegion, zeigeLink, zeile } from './verwaltung';
 import { datumText } from './verwaltungModell';
 import { teilenAbschnitt } from './teilen';
+import { freigabenAbschnitt } from './freigaben';
+import type { FreigabenAntwort } from './freigaben';
 import {
   darfVerwalten, einladungErgebnisText, hinzufuegen, NUR_LEITUNG_TEXT, umschalten, verschiebe, vergebbareRollen, VORLAGEN, zeileAenderbar,
 } from './projektEinstellungenModell';
@@ -280,7 +282,7 @@ function kategorienAbschnitt(d: Daten, u: Umgebung): HTMLElement {
 }
 
 function schalterAbschnitt(d: Daten, u: Umgebung): HTMLElement {
-  const schalter = (id: string, text: string, hilfe: string, wert: boolean, schluessel: 'rueckmeldungen' | 'exportBearbeiter' | 'befundFaeden' | 'nurLeseLinks'): HTMLElement => {
+  const schalter = (id: string, text: string, hilfe: string, wert: boolean, schluessel: 'rueckmeldungen' | 'exportBearbeiter' | 'befundFaeden' | 'nurLeseLinks' | 'panoramenNurFreigegeben' | 'benachrichtigung'): HTMLElement => {
     const cb = el('input');
     cb.type = 'checkbox';
     cb.id = id;
@@ -297,7 +299,7 @@ function schalterAbschnitt(d: Daten, u: Umgebung): HTMLElement {
       anfrage('PATCH', `${u.pfad}/einstellungen`, { [schluessel]: cb.checked })
         .then(async () => {
           // Der Abschnitt „Nur-Lese-Links“ hängt am Schalter: neu zeichnen, Fokus zurück auf den Schalter.
-          if (schluessel === 'nurLeseLinks') await u.neu(id);
+          if (schluessel === 'nurLeseLinks' || schluessel === 'panoramenNurFreigegeben') await u.neu(id);
           u.status(`${text}: ${cb.checked ? 'an' : 'aus'}.`);
         })
         .catch((e: unknown) => {
@@ -318,6 +320,8 @@ function schalterAbschnitt(d: Daten, u: Umgebung): HTMLElement {
     schalter('sv-pe-export', 'Export für Bearbeiter', 'Aus: nur Projektleitung und Admins exportieren CSV und JSON. Ein Ablaufschalter, keine Datenschutzgrenze: Bearbeiter sehen dieselben Daten weiterhin in der Liste.', d.info.einstellungen.exportBearbeiter, 'exportBearbeiter'),
     schalter('sv-pe-befundfaeden', 'Befund-Fäden', 'An: jeder Befund hat einen Verlauf mit Kommentaren, Status, Zuständigkeit und Frist, dazu die Liste „Fällig/überfällig“. Aus: Befunde wie bisher, Rückmeldungen als eigene Markierung.', d.info.einstellungen.befundFaeden === true, 'befundFaeden'),
     schalter('sv-pe-nurlese', 'Nur-Lese-Links erlaubt', 'An: die Projektleitung kann Links anlegen, mit denen Gäste ohne Konto Punktwolke und Meshes ansehen. Aus: alle Links wirken sofort nicht mehr.', d.info.einstellungen.nurLeseLinks === true, 'nurLeseLinks'),
+    schalter('sv-pe-panofrei', 'Panoramen nur freigegeben zeigen', 'An: Betrachter und Rückmelder sehen Panoramen erst nach der Freigabe unten. Aus: Panoramen älterer Pakete ohne Anonymisierung sind für alle Beteiligten sichtbar (Übergang). Neu importierte Panoramen sind immer erst nach Freigabe sichtbar.', d.info.einstellungen.panoramenNurFreigegeben === true, 'panoramenNurFreigegeben'),
+    schalter('sv-pe-mail', 'Benachrichtigungen per Mail', 'An: Beteiligte, die in ihren Einstellungen eingewilligt haben, bekommen bei Neuem an ihren Befunden eine kurze Mail ohne Projektinhalte. Wirkt nur, wenn die Instanz Mails verschickt.', d.info.einstellungen.benachrichtigung !== false, 'benachrichtigung'),
   );
 }
 
@@ -327,7 +331,7 @@ function vorlageAbschnitt(u: Umgebung): HTMLElement {
     await anfrage('POST', `${u.pfad}/einrichten`, { vorlage: s.value });
     await u.neu('sv-pe-kategorien');
     u.status('Vorlage angewendet.');
-  }, u.melde, 'Vorlage anwenden? Sie lässt sich danach nicht mehr wechseln; Kategorien und Schalter bleiben änderbar.');
+  }, u.melde, 'Vorlage anwenden? Sie lässt sich danach nicht mehr wechseln; Kategorien und Schalter bleiben änderbar. Panoramen sehen Betrachter und Rückmelder danach erst nach einer Freigabe (Schalter „Panoramen nur freigegeben zeigen“).');
   return abschnitt(
     'Vorlage',
     el('p', 'sv-hinweis', 'Nur beim Einrichten: legt die Startkategorien fest. Ohne Wahl gilt „Bestandsaufnahme“, sobald jemand Kategorien oder Schalter ändert.'),
@@ -374,6 +378,7 @@ export async function zeigeProjektEinstellungen(root: HTMLElement, pid: string):
     statusEl.textContent = t;
   };
   const pfad = projektPfad(pid);
+  let mitPruefung = false;
   const neu: Neu = async (fokus) => {
     let info: ProjektKarte;
     try {
@@ -398,6 +403,8 @@ export async function zeigeProjektEinstellungen(root: HTMLElement, pid: string):
       const d: Daten = { info, beteiligte: b.beteiligte, einladungen: e.einladungen, gewerke: g.gewerke };
       const u: Umgebung = { pfad, neu, melde, status, linkPlatz, anlegenFehler };
       const teilenS = await teilenAbschnitt(info.einstellungen.nurLeseLinks === true, u);
+      const freigaben = await anfrage<FreigabenAntwort>('GET', `${pfad}/freigaben${mitPruefung ? '?pruefen=true' : ''}`);
+      mitPruefung = false;
       inhalt.replaceChildren(
         beteiligteAbschnitt(d, u),
         einladenAbschnitt(d, u),
@@ -405,6 +412,10 @@ export async function zeigeProjektEinstellungen(root: HTMLElement, pid: string):
         gewerkeAbschnitt(d, u),
         kategorienAbschnitt(d, u),
         schalterAbschnitt(d, u),
+        freigabenAbschnitt(freigaben, {
+          pfad, admin: info.rolle === 'admin', melde, status, neu,
+          pruefen: async (f) => { mitPruefung = true; await neu(f); },
+        }),
         teilenS,
         ...(info.rolle === 'admin' && info.einstellungen.vorlage === null ? [vorlageAbschnitt(u)] : []),
         verlaufAbschnitt(pid),

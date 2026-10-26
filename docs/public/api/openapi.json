@@ -475,12 +475,20 @@
             "title": "Befundfaeden",
             "type": "boolean"
           },
+          "benachrichtigung": {
+            "title": "Benachrichtigung",
+            "type": "boolean"
+          },
           "exportBearbeiter": {
             "title": "Exportbearbeiter",
             "type": "boolean"
           },
           "nurLeseLinks": {
             "title": "Nurleselinks",
+            "type": "boolean"
+          },
+          "panoramenNurFreigegeben": {
+            "title": "Panoramennurfreigegeben",
             "type": "boolean"
           },
           "rueckmeldungen": {
@@ -505,7 +513,9 @@
           "rueckmeldungen",
           "exportBearbeiter",
           "befundFaeden",
-          "nurLeseLinks"
+          "nurLeseLinks",
+          "panoramenNurFreigegeben",
+          "benachrichtigung"
         ],
         "title": "Einstellungen",
         "type": "object"
@@ -662,6 +672,20 @@
         "title": "ErgebnisZeile",
         "type": "object"
       },
+      "FadenIn": {
+        "additionalProperties": false,
+        "properties": {
+          "aus": {
+            "title": "Aus",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "aus"
+        ],
+        "title": "FadenIn",
+        "type": "object"
+      },
       "Fehler": {
         "additionalProperties": false,
         "description": "Jede Fehlerantwort (4xx): Dienstkennung und ein Satz für Menschen.",
@@ -684,20 +708,6 @@
           "fehler"
         ],
         "title": "Fehler",
-        "type": "object"
-      },
-      "FreigabeIn": {
-        "additionalProperties": false,
-        "properties": {
-          "freigegeben": {
-            "title": "Freigegeben",
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "freigegeben"
-        ],
-        "title": "FreigabeIn",
         "type": "object"
       },
       "Genauigkeit": {
@@ -1259,6 +1269,11 @@
             "title": "Kategorien",
             "type": "array"
           },
+          "panoramen_sichtbar": {
+            "description": "Panoramen für diese Rolle freigegeben (F20)",
+            "title": "Panoramen Sichtbar",
+            "type": "boolean"
+          },
           "punkte": {
             "anyOf": [
               {
@@ -1324,7 +1339,8 @@
           "version",
           "einstellungen",
           "befund_faeden",
-          "kategorien"
+          "kategorien",
+          "panoramen_sichtbar"
         ],
         "title": "Projekt",
         "type": "object"
@@ -1837,6 +1853,20 @@
           "nutzer_id"
         ],
         "title": "Zustaendig",
+        "type": "object"
+      },
+      "scanview_server__routen_auswertungen__FreigabeIn": {
+        "additionalProperties": false,
+        "properties": {
+          "freigegeben": {
+            "title": "Freigegeben",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "freigegeben"
+        ],
+        "title": "FreigabeIn",
         "type": "object"
       }
     },
@@ -2396,7 +2426,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/FreigabeIn"
+                "$ref": "#/components/schemas/scanview_server__routen_auswertungen__FreigabeIn"
               }
             }
           },
@@ -2633,6 +2663,53 @@
           }
         },
         "summary": "POIs und Messungen als JSON (Bearbeiter)"
+      }
+    },
+    "/api/v1/projekte/{pid}/freigaben": {
+      "get": {
+        "operationId": "freigaben_lesen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pruefen",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Pruefen",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Stand der Freigaben (Panoramen, Fotos): Anonymisierung im Paket, aktive Freigabe; mit pruefen=true zusätzlich abweichende Dateien (hasht alle, Sekunden je GB) (Bearbeiter+)"
       }
     },
     "/api/v1/projekte/{pid}/gewerke": {
@@ -3532,6 +3609,277 @@
         "summary": "Eintrag im Befund-Faden (kommentar, link, status, zustaendig, frist; version Pflicht bei status/zustaendig/frist)"
       }
     },
+    "/api/v1/projekte/{pid}/pois/{eid}/faden/anhaenge": {
+      "post": {
+        "operationId": "anhang_hochladen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Foto (JPEG, PNG) oder PDF an den Befund-Faden hängen: roher Körper, Content-Type, höchstens 20 MB; Bilder werden isoliert ohne Metadaten neu kodiert"
+      }
+    },
+    "/api/v1/projekte/{pid}/pois/{eid}/faden/anhaenge/{aid}": {
+      "get": {
+        "operationId": "anhang_laden",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "aid",
+            "required": true,
+            "schema": {
+              "title": "Aid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {},
+              "image/jpeg": {}
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Datei eines Anhangs (Bild als JPEG, PDF immer als Download)"
+      }
+    },
+    "/api/v1/projekte/{pid}/pois/{eid}/faden/anhaenge/{aid}/stand": {
+      "get": {
+        "operationId": "anhang_stand",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "aid",
+            "required": true,
+            "schema": {
+              "title": "Aid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Stand eines Anhangs: in Prüfung, bereit oder abgelehnt (mit Grund)"
+      }
+    },
+    "/api/v1/projekte/{pid}/pois/{eid}/faden/benachrichtigung": {
+      "get": {
+        "operationId": "faden_benachrichtigung_lesen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Mails zu diesem Befund für das eigene Konto: abbestellt? (nur mit eingerichtetem Postdienst)"
+      },
+      "put": {
+        "operationId": "faden_benachrichtigung_setzen",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "eid",
+            "required": true,
+            "schema": {
+              "title": "Eid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FadenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "4XX": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Fehler"
+                }
+              }
+            },
+            "description": "Fehler"
+          }
+        },
+        "summary": "Mails zu diesem Befund für das eigene Konto ab- oder wieder anbestellen"
+      }
+    },
     "/api/v1/projekte/{pid}/pois/{eid}/faden/{schluessel}/annehmen": {
       "post": {
         "operationId": "faden_vorschlag_annehmen",
@@ -3742,7 +4090,7 @@
             "description": "Fehler"
           }
         },
-        "summary": "Eigenen Kommentar oder Link zurückziehen (Text für alle ersetzt)"
+        "summary": "Eigenen Kommentar, Link oder Anhang zurückziehen (Text für alle ersetzt, Anhang-Datei gelöscht)"
       }
     },
     "/api/v1/projekte/{pid}/pois/{eid}/verwerfen": {

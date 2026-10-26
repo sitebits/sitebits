@@ -13,6 +13,7 @@ einem Eintrag `vorschlag`; annehmen/verwerfen nur durch Menschen (403 KI_PRUEFT_
 from __future__ import annotations
 
 import sqlite3
+import time
 import unicodedata
 from typing import Annotated, Any, Literal, get_args
 
@@ -21,7 +22,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, ValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import faden, inhalte, lesezugriff
+from . import anhaenge, faden, inhalte, lesezugriff
 from .web import (
     KI_PRUEFT_NICHT,
     SQLITE_GANZZAHL_MAX,
@@ -108,7 +109,13 @@ def _auswahl(wert: str | None, erlaubt: Any) -> Any:
 def faden_lesen(pid: str, eid: str, request: Request,
                 conn: sqlite3.Connection = Depends(db)) -> JSONResponse:
     z = _zugriff(request, conn, pid)
+    from .routen_anhaenge import abgleichen
+
+    abgleichen(request, conn, pid)
     antwort = faden.faden(conn, pid, _poi_id(eid), sicht(request, conn, z))
+    # F7: Kann diese Instanz Anhänge annehmen? (Oberfläche zeigt sonst kein Upload-Feld.)
+    s = request.app.state.settings
+    antwort["anhaenge"] = s.anhaenge_dir is not None and s.jobs_db is not None
     lesezugriff.erfasse_anfrage(request, conn, z, "api", "faden")
     return JSONResponse(antwort)
 
@@ -190,7 +197,8 @@ def vorschlag_verwerfen(pid: str, eid: str, schluessel: str, request: Request,
 
 @router.post("/pois/{eid}/faden/{schluessel}/zurueckziehen", dependencies=[Depends(csrf)],
              operation_id="faden_eintrag_zurueckziehen",
-             summary="Eigenen Kommentar oder Link zurückziehen (Text für alle ersetzt)")
+             summary="Eigenen Kommentar, Link oder Anhang zurückziehen (Text für alle ersetzt, "
+             "Anhang-Datei gelöscht)")
 def eintrag_zurueckziehen(pid: str, eid: str, schluessel: str, request: Request,
                           conn: sqlite3.Connection = Depends(db)) -> JSONResponse:
     z = _zugriff(request, conn, pid, schreiben=True)
@@ -198,6 +206,9 @@ def eintrag_zurueckziehen(pid: str, eid: str, schluessel: str, request: Request,
         raise _nicht_gefunden()
     e = faden.zurueckziehen(conn, pid, _poi_id(eid), schluessel, sicht(request, conn, z),
                             kanal=kanal(request), token_name=token_name(request))
+    wurzel = request.app.state.settings.anhaenge_dir
+    if e["art"] == "anhang" and wurzel is not None:
+        anhaenge.entfernen(conn, wurzel, schluessel, int(time.time()))
     return JSONResponse({"eintrag": e})
 
 

@@ -196,3 +196,21 @@ def test_maengelliste_kurztext_je_ebene_wenn_verschieden() -> None:
         "(A-B Laser), nicht geprüft | m: kein Genauigkeitsnachweis")
     gleich = Karte(**{**karte.__dict__, "genauigkeit": (e[0], e[0])})
     assert _genauigkeit_kurz(gleich).startswith("Lage nicht unabhängig")
+
+
+def test_gekacheltes_mesh_zaehlt_wie_ein_mesh() -> None:
+    """Der Viewer meldet Messungen auf Kacheln als Quelle „mesh“ mit der ID der `mesh-tiles`-Ebene:
+    Genauigkeit und Messhinweise (Exporte, API) müssen diese Ebene kennen."""
+    e = genauigkeit.ebenen([
+        {"id": "k", "kind": "mesh-tiles", "title": "Kacheln", "format": "3dtiles",
+         "provenance": {"kind": "photogrammetry", "interpolated": True, "scaleVerified": False,
+                        "scaleSource": "unit:cli"}},
+    ])
+    assert [(g.id, g.art) for g in e] == [("k", "mesh-tiles")]
+    assert e[0].zeilen == ("kein Genauigkeitsnachweis",)
+    assert e[0].hinweise == ("Modellmaß — Maßstab nicht belegt (Quelle: unit:cli)",
+                             "Modelloberfläche (teils interpoliert)")
+    je = {g.id: g.hinweise for g in e}
+    assert genauigkeit.mess_hinweis([{"source": "mesh", "layerId": "k"}], je) == (
+        "Modellmaß — Maßstab nicht belegt (Quelle: unit:cli)"
+        " · Modelloberfläche (teils interpoliert)")

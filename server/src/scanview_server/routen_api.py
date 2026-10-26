@@ -13,7 +13,7 @@ from urllib.parse import unquote
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 
-from . import auftraege, faden, fotos_tor, konten, lesezugriff, projektverwaltung, teilen
+from . import auftraege, faden, freigabe, konten, lesezugriff, projektverwaltung, teilen
 from .api_modelle import Projektliste, Sitzung, antwort
 from .katalog import PROJECT_ID_RE, Karte
 from .web import DIENST, aktueller_nutzer, db, fehler
@@ -148,8 +148,10 @@ def _ziel_aus_uri(uri: str) -> tuple[str, str] | None:
 def authz(request: Request, conn: sqlite3.Connection = Depends(db)) -> Response:
     """`forward_auth`-Ziel für Caddy: Header `X-Forwarded-Uri`/`X-Forwarded-Method`.
 
-    Leistung: kein Cache, kein argon2 — höchstens die Sitzungs- und die Rollenabfrage
-    (je ein indizierter SELECT) plus ein gedrosseltes last_seen-UPDATE (`konten.sitzung_nutzer`).
+    Leistung: kein argon2 — die Sitzungs- und die Rollenabfrage (je ein indizierter SELECT) plus
+    ein gedrosseltes last_seen-UPDATE (`konten.sitzung_nutzer`); nur für Panorama- und Fotopfade
+    unter Bearbeiter zusätzlich Einstellung und Freigabe (je ein indizierter SELECT) und der
+    Datei-Hash aus dem Zwischenspeicher (`freigabe.datei_sha256`).
     Bei SCANVIEW_LOG_LEVEL=DEBUG genau eine Protokollzeile je Aufruf: Status, projectId
     (oder „-“) und Dauer — nie IP, Cookie, Token, E-Mail oder die volle angefragte URI.
     """
@@ -183,11 +185,11 @@ def authz(request: Request, conn: sqlite3.Connection = Depends(db)) -> Response:
     if request.app.state.katalog.get(pid) is None or rolle is None:
         _log_authz(begonnen, 404, pid)
         return fehler(404, "nicht gefunden")
-    # Orientierte Fotos (Personen): ohne freigegebene Anonymisierung nur Bearbeiter+.
-    if (
-        fotos_tor.ist_fotopfad(rest)
-        and not konten.mindestens(rolle, fotos_tor.MINDESTROLLE)
-        and not fotos_tor.freigegeben(request.app.state.katalog.data_dir / pid)
+    # Panoramen und Fotos (Personen): unter Bearbeiter nur Dateien einer aktiven Freigabe, deren
+    # Hash noch passt (freigabe.py). Die Einstellung wird nur für solche Pfade gelesen.
+    if freigabe.ebene_von(rest) is not None and freigabe.gesperrt(
+        conn, request.app.state.katalog.data_dir / pid, pid, rest, rolle,
+        projektverwaltung.einstellungen(conn, pid).panoramen_nur_freigegeben,
     ):
         _log_authz(begonnen, 404, pid)
         return fehler(404, "nicht gefunden")
@@ -206,7 +208,7 @@ def _gast_pruefen(request: Request, g: teilen.Gast, ziel: tuple[str, str] | None
         return 404
     katalog = request.app.state.katalog
     gp = teilen.gast_paket(katalog.data_dir / g.project_id) if katalog.get(g.project_id) else None
-    if gp is None or ziel[1] not in gp.dateien or fotos_tor.ist_fotopfad(ziel[1]):
+    if gp is None or ziel[1] not in gp.dateien or freigabe.ebene_von(ziel[1]) is not None:
         return 404
     if "," in request.headers.get("range", ""):
         return 404

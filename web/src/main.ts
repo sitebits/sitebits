@@ -4,6 +4,10 @@ import { createSplatLayer } from './splatLayer';
 import type { SplatHandle } from './splatLayer';
 import { createMeshLayer } from './meshLayer';
 import type { MeshLayerHandle } from './meshLayer';
+import { createTilesLayer } from './tilesLayer';
+import type { TilesLayerHandle } from './tilesLayer';
+import { TilesetFehler } from './tilesMath';
+import { KachelPickSource } from './tilesPick';
 import { datenSparen } from './meshMath';
 import { erstelleSonne } from './sonne';
 import { sonnenOrt } from './sonneOrt';
@@ -66,7 +70,7 @@ import { pointAllowed } from './clipBoxMath';
 import { decodeBefund, decodeHash, encodeHash, poseAus } from './hash';
 import type { OrderKind, ViewState } from './hash';
 import { hashGeometrie } from './hashGeometrie';
-import { loadStations } from './stations';
+import { loadStations, ohnePanoramen } from './stations';
 import { loadImages } from './images';
 import { verdecktDurchWolke } from './imageMath';
 import type { ImageSet } from './images';
@@ -193,6 +197,19 @@ async function start(): Promise<void> {
     if (r.status === 'fulfilled') meshHandles.push(r.value);
     else { failedMeshes.add(mesh.id); meshNotify(`Mesh ${mesh.title} nicht ladbar`); }
   });
+  // Gekachelte Meshes (3D Tiles): Ebene mit Blattabruf zum Messen (tilesLayer.ts, tilesPick.ts). Ein Vertragsfehler
+  // (CRS, Lage, Hierarchie) sperrt nur diese Ebene und sagt warum.
+  const tilesHandles: TilesLayerHandle[] = [];
+  const tilesGeladen = await Promise.allSettled(p.tiles.map((layer) => createTilesLayer({ instance: v.instance, layer, frameWkt: p.crs.wkt,
+    pkgBase: base, wasmBase: `${import.meta.env.BASE_URL}wasm/`, notify: meshNotify })));
+  tilesGeladen.forEach((r, i) => {
+    const layer = p.tiles[i]!;
+    if (r.status === 'fulfilled') tilesHandles.push(r.value);
+    else {
+      failedMeshes.add(layer.id);
+      meshNotify(`Gekachelte Ebene ${layer.title} nicht ladbar${r.reason instanceof TilesetFehler ? `: ${r.reason.message}` : ''}`);
+    }
+  });
   const splatHandles: SplatHandle[] = [];
   const splatsLoaded = await Promise.allSettled(p.splats.map((layer) => createSplatLayer({
     instance: v.instance, layer, originWorld: p.originWorld, pkgBase: base, notify: meshNotify,
@@ -213,9 +230,9 @@ async function start(): Promise<void> {
     const sicht = { fovGrad: 'fov' in cam ? Number(cam.fov) : 0, sparsam: datenSparen(navigator as Parameters<typeof datenSparen>[0]) };
     for (const h of meshHandles) h.update([c.x, c.y, c.z], sicht);
   });
-  window.addEventListener('pagehide', (ev) => { if (!ev.persisted) meshHandles.forEach((h) => h.dispose()); });
+  window.addEventListener('pagehide', (ev) => { if (!ev.persisted) { meshHandles.forEach((h) => h.dispose()); tilesHandles.forEach((h) => h.dispose()); } });
   // Live-Sonne (S2): nur mit Mesh-Ebenen (Punktwolken/Sichtschichten sind unbeleuchtet und werfen keine Schatten).
-  const sonne = meshHandles.length ? erstelleSonne({ instance: v.instance, ort: sonnenOrt(p.originWorld, p.crs.wkt), meshes: meshHandles }) : null;
+  const sonne = meshHandles.length || tilesHandles.length ? erstelleSonne({ instance: v.instance, ort: sonnenOrt(p.originWorld, p.crs.wkt), meshes: [...meshHandles, ...tilesHandles] }) : null;
   // CRS-Hinweis (I4) bleibt stehen, statt wie die Ladeanzeige gelöscht zu werden.
   msg.dataset.base = v.crsHint ?? '';
   say(msg.dataset.base);
@@ -299,7 +316,7 @@ async function start(): Promise<void> {
   // Schnittbox vor dem Messwerkzeug anhängen, damit dessen Pick-Filter von Anfang an
   // den aktuellen Boxzustand abfragen kann (per Getter — die Reihenfolge selbst wäre wegen des
   // Getter-Indirekts egal, siehe measure.ts).
-  const clip = attachClipBox(v, bounds, (planes) => meshHandles.forEach((h) => h.setClippingPlanes(planes)));
+  const clip = attachClipBox(v, bounds, (planes) => { meshHandles.forEach((h) => h.setClippingPlanes(planes)); tilesHandles.forEach((h) => h.setClippingPlanes(planes)); });
 
   // Werkzeug erst jetzt anhängen: sync() im Inneren zeichnet die eben aus dem Hash geladenen
   // Messungen sofort, ohne dass ein Kamera-Change-Listener vorher schon einen (leeren) Hash
@@ -321,15 +338,17 @@ async function start(): Promise<void> {
   const cloudPicker = createRayPicker(v, () => clip.getState(), currentScanFilter, cloudVisible);
   const meshPicker = new MeshPickSource({ camera: () => v.instance.view.camera,
     rect: () => v.instance.domElement.getBoundingClientRect(), layers: () => meshHandles, clip: () => clip.getState() });
+  const tilesPicker = new KachelPickSource({ camera: () => v.instance.view.camera,
+    rect: () => v.instance.domElement.getBoundingClientRect(), layers: () => tilesHandles, clip: () => clip.getState() });
   // Zoom-Stopp vor Mesh-Oberflächen (Mausrad, zwei Finger, Knopf „Näher“): sonst führt der Zoom zum Drehpunkt
   // in der Modellmitte durch die Fläche.
-  const zoomStopp = meshHandles.length ? zoomStoppAnbinden({ controls: v.controls, camera: () => v.instance.view.camera,
+  const zoomStopp = meshHandles.length || tilesHandles.length ? zoomStoppAnbinden({ controls: v.controls, camera: () => v.instance.view.camera,
     // Im Panorama gibt es keinen Orbit-Zoom, und das Mesh wird dort weder gemessen noch getroffen.
-    meshes: () => (panoRef?.active ? [] : meshHandles.filter((h) => h.visible).flatMap((h) => h.occluderMeshes)),
+    meshes: () => (panoRef?.active ? [] : [...meshHandles, ...tilesHandles].filter((h) => h.visible).flatMap((h) => h.occluderMeshes)),
     erlaubt: (p) => pointAllowed(clip.getState(), [p.x, p.y, p.z]) }) : null;
-  for (const h of meshHandles) h.onChange(() => zoomStopp?.messen());
+  for (const h of [...meshHandles, ...tilesHandles]) h.onChange(() => zoomStopp?.messen());
   let pickPreference = loadPickPreference();
-  const picker = new CompositePickSource({ pointcloud: cloudPicker, cloudLayerId: cloud?.id ?? '', meshes: [meshPicker],
+  const picker = new CompositePickSource({ pointcloud: cloudPicker, cloudLayerId: cloud?.id ?? '', meshes: tilesHandles.length ? [meshPicker, tilesPicker] : [meshPicker],
     preference: () => pickPreference, panorama: () => panoRef?.active ?? false });
   // Ziffer der primären Punktwolke unter den Ebenen-Tasten (layerForKey) — für den Hinweis, wenn sie beim
   // Messen/POI-Anlegen ausgeblendet ist.
@@ -673,6 +692,8 @@ async function start(): Promise<void> {
   let stationSet: StationSet = { schemaVersion: 2, stations: [] };
   try {
     stationSet = await loadStations(base, p);
+    // Server-Tor (F20): ohne Freigabe für diese Rolle keine Panoramabilder anfragen.
+    if (plattform && !plattform.panoramenSichtbar) stationSet = ohnePanoramen(stationSet);
   } catch (e) {
     msg.dataset.base = [msg.dataset.base, e instanceof Error ? e.message : String(e)].filter(Boolean).join(' · ');
     say(msg.dataset.base);
@@ -711,18 +732,18 @@ async function start(): Promise<void> {
     initial: initialVisibility(p.layers, initial.ly ?? p.initialView.layers),
     stations,
     images: imgLayer,
-    meshes: [...meshHandles, ...splatHandles, ...[...failedMeshes].map((id) => ({ id, disabled: true, setVisible() {}, setOpacity() {} }))],
+    meshes: [...meshHandles, ...tilesHandles, ...splatHandles, ...[...failedMeshes].map((id) => ({ id, disabled: true, setVisible() {}, setOpacity() {} }))],
   });
   attachLayersPanel(layersHost, reg, plattform?.rechte.alleAendern ? { an: vorschlaegeSichtbar, aendern: an => { vorschlaegeSichtbar = an; currentPois?.refresh(); tool.sync(); list?.refresh(); scheduleHashUpdate(); } } : undefined);
   // Unter der Ebenenliste statt in der oberen Leiste (Andre 07.10.: nahm dort zu viel Platz ein).
-  if (p.meshes.length) attachPickPreference(layersHost, pickPreference, (value) => { pickPreference = value; });
+  if (p.meshes.length || p.tiles.length) attachPickPreference(layersHost, pickPreference, (value) => { pickPreference = value; });
   if (!p.initialViewDeclared) v.frameAll(visibleBounds(p, reg.isVisible));
   reg.onChange(scheduleHashUpdate);
 
   let activeStation: string | null = null;
   const systemReduziert = window.matchMedia('(prefers-reduced-motion: reduce)');
   const pano = attachPanorama(v, base, stations, layer, notify, { reduziert: () => bewegungReduziert(einstellungen, systemReduziert.matches),
-    onOverlay: (alpha) => meshHandles.forEach((h) => h.setPanoramaOverlay(alpha)) });
+    onOverlay: (alpha) => { meshHandles.forEach((h) => h.setPanoramaOverlay(alpha)); tilesHandles.forEach((h) => h.setPanoramaOverlay(alpha)); } });
   panoRef = pano;
   currentPano = pano;
   const drehpunkt = attachDrehpunktMarker(v, { reduziert: () => bewegungReduziert(einstellungen, systemReduziert.matches), melde: notify });
@@ -861,7 +882,7 @@ async function start(): Promise<void> {
     fotoPanel?.show(id);
   };
   const fotoWerkzeug = imageSet ? attachFotoWerkzeug({ v, picker, set: imageSet,
-    tiefe: fotoTiefenquelle(v, meshHandles, cloudVisible).tiefeAsync,
+    tiefe: fotoTiefenquelle(v, [...meshHandles, ...tilesHandles], cloudVisible).tiefeAsync,
     vorbereiten: () => { begehen?.beenden(null); if (durch.active) durch.leave(); if (pano.active) pano.leave(); toolbar.setTool('navigate'); fotoSynchron?.aus(); },
     messungen: () => store.list(), box: () => clip.getState(), melde: notify,
     ergebnis: (treffer, punkte, rand) => {
@@ -1301,6 +1322,9 @@ async function start(): Promise<void> {
     get meshes() { return meshHandles.map((h) => ({ id: h.id, stage: h.stage, failure: h.failure, textur: h.textur, bytes: h.bytes,
       worldBox: h.worldBox, visible: h.visible, clippingPlaneCounts: h.clippingPlaneCounts,
       flaeche: h.flaeche, draht: h.draht })); },
+    // Gekachelte Meshes: Zustand und Statistik für E2E und Leistungsmessung (Kacheln, Dreiecke, LRU, Blattspeicher).
+    get tiles() { return tilesHandles.map((h) => ({ id: h.id, visible: h.visible, opacity: h.opacity, failure: h.failure, worldBox: h.worldBox,
+      budget: h.budget, clippingPlaneCounts: h.clippingPlaneCounts, statistik: h.statistik(), blattUris: h.tileset.blaetter.map((b) => b.uri), kacheln: h.tileset.kachelzahl })); },
     get meshShadingMs() { return meshHandles.flatMap((h) => h.shadingMs); },
     // Live-Sonne: Zustand (an, zeit, stand) und setzen() — derselbe Weg wie das Panel (E2E, später Ansichtszustand/MCP).
     sonne: sonne ? { get an() { return sonne.an; }, get zeit() { return sonne.zeit.toISOString(); }, get stand() { return sonne.stand; },

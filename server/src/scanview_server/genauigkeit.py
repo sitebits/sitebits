@@ -14,7 +14,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, TypeGuard
 
-MESSBAR = ("pointcloud", "mesh")
+# `mesh-tiles` = gekacheltes Mesh (3D Tiles): gemessen wird auf Blättern, die Messquelle im
+# Viewer heißt auch dort „mesh“.
+MESSBAR = ("pointcloud", "mesh", "mesh-tiles")
 _ABSOLUT = ("checked", "adjustedOnly", "none")
 _MASSSTAB = ("checked", "deviates", "set", "none")
 
@@ -177,7 +179,7 @@ def _hinweise(art: str, prov: dict[str, Any]) -> tuple[str, ...]:
         roh = prov.get("scaleSource")
         quelle = roh if isinstance(roh, str) else "unbekannt"
         out.append(f"{MODELLMASS}{quelle})")
-    if art == "mesh" and prov.get("interpolated") is True:
+    if art in ("mesh", "mesh-tiles") and prov.get("interpolated") is True:
         out.append("Modelloberfläche (teils interpoliert)")
     return tuple(out)
 

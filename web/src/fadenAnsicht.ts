@@ -5,7 +5,7 @@
 // Fehlertexte des Servers erscheinen unverändert; bei 409 lädt der Bereich den aktuellen Stand neu und hängt das an.
 // Nur createElement/textContent (strenge CSP im Portal), keine Inline-Stile. Reine Teile: fadenModell.ts.
 import type { BeteiligterInfo, GewerkInfo, NeuerEintrag } from './fadenApi';
-import { eintragSchreiben, fadenLesen, namenLaden, zurueckziehen } from './fadenApi';
+import { ANHANG_MAX, ANHANG_TYPEN, anhangHochladen, anhangUrl, benachrichtigungLesen, benachrichtigungSetzen, eintragSchreiben, fadenLesen, namenLaden, zurueckziehen } from './fadenApi';
 import {
   artText, eintragInhalt, linkAdresse, namenAus, nummeriert, OHNE_NAMEN, standZeile as standText, statusText, zeitText,
 } from './fadenModell';
@@ -97,6 +97,23 @@ export function createFadenAnsicht(o: FadenOptionen): FadenAnsicht {
   const liste = el('ol', 'sv-faden-liste');
   const leer = el('p', 'sv-faden-leer', 'Noch keine Einträge.');
   leer.hidden = true;
+  // E-Mails zu diesem Befund (F8): nur sichtbar, wenn die Instanz Mails verschickt und das eigene
+  // Konto Benachrichtigungen eingeschaltet und bestätigt hat.
+  const mailCb = el('input');
+  mailCb.type = 'checkbox';
+  mailCb.id = `${o.id}-mail-aus`;
+  const mailZeile = el('label', 'sv-schalter sv-faden-mail');
+  mailZeile.htmlFor = mailCb.id;
+  mailZeile.append(mailCb, el('span', undefined, 'Keine E-Mails zu diesem Befund'));
+  mailZeile.hidden = true;
+  mailCb.addEventListener('change', () => {
+    if (poi === null) return;
+    mailCb.disabled = true;
+    benachrichtigungSetzen(o.pid, poi, mailCb.checked)
+      .then((b) => sage(b.aus ? 'Keine E-Mails mehr zu diesem Befund.' : 'E-Mails zu diesem Befund wieder an.'))
+      .catch((e: unknown) => { mailCb.checked = !mailCb.checked; zeigeFehler(e instanceof Error ? e.message : String(e)); })
+      .finally(() => { mailCb.disabled = false; });
+  });
 
   // --- Kommentar oder Link ---
   const kommentarForm = el('form', 'sv-faden-form');
@@ -142,9 +159,22 @@ export function createFadenAnsicht(o: FadenOptionen): FadenAnsicht {
   const fristWeg = knopf('Frist entfernen', 'button');
   fristForm.append(gruppe('Frist', fristFeld.label, knopf('Frist setzen'), fristWeg));
 
+  // --- Foto oder PDF (F7): nur, wenn die Instanz Anhänge annimmt und die Rolle kommentieren darf ---
+  const anhangForm = el('form', 'sv-faden-form');
+  anhangForm.noValidate = true;
+  const datei = beschriftet('Foto (JPEG, PNG) oder PDF, höchstens 20 MB', `${o.id}-datei`, el('input'));
+  datei.eingabe.type = 'file';
+  // Ohne „capture“: das Handy bietet Kamera und Galerie an; iPhones liefern dabei JPEG.
+  datei.eingabe.accept = ANHANG_TYPEN.join(',');
+  const anhangHinweis = el('p', 'sv-hinweis', 'Fotos werden ohne Standort und Gerätedaten gespeichert. PDFs sind nur zum Herunterladen.');
+  anhangHinweis.id = `${o.id}-datei-hinweis`;
+  datei.eingabe.setAttribute('aria-describedby', anhangHinweis.id);
+  anhangForm.append(gruppe('Foto oder PDF anhängen', datei.label, anhangHinweis, knopf('Anhängen')));
+  anhangForm.hidden = true;
+
   const formulare = el('div', 'sv-faden-formulare');
-  formulare.append(kommentarForm, statusForm, zustForm, fristForm);
-  section.append(h, standZeile, fehler, status, liste, leer, formulare);
+  formulare.append(kommentarForm, anhangForm, statusForm, zustForm, fristForm);
+  section.append(h, standZeile, mailZeile, fehler, status, liste, leer, formulare);
 
   let poi: string | null = null;
   let aktuell: Faden | null = null;
@@ -209,6 +239,29 @@ export function createFadenAnsicht(o: FadenOptionen): FadenAnsicht {
         }
       }
     }
+    const a = e.art === 'anhang' && e.zurueckgezogen_am === null ? e.anhang ?? null : null;
+    if (a !== null && a.status === 'bereit' && poi !== null) {
+      const url = anhangUrl(o.pid, poi, a.id);
+      if (a.typ === 'bild') {
+        const link = el('a', 'sv-faden-bild-link');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        const bild = el('img', 'sv-faden-bild');
+        bild.src = url;
+        bild.loading = 'lazy';
+        bild.alt = `Foto ${nr}${a.name ? `: ${a.name}` : ''}`;
+        if (a.breite !== null && a.hoehe !== null) { bild.width = a.breite; bild.height = a.hoehe; }
+        link.append(bild);
+        li.append(link);
+      } else {
+        const link = el('a', 'sv-faden-link', 'PDF herunterladen');
+        link.href = url;
+        link.download = a.name ?? 'anhang.pdf';
+        link.setAttribute('aria-label', `PDF herunterladen${a.name ? `: ${a.name}` : ''}`);
+        li.append(link);
+      }
+    }
     const adresse = linkAdresse(e);
     if (adresse !== null) {
       const a = el('a', 'sv-faden-link', adresse);
@@ -217,7 +270,7 @@ export function createFadenAnsicht(o: FadenOptionen): FadenAnsicht {
       li.append(a);
     }
     const eigen = o.nutzerId !== null && e.erstellt_von.id === o.nutzerId;
-    if (eigen && (e.art === 'kommentar' || e.art === 'link') && e.zurueckgezogen_am === null && poi !== null) {
+    if (eigen && (e.art === 'kommentar' || e.art === 'link' || e.art === 'anhang') && e.zurueckgezogen_am === null && poi !== null) {
       const zurueck = knopf('Zurückziehen', 'button');
       zurueck.setAttribute('aria-label', `Eintrag ${nr} zurückziehen`);
       const fuer = poi;
@@ -260,6 +313,7 @@ export function createFadenAnsicht(o: FadenOptionen): FadenAnsicht {
     leer.hidden = f.eintraege.length > 0;
     const r = f.rechte;
     kommentarForm.hidden = !r.kommentieren || !kommentarAuf;
+    anhangForm.hidden = !r.kommentieren || f.anhaenge !== true;
     internLabel.hidden = !r.intern;
     if (!r.intern) internCb.checked = false;
     statusForm.hidden = r.status.length === 0;
@@ -320,6 +374,12 @@ export function createFadenAnsicht(o: FadenOptionen): FadenAnsicht {
     section.hidden = false;
     formulare.hidden = false;
     zeichne(f);
+    benachrichtigungLesen(o.pid, neu).then((b) => {
+      if (n !== lauf) return;
+      // Antwort nicht blind glauben: fehlt etwas, bleibt der Schalter verborgen.
+      mailCb.checked = b?.aus === true;
+      mailZeile.hidden = !(b?.konto?.eingeschaltet === true && b.konto.bestaetigt === true);
+    }, () => { if (n === lauf) mailZeile.hidden = true; });
     o.onGeladen?.(f);
     if (eintrag !== undefined) {
       const ziel = liste.querySelector<HTMLElement>(`li[data-schluessel="${CSS.escape(eintrag)}"]`);
@@ -355,6 +415,49 @@ export function createFadenAnsicht(o: FadenOptionen): FadenAnsicht {
 
   const version = (): number => aktuell?.stand.version ?? 0;
   const oderNull = (s: string): string | null => (s.trim() === '' ? null : s);
+
+  /** Nach dem Hochladen eines Fotos: neu laden, bis die Prüfung durch ist (höchstens ~30 s). */
+  const warteAufPruefung = async (fuer: string, id: string): Promise<void> => {
+    for (let i = 0; i < 15; i++) {
+      await new Promise((r) => { setTimeout(r, 2000); });
+      if (poi !== fuer) return;
+      await zeige(fuer);
+      const e = aktuell?.eintraege.find((x) => x.anhang?.id === id);
+      if (!e || e.anhang?.status !== 'pruefung') {
+        if (e?.anhang?.status === 'bereit') sage('Foto geprüft und gespeichert.');
+        else if (e?.anhang?.status === 'abgelehnt') zeigeFehler(`Foto abgelehnt: ${e.anhang.fehler ?? 'nicht verarbeitbar'}`);
+        return;
+      }
+    }
+    sage('Das Foto wird noch geprüft – es erscheint, sobald es fertig ist.');
+  };
+  anhangForm.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const fuer = poi;
+    const f = datei.eingabe.files?.[0];
+    if (fuer === null || sendet) return;
+    zeigeFehler('');
+    if (!f) { zeigeFehler('Bitte zuerst ein Foto oder PDF auswählen.'); datei.eingabe.focus(); return; }
+    if (f.size > ANHANG_MAX) { zeigeFehler('Höchstens 20 MB je Anhang.'); return; }
+    if (!(ANHANG_TYPEN as readonly string[]).includes(f.type)) {
+      zeigeFehler('Erlaubt sind Fotos (JPEG, PNG) und PDF. HEIC bitte als JPEG (iPhone: Einstellungen, Kamera, Formate: „Maximale Kompatibilität“).');
+      return;
+    }
+    sendet = true;
+    sage('Wird hochgeladen …');
+    anhangHochladen(o.pid, fuer, f, f.name)
+      .then(async (r) => {
+        datei.eingabe.value = '';
+        await zeige(fuer);
+        const id = r.eintrag.anhang?.id;
+        if (r.eintrag.anhang?.status === 'pruefung' && id) {
+          sage('Hochgeladen, das Foto wird geprüft …');
+          sendet = false;
+          await warteAufPruefung(fuer, id);
+        } else sage('Anhang gespeichert.');
+      }, (e: unknown) => { sage(''); zeigeFehler(e instanceof Error ? e.message : String(e)); })
+      .finally(() => { sendet = false; });
+  });
 
   kommentarForm.addEventListener('submit', (ev) => {
     ev.preventDefault();

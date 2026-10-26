@@ -2,8 +2,8 @@
 Höhensystem, Zweithöhe, Punktklassen, Anzahlen — ohne Bilder und ohne Punktdaten.
 
 Gelesen wird `project.json` des Pakets wie im Katalog (gleiche Größengrenze). Orientierte Fotos
-erscheinen nur, wenn die Rolle sie auch laden dürfte (fotos_tor): ohne freigegebene Anonymisierung
-fehlt die Ebene für Betrachter und Rückmelder ganz, wie `/api/authz` für `images.json`.
+und Panoramen erscheinen nur, wenn die Rolle sie auch laden dürfte (freigabe.py): ohne aktive
+Freigabe fehlt die Ebene für Betrachter und Rückmelder ganz, wie `/api/authz` die Dateien sperrt.
 """
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from .katalog import MAX_PROJECT_JSON, PaketFehler
 _FELDER = {
     "pointcloud": ("pointCount", "boundsWorld", "attributes", "classes"),
     "mesh": ("boundsWorld",),
+    "mesh-tiles": ("boundsWorld", "triangleCount", "crs", "heightSystem"),
     "splats": ("format", "chunkCount", "lodMethod", "boundsWorld", "splatCount",
                "frameCheck", "alignment", "shDegree"),
     "panoramas": ("count",),
@@ -25,7 +26,8 @@ _FELDER = {
 }
 
 
-def uebersicht(paket: Path, *, fotos_sichtbar: bool) -> dict[str, Any]:
+def uebersicht(paket: Path, *, fotos_sichtbar: bool, panos_sichtbar: bool = True
+               ) -> dict[str, Any]:
     datei = paket / "project.json"
     if datei.stat().st_size > MAX_PROJECT_JSON:
         raise PaketFehler("project.json zu groß")
@@ -46,7 +48,8 @@ def uebersicht(paket: Path, *, fotos_sichtbar: bool) -> dict[str, Any]:
         if not isinstance(e, dict) or not isinstance(e.get("id"), str):
             continue
         art = e.get("kind")
-        if art == "images" and not fotos_sichtbar:
+        if (art == "images" and not fotos_sichtbar) or (art == "panoramas"
+                                                       and not panos_sichtbar):
             continue
         titel = e.get("title")
         eintrag: dict[str, Any] = {"id": e["id"], "art": art,

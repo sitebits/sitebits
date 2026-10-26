@@ -22,7 +22,8 @@ WURZEL = Path(__file__).resolve().parent.parent.parent
 DATEI = WURZEL / "docs" / "public" / "api" / "openapi.json"
 ENDPUNKTE = WURZEL / "mcp-server" / "src" / "scanview_mcp" / "endpunkte.json"
 WERTE = {"pid": "ost", "eid": "P-gibtesnicht", "aid": "0123456789abcdef", "uid": "999",
-         "gid": "999", "lid": "gibtesnicht", "schluessel": "gibtesnicht", "nr": "0"}
+         "gid": "999", "lid": "gibtesnicht", "ebene": "panos", "schluessel": "gibtesnicht",
+         "nr": "0"}
 
 
 def _datei() -> dict[str, Any]:

@@ -9,7 +9,7 @@ import type { Vec3 } from './manifest';
 import { strahlSchnitte } from './meshStrahl';
 import { punktStrahl } from './punktStrahl';
 
-export function fotoTiefenquelle(v: Viewer, meshes: readonly MeshLayerHandle[], wolkeSichtbar: () => boolean): {
+export function fotoTiefenquelle(v: Viewer, meshes: readonly Pick<MeshLayerHandle, 'visible' | 'occluderMeshes'>[], wolkeSichtbar: () => boolean): {
   tiefe(bild: OrientedImage, pixel: FotoProjektion): number | null;
   tiefeAsync(bild: OrientedImage, pixel: FotoProjektion, index: number, signal?: AbortSignal): Promise<number | null>;
   punkt(bild: OrientedImage, x: number, y: number): Vec3 | null;

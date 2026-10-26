@@ -39,8 +39,8 @@ def _alt(tmp_path: Path) -> sqlite3.Connection:
 
 def test_migration_13_erhaelt_daten_und_setzt_defaults(tmp_path: Path) -> None:
     conn = _alt(tmp_path)
-    assert db.migrate(conn) == 15
-    assert db.migrate(conn) == 15
+    assert db.migrate(conn) == 18
+    assert db.migrate(conn) == 18
     for t in ("pois", "messungen"):
         assert tuple(conn.execute(
             f"SELECT herkunft, pruefstand, loeschen_vorgeschlagen FROM {t}").fetchone()

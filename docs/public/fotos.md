@@ -20,12 +20,17 @@ Fenster „Foto“.
 
 ## Datenschutz
 
-Baustellen- und Außenfotos zeigen oft Personen und Fahrzeuge. Solange die Fotos eines Pakets
-nicht anonymisiert und freigegeben sind (`images.json`: `anonymization.status` ungleich
-`released`), liefert die Plattform sie nur an Bearbeiter, Projektleitung und Admin aus.
-Betrachter und Rückmelder sehen die Ebene nicht. Die Sperre wirkt auf dem Server, nicht nur
-im Viewer. Der statische Betrieb ohne Anmeldung (nginx) liefert Fotos grundsätzlich nicht aus.
-Die Anonymisierung (Gesichter, Kennzeichen) folgt in einer späteren Version.
+Baustellen- und Außenfotos zeigen oft Personen und Fahrzeuge. Betrachter und Rückmelder
+bekommen Fotos nur, wenn die Projektleitung sie in den Projekt-Einstellungen freigegeben hat
+(„Freigabe von Panoramen und Fotos“). Die Freigabe gilt genau für die Dateien, die beim
+Freigeben vorlagen: Der Server speichert Pfad und SHA-256 jeder Datei, ein danach
+ausgetauschtes Bild und jede nicht genannte Datei (etwa ein Sicherungsordner) sind für sie
+gesperrt. Ein Statuswert in `images.json` allein gibt nichts frei. Bis zur Freigabe sehen nur
+Bearbeiter, Projektleitung und Admin die Ebene. Die Sperre wirkt auf dem Server, nicht nur im
+Viewer. Der statische Betrieb ohne Anmeldung (nginx) liefert Fotos grundsätzlich nicht aus.
+Für Rahmenfotos gibt es noch keinen Anonymisierungsschritt; ohne ihn kann nur ein Admin eine
+Fotoebene als „personenfrei“ erklären (protokolliert). Panoramen: siehe `import/README.md`,
+`panos-kameras --anonymisiert`.
 
 ## Import
 

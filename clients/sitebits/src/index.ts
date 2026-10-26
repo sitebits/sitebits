@@ -45,6 +45,7 @@ export const OPERATIONEN = {
   projekt: ['get', '/api/v1/projekte/{pid}'],
   projektAendern: ['patch', '/api/v1/projekte/{pid}'],
   paket: ['get', '/api/v1/projekte/{pid}/paket'],
+  freigaben: ['get', '/api/v1/projekte/{pid}/freigaben'],
   beteiligte: ['get', '/api/v1/projekte/{pid}/beteiligte'],
   gewerke: ['get', '/api/v1/projekte/{pid}/gewerke'],
   pois: ['get', '/api/v1/projekte/{pid}/pois'],
@@ -66,6 +67,11 @@ export const OPERATIONEN = {
   fadenAnnehmen: ['post', '/api/v1/projekte/{pid}/pois/{eid}/faden/{schluessel}/annehmen'],
   fadenVerwerfen: ['post', '/api/v1/projekte/{pid}/pois/{eid}/faden/{schluessel}/verwerfen'],
   fadenZurueckziehen: ['post', '/api/v1/projekte/{pid}/pois/{eid}/faden/{schluessel}/zurueckziehen'],
+  fadenBenachrichtigung: ['get', '/api/v1/projekte/{pid}/pois/{eid}/faden/benachrichtigung'],
+  anhangHochladen: ['post', '/api/v1/projekte/{pid}/pois/{eid}/faden/anhaenge'],
+  anhangStand: ['get', '/api/v1/projekte/{pid}/pois/{eid}/faden/anhaenge/{aid}/stand'],
+  anhangLaden: ['get', '/api/v1/projekte/{pid}/pois/{eid}/faden/anhaenge/{aid}'],
+  fadenBenachrichtigungSetzen: ['put', '/api/v1/projekte/{pid}/pois/{eid}/faden/benachrichtigung'],
   exportJson: ['get', '/api/v1/projekte/{pid}/export.json'],
   exportCsv: ['get', '/api/v1/projekte/{pid}/export.csv'],
   maengelliste: ['get', '/api/v1/projekte/{pid}/maengelliste'],
@@ -182,7 +188,7 @@ export class Sitebits {
     const kopf: Record<string, string> = { ...opt.kopf, Authorization: `Bearer ${this.#token}` };
     const init: RequestInit = { method: methode.toUpperCase(), headers: kopf, redirect: 'error' };
     if (opt.roh !== undefined) {
-      kopf['Content-Type'] = 'application/octet-stream';
+      kopf['Content-Type'] ??= 'application/octet-stream';
       init.body = opt.roh;
     } else if (opt.body !== undefined) {
       kopf['Content-Type'] = 'application/json';
@@ -219,6 +225,10 @@ export class Sitebits {
     return this.#rufe('projektAendern', { pid }, { body }) as Promise<Res<'projektAendern'>>;
   }
   paket(pid: string): Promise<Res<'paket'>> { return this.#rufe('paket', { pid }) as Promise<Res<'paket'>>; }
+  /** Freigabestand der Panoramen und Fotos (F20); freigeben nur im Portal. */
+  freigaben(pid: string): Promise<Res<'freigaben'>> {
+    return this.#rufe('freigaben', { pid }) as Promise<Res<'freigaben'>>;
+  }
   beteiligte(pid: string): Promise<Res<'beteiligte'>> {
     return this.#rufe('beteiligte', { pid }) as Promise<Res<'beteiligte'>>;
   }
@@ -287,6 +297,29 @@ export class Sitebits {
   }
   fadenZurueckziehen(pid: string, eid: string, schluessel: string): Promise<Res<'fadenZurueckziehen'>> {
     return this.#rufe('fadenZurueckziehen', { pid, eid, schluessel }) as Promise<Res<'fadenZurueckziehen'>>;
+  }
+  /**
+   * Foto (JPEG, PNG) oder PDF an den Faden hängen, höchstens 20 MB. Bilder prüft der Server isoliert
+   * und kodiert sie ohne Metadaten neu; bis dahin ist `anhang.status` „pruefung“ (`anhangStand`).
+   */
+  anhangHochladen(pid: string, eid: string, datei: Uint8Array<ArrayBuffer>, typ: 'image/jpeg' | 'image/png' | 'application/pdf', name?: string): Promise<Res<'anhangHochladen'>> {
+    return this.#rufe('anhangHochladen', { pid, eid }, {
+      query: name === undefined ? undefined : { name }, roh: datei, kopf: { 'Content-Type': typ },
+    }) as Promise<Res<'anhangHochladen'>>;
+  }
+  anhangStand(pid: string, eid: string, aid: string): Promise<Res<'anhangStand'>> {
+    return this.#rufe('anhangStand', { pid, eid, aid }) as Promise<Res<'anhangStand'>>;
+  }
+  /** Datei eines bereiten Anhangs (JPEG oder PDF) als Bytes. */
+  anhangLaden(pid: string, eid: string, aid: string): Promise<Uint8Array> {
+    return this.#rufe('anhangLaden', { pid, eid, aid }, { format: 'bytes' }) as Promise<Uint8Array>;
+  }
+  /** E-Mails zu diesem Befund für das eigene Konto (nur mit eingerichtetem Postdienst, sonst 404). */
+  fadenBenachrichtigung(pid: string, eid: string): Promise<Res<'fadenBenachrichtigung'>> {
+    return this.#rufe('fadenBenachrichtigung', { pid, eid }) as Promise<Res<'fadenBenachrichtigung'>>;
+  }
+  fadenBenachrichtigungSetzen(pid: string, eid: string, body: Req<'fadenBenachrichtigungSetzen'>): Promise<Res<'fadenBenachrichtigungSetzen'>> {
+    return this.#rufe('fadenBenachrichtigungSetzen', { pid, eid }, { body }) as Promise<Res<'fadenBenachrichtigungSetzen'>>;
   }
 
   // --- Export und Verlauf -------------------------------------------------------------------

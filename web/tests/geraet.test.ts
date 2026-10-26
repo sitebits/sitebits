@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DESKTOP, GRENZEN, istTouch, TOUCH } from '../src/geraet';
+import { DESKTOP, GRENZEN, istTouch, kachelBudget, TOUCH } from '../src/geraet';
 import { mipsVerwerfen } from '../src/meshMath';
 
 describe('Gerätegrenzen', () => {
@@ -16,6 +16,19 @@ describe('Gerätegrenzen', () => {
     expect(TOUCH.panoBytes).toBeLessThan(DESKTOP.panoBytes);
     expect(TOUCH.meshDateiBytes).toBeLessThan(DESKTOP.meshDateiBytes);
     expect(TOUCH.meshMobil && !DESKTOP.meshMobil).toBe(true);
+  });
+  it('Kachel-Budget: Touch gröber (größerer Bildfehler) und mit kleinerem Speicher als Desktop', () => {
+    expect(TOUCH.kachelFehlerPx).toBeGreaterThan(DESKTOP.kachelFehlerPx);
+    expect(TOUCH.kachelBytes).toBeLessThan(DESKTOP.kachelBytes);
+    // Gleiche Obergrenze wie die gemessene Mesh-Grenze des Geräts.
+    expect(DESKTOP.kachelBytes).toBe(DESKTOP.meshBytes); expect(TOUCH.kachelBytes).toBe(TOUCH.meshBytes);
+  });
+  it('kachelBudget gibt errorTarget und LRU-Grenzen (min = 75 % von max) aus den Gerätegrenzen weiter', () => {
+    const d = kachelBudget(DESKTOP); const t = kachelBudget(TOUCH);
+    expect(d).toEqual({ errorTarget: 8, maxBytes: 512 * 2 ** 20, minBytes: 384 * 2 ** 20 });
+    expect(t).toEqual({ errorTarget: 16, maxBytes: 256 * 2 ** 20, minBytes: 192 * 2 ** 20 });
+    expect(kachelBudget()).toEqual(d); // Vitest läuft ohne Browser → Desktop
+    expect(t.minBytes).toBeLessThan(t.maxBytes);
   });
 });
 

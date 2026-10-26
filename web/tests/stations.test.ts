@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FACES, levelUrl, loadStations, parseStations, StationsError } from '../src/stations';
+import { FACES, levelUrl, loadStations, ohnePanoramen, parseStations, StationsError } from '../src/stations';
 import type { FaceName, Quat } from '../src/stations';
 import type { PanoramasLayer } from '../src/manifest';
 
@@ -131,5 +131,17 @@ describe('loadStations', () => {
     const f = (async () => Response.json({ schemaVersion: 2, stations: [v2Station()] })) as typeof fetch;
     const set = await loadStations('http://h/p/', { stations: panoramasLayer({ count: 1 }) }, f);
     expect(set.stations[0]!.id).toBe('S001');
+  });
+});
+
+describe('ohnePanoramen (Server-Tor F20)', () => {
+  it('Standpunkte bleiben, Panoramen gelten als gesperrt, ohne Panorama bleibt unverändert', () => {
+    const ohne = { ...v2Station('S002'), panorama: null };
+    const set = ohnePanoramen(parseStations({ schemaVersion: 2, stations: [v2Station(), ohne] }));
+    expect(set.stations.map((s) => s.id)).toEqual(['S001', 'S002']);
+    expect(set.stations[0]!.panorama).toBeNull();
+    expect(set.stations[0]!.panoramaIssue).toBe('gesperrt');
+    expect(set.stations[1]!.panoramaIssue).toBe('absent');
+    expect(set.stations[0]!.pose.translation).toEqual([10, 20, 1.5]);
   });
 });

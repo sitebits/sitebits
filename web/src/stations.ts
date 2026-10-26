@@ -59,8 +59,9 @@ export interface Station {
    * ungültig — z. B. Carry-over-Stationen oder Altpakete).
    */
   pointSourceId: number | null;
-  /** Warum panorama null ist: none = hat eins; absent = Quelle ohne Würfel; legacy = Schema 1; invalid = kaputt. */
-  panoramaIssue: 'none' | 'absent' | 'legacy' | 'invalid';
+  /** Warum panorama null ist: none = hat eins; absent = Quelle ohne Würfel; legacy = Schema 1; invalid = kaputt;
+   *  gesperrt = für diese Rolle nicht freigegeben (Server-Tor F20, `ohnePanoramen`). */
+  panoramaIssue: 'none' | 'absent' | 'legacy' | 'invalid' | 'gesperrt';
 }
 
 export interface StationSet {
@@ -193,4 +194,12 @@ export async function loadStations(
     throw new StationsError(`Standpunkte nicht lesbar (${url}: ${e instanceof Error ? e.message : String(e)}).`);
   }
   return parseStations(json);
+}
+
+/** Panoramen für diese Rolle nicht freigegeben (Server-Tor): Standpunkte bleiben, Bilder nicht. */
+export function ohnePanoramen(set: StationSet): StationSet {
+  return {
+    ...set,
+    stations: set.stations.map((s) => (s.panorama ? { ...s, panorama: null, panoramaIssue: 'gesperrt' as const } : s)),
+  };
 }

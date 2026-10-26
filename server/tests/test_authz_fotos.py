@@ -1,4 +1,7 @@
-"""Server-Tor für orientierte Fotos: ohne Freigabe der Anonymisierung nur Bearbeiter+."""
+"""Server-Tor für orientierte Fotos: ohne an Dateien gebundene Freigabe nur Bearbeiter+.
+
+Seit F20 reicht `anonymization.status == "released"` in `images.json` nicht mehr; die Freigabe
+steht in der Datenbank (Pfad + SHA-256 je Datei, siehe test_freigabe.py)."""
 
 import json
 import os
@@ -8,6 +11,8 @@ import pytest
 from fastapi.testclient import TestClient
 from test_authz import authz, mit_paketen  # noqa: F401
 from test_sitzung import anmelden
+
+from scanview_server import db, freigabe, konten
 
 FOTO_PFADE = [
     "/data/kirche/images.json",
@@ -71,15 +76,35 @@ def test_alles_ausser_released_ist_gesperrt(
     assert authz(mit_paketen, FOTO_PFADE[1]) == 404
 
 
-def test_freigabe_wirkt_sofort_und_ruecknahme_auch(mit_paketen: TestClient) -> None:  # noqa: F811
+def test_released_im_manifest_allein_reicht_nicht(mit_paketen: TestClient) -> None:  # noqa: F811
+    """Früher genügte `released` in images.json (fotos_tor) — jetzt nur die DB-Freigabe."""
     anmelden(mit_paketen, grants={"kirche": "betrachter"})
-    _status(mit_paketen, "unreviewed")
-    assert authz(mit_paketen, FOTO_PFADE[1]) == 404
     _status(mit_paketen, "released")
-    assert authz(mit_paketen, FOTO_PFADE[1]) == 200
-    assert authz(mit_paketen, FOTO_PFADE[0]) == 200
-    _status(mit_paketen, "unreviewed")
+    for pfad in FOTO_PFADE:
+        assert authz(mit_paketen, pfad) == 404
+
+
+def test_freigabe_wirkt_sofort_und_ruecknahme_auch(mit_paketen: TestClient) -> None:  # noqa: F811
+    paket = Path(mit_paketen.app.state.settings.data_dir) / "kirche"  # type: ignore[attr-defined]
+    for rel in ("fotos/F0001/512.jpg", "fotos/F0001/2048.jpg", "fotos/F0001/tiles/0/0_0.jpg"):
+        (paket / rel).parent.mkdir(parents=True, exist_ok=True)
+        (paket / rel).write_bytes(b"\xff\xd8" + rel.encode())
+    (paket / "images.json").write_text(json.dumps({
+        "schemaVersion": 1, "anonymization": {"required": True, "status": "unreviewed"},
+        "images": [{"id": "F0001", "rev": None}]}))
+    conn = db.connect(mit_paketen.app.state.settings.db_path)  # type: ignore[attr-defined]
+    admin = konten.einladung_einloesen(
+        conn, konten.einladung_anlegen(conn, email="a@b.de", name="A", grants={}, is_admin=True),
+        lambda _c, _u: None)
+    anmelden(mit_paketen, grants={"kirche": "betrachter"})
     assert authz(mit_paketen, FOTO_PFADE[1]) == 404
+    freigabe.freigeben(conn, paket, "kirche", "fotos", "personenfrei", von=admin.id,
+                       ist_admin=True)
+    for pfad in FOTO_PFADE:
+        assert authz(mit_paketen, pfad) == 200
+    freigabe.zuruecknehmen(conn, paket, "kirche", "fotos", von=admin.id)
+    assert authz(mit_paketen, FOTO_PFADE[1]) == 404
+    conn.close()
 
 
 @pytest.mark.parametrize("uri", [

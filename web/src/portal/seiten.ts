@@ -4,6 +4,7 @@ import { zuPruefenLink } from './projektAktionen';
 // getestet); hier nur Verdrahtung von DOM, Netzwerk (api.ts) und WebAuthn (webauthn.ts).
 import { ApiFehler, post, type Projekt, type Sitzung } from './api';
 import { zeigeApiZugaenge } from './apiZugaenge';
+import { zeigeBenachrichtigung } from './benachrichtigung';
 import { draufsichtUrl, filtere, formatAusdehnung, formatGroesse, formatPunkte, formatStandpunkte, trefferText, viewerLink } from './karten';
 import { ueberfaelligText } from '../fadenModell';
 import { bearbeitenKnopf, befundeLink, einstellungenLink, exportLinks, verlaufLink } from './projektAktionen';
@@ -160,6 +161,10 @@ export function zeigeEinstellungen(root: HTMLElement, ausloeser?: HTMLButtonElem
   const apiZugaengePlatz = el('div');
   box.appendChild(apiZugaengePlatz);
   void zeigeApiZugaenge(apiZugaengePlatz, location.origin);
+  // E-Mail-Benachrichtigungen (F8): nur, wenn die Instanz Mails verschickt.
+  const mailPlatz = el('div');
+  box.appendChild(mailPlatz);
+  void zeigeBenachrichtigung(mailPlatz);
 
   const details = document.createElement('details');
   details.className = 'sv-erweitert';

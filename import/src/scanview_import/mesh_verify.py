@@ -197,9 +197,7 @@ def verify_stage(
     # Die Vorschau wird gemessen, das geometrische Toleranztor gilt Voll- und Mobilstufe.
     if name == "preview":
         rep["ok"] = bool(
-            rep["targetOk"]
-            and rep["textures"]["ok"]
-            and rep["counts"]["degenerateTriangles"] == 0
+            rep["targetOk"] and rep["textures"]["ok"] and rep["counts"]["degenerateTriangles"] == 0
         )
     else:
         rep["ok"] = bool(rep["ok"] and rep["textures"]["ok"])
@@ -231,6 +229,15 @@ def verify_mesh(
 ) -> dict[str, Any]:
     t0 = time.monotonic()
     m = manifest if manifest is not None else read_manifest(pkg)
+    if any(lay["kind"] == "mesh-tiles" for lay in m["layers"]):
+        from .convert import _sha256
+        from .kacheln.paket import pruefen
+
+        rep_tiles = pruefen(pkg, m)
+        tiles_layer = next(lay for lay in m["layers"] if lay["kind"] == "mesh-tiles")
+        rep_tiles["sourceIdentityOk"] = _sha256(path) == tiles_layer["source"]["sha256"]
+        rep_tiles["ok"] = bool(rep_tiles["ok"] and rep_tiles["sourceIdentityOk"])
+        return rep_tiles
     layer = next(lay for lay in m["layers"] if lay["kind"] == "mesh")
     opts = layer["sourceOptions"]
     if source is None:

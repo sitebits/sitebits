@@ -35,7 +35,8 @@ def test_einstellungen_dataclass_und_json() -> None:
         "vorlage": None,
         "rueckmeldungen": True,
         "exportBearbeiter": True,
-        "befundFaeden": False, "nurLeseLinks": False
+        "befundFaeden": False, "nurLeseLinks": False,
+        "panoramenNurFreigegeben": False, "benachrichtigung": True
     }
 
     benutzerdefiniert = projektverwaltung.Einstellungen(
@@ -51,12 +52,14 @@ def test_einstellungen_dataclass_und_json() -> None:
         "vorlage": "bauprojekt",
         "rueckmeldungen": False,
         "exportBearbeiter": False,
-        "befundFaeden": True, "nurLeseLinks": False
+        "befundFaeden": True, "nurLeseLinks": False,
+        "panoramenNurFreigegeben": False, "benachrichtigung": True
     }
     assert projektverwaltung._schalter(benutzerdefiniert) == {
         "rueckmeldungen": False,
         "exportBearbeiter": False,
-        "befundFaeden": True, "nurLeseLinks": False
+        "befundFaeden": True, "nurLeseLinks": False,
+        "panoramenNurFreigegeben": False, "benachrichtigung": True
     }
 
 
@@ -235,9 +238,11 @@ def test_einstellungen_aendern_initialisiert_nicht_eingerichtetes_projekt(
     vorher_daten = json.loads(ereignis_geaendert["vorher"])
     nachher_daten = json.loads(ereignis_geaendert["nachher"])
     assert vorher_daten == {"rueckmeldungen": True, "exportBearbeiter": True,
-                            "befundFaeden": False, "nurLeseLinks": False}
+                            "befundFaeden": False, "nurLeseLinks": False,
+                            "panoramenNurFreigegeben": False, "benachrichtigung": True}
     assert nachher_daten == {"rueckmeldungen": False, "exportBearbeiter": True,
-                             "befundFaeden": False, "nurLeseLinks": False}
+                             "befundFaeden": False, "nurLeseLinks": False,
+                             "panoramenNurFreigegeben": False, "benachrichtigung": True}
 
 
 def test_einstellungen_aendern_unveraendert_schreibt_kein_ereignis(
@@ -296,24 +301,28 @@ def test_einstellungen_aendern_auf_bestehendem_projekt(conn: sqlite3.Connection)
     assert json.loads(erster_wechsel["vorher"]) == {
         "rueckmeldungen": True,
         "exportBearbeiter": True,
-        "befundFaeden": True, "nurLeseLinks": False
+        "befundFaeden": True, "nurLeseLinks": False,
+        "panoramenNurFreigegeben": True, "benachrichtigung": True
     }
     assert json.loads(erster_wechsel["nachher"]) == {
         "rueckmeldungen": True,
         "exportBearbeiter": False,
-        "befundFaeden": True, "nurLeseLinks": False
+        "befundFaeden": True, "nurLeseLinks": False,
+        "panoramenNurFreigegeben": True, "benachrichtigung": True
     }
 
     zweiter_wechsel = ereignisse[1]
     assert json.loads(zweiter_wechsel["vorher"]) == {
         "rueckmeldungen": True,
         "exportBearbeiter": False,
-        "befundFaeden": True, "nurLeseLinks": False
+        "befundFaeden": True, "nurLeseLinks": False,
+        "panoramenNurFreigegeben": True, "benachrichtigung": True
     }
     assert json.loads(zweiter_wechsel["nachher"]) == {
         "rueckmeldungen": False,
         "exportBearbeiter": True,
-        "befundFaeden": True, "nurLeseLinks": False
+        "befundFaeden": True, "nurLeseLinks": False,
+        "panoramenNurFreigegeben": True, "benachrichtigung": True
     }
 
 

@@ -41,7 +41,7 @@ from . import (
 from .fehler import NachweisFehler
 from .werkzeuge import lade_werkzeuge
 
-_VERSION = "0.11.0"
+_VERSION = "0.12.0"
 
 
 def _version(_args: argparse.Namespace) -> int:

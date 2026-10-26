@@ -14,7 +14,7 @@ def test_fehler_format():
 
 def test_version_befehl(capsys):
     assert main(["version"]) == 0
-    assert capsys.readouterr().out.strip() == "scanview-nachweise 0.11.0"
+    assert capsys.readouterr().out.strip() == "scanview-nachweise 0.12.0"
 
 
 def test_handler_fehler_exit_2(monkeypatch, capsys):

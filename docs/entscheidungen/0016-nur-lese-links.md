@@ -31,6 +31,7 @@ ist, wie er trotzdem eng und widerrufbar bleibt.
 
 ## Konsequenzen
 
+- `mesh-tiles` ist aufgenommen: Die Positivliste umfasst das Tileset und seine geprüften Mesh-Verweise.
 - Was ein Gast im Browser sieht, ist technisch kopierbar; es gibt nur keine Download- oder Exportfunktion.
   Das steht so im Teilen-Abschnitt der Projekt-Einstellungen.
 - Nachvollziehbar ist die Freigabe, nicht die Person: je Link Anzahl und Zeit der Öffnungen, Anlegen und

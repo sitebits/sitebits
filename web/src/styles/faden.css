@@ -43,3 +43,6 @@
 .sv-faden-entschieden { color: var(--sv-fg-muted); }
 .sv-pruefzeile { margin-block: 12px; padding: 8px; border: 1px solid var(--sv-border); overflow-wrap: anywhere; }
 .sv-pruefzeile button { margin: 4px; }
+/* Fotos am Faden (F7): nie breiter als die Spalte, Seitenverhältnis aus width/height, kein Layout-Sprung. */
+.sv-faden-bild-link { display: inline-block; max-width: 100%; margin-block: 4px; }
+.sv-faden-bild { display: block; max-width: min(100%, 480px); height: auto; border: 1px solid var(--sv-border); }

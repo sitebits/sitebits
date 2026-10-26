@@ -63,6 +63,8 @@ const ARTEN: Record<string, string> = {
   'poi.frist': 'Frist geändert',
   'teilen.angelegt': 'Nur-Lese-Link angelegt',
   'teilen.widerrufen': 'Nur-Lese-Link zurückgezogen',
+  'freigabe.erteilt': 'Panoramen/Fotos freigegeben',
+  'freigabe.zurueckgenommen': 'Freigabe zurückgenommen',
 };
 
 const VORSCHLAG_ARTEN: Record<string,string> = {
@@ -106,6 +108,8 @@ const FELD: Record<string, string> = {
   ohneGewerk: 'Ohne Gewerk danach',
   befundFaeden: 'Befund-Fäden',
   nurLeseLinks: 'Nur-Lese-Links',
+  panoramenNurFreigegeben: 'Panoramen nur freigegeben',
+  benachrichtigung: 'Benachrichtigungen per Mail',
   gewerk_id: 'Gewerk',
   nutzer_id: 'Person',
   art: 'Art',

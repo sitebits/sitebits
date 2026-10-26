@@ -71,6 +71,17 @@ Panorama-Ebenen dar; andere Arten zeigt er als „nicht unterstützt“ und läd
 Prüfung (`verify`). Ebenen bringen keine eigene Transformation mit; der Import rechnet alles in den
 Paketrahmen ein.
 
+**Gekachelte Meshes.** Die Ebenenart `mesh-tiles` (`format: 3dtiles`) verweist auf ein `tileset.json`
+(3D Tiles 1.1, ein GLB je Kachel, `REPLACE`, `geometricError` streng fallend bis 0 im Blatt). Die Kacheln liegen
+in den Koordinaten des Paketrahmens (Z oben); `crs` und `heightSystem` der Ebene müssen zu `extras` des Tilesets
+passen, die Hülle der Wurzel zu `boundsWorld` (±1 m), alle Kachel-Transformationen sind reine Verschiebungen.
+Gezeichnet wird, was der Renderer nach Bildfehler wählt (Startwerte je Gerät in `web/src/geraet.ts`). Gemessen wird
+nie auf dem Gezeichneten, sondern auf Blättern, die der Viewer gezielt entlang des Strahls lädt; kommt das Blatt
+nicht rechtzeitig, gibt es keinen Wert („Feinste Stufe nicht rechtzeitig — erneut klicken“), nie einen Ersatzwert
+aus einer gröberen Stufe. Der Webserver liefert `layers/<id>/tileset.json`, die Kachel-GLBs und `texturen/` aus
+(Allowlist in `deploy/nginx.conf`; die Plattform lässt die Dateiendungen schon zu). Freigabelinks (Gäste) tragen
+die Ebene nicht.
+
 **Koordinaten.** Weltkoordinaten sind in allen JSON-Dateien Float64. Für die Darstellung gilt
 `pLocal = pWorld − originWorld` (gerundete Mitte der Grenzen, ganze Meter), damit Float32-Puffer auch
 bei projizierten Koordinaten Millimeter auflösen. Koordinatensystem, Einheit, Achse und Versatz

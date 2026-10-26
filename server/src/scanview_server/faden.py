@@ -41,7 +41,7 @@ from zoneinfo import ZoneInfo
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import protokoll
+from . import anhaenge, post, protokoll
 from .db import transaktion
 from .inhalte import Eintrag
 from .projektverwaltung import text_pruefen
@@ -83,7 +83,7 @@ NUR_BAUHERRENSEITE = "Abschließen, Ablehnen und Wiederöffnen nur durch die Bau
 NUR_VERFASSER = "Nur wer den Eintrag geschrieben hat, kann ihn zurückziehen."
 ART_UNGUELTIG = "Unbekannte Eintragsart (erlaubt: kommentar, link, status, zustaendig, frist)."
 NUR_TEXT_INTERN = "Intern können nur Kommentare und Links sein."
-NUR_TEXT_ZURUECK = "Zurückziehen lässt sich nur ein Kommentar oder Link."
+NUR_TEXT_ZURUECK = "Zurückziehen lässt sich nur ein Kommentar, Link oder Anhang."
 VERSION_FEHLT = "version fehlt (Pflicht bei Status, Zuständigkeit und Frist)."
 TEXT_FEHLT = "Text fehlt."
 BEGRUENDUNG_FEHLT = "Begründung fehlt (Pflicht bei „abgelehnt“ und beim Wiederöffnen)."
@@ -249,7 +249,7 @@ def eintrag_json(r: sqlite3.Row, *, bezug: bool = True) -> dict[str, Any]:
     auf den der Eintrag antwortet, ist für diesen Leser unsichtbar."""
     zurueck = r["zurueckgezogen_am"] is not None
     aus = {"schluessel": r["schluessel"], "art": r["art"], "text": r["text"],
-           "wert": None if zurueck and r["art"] == "link" else json.loads(r["wert"]),
+           "wert": None if zurueck and r["art"] in ("link", "anhang") else json.loads(r["wert"]),
            "intern": bool(r["intern"]),
            "erstellt_von": {"id": r["erstellt_von"], "name": r["erstellt_von_name"]},
            "erstellt_am": int(r["erstellt_am"]), "kanal": r["kanal"],
@@ -282,7 +282,7 @@ def lesen(conn: sqlite3.Connection, pid: str, poi: str, *, intern: bool,
     _poi(conn, pid, poi, s)
     rows = conn.execute(_SELECT + " WHERE e.project_id=? AND e.poi_id=? AND (? OR e.intern=0)"
                         " ORDER BY e.id", (pid, poi, int(intern))).fetchall()
-    return _sichtbar(rows, s)
+    return anhaenge.anreichern(conn, _sichtbar(rows, s))
 
 
 def offene_vorschlaege(conn: sqlite3.Connection, pid: str) -> list[dict[str, Any]]:
@@ -319,6 +319,8 @@ def alle_faeden(conn: sqlite3.Connection, pid: str, *, intern: bool) -> dict[str
         (pid, int(intern)),
     ):
         aus.setdefault(str(r["poi_id"]), []).append(eintrag_json(r, bezug=False))
+    for liste in aus.values():
+        anhaenge.anreichern(conn, liste)
     return aus
 
 
@@ -500,6 +502,9 @@ def einfuegen(conn: sqlite3.Connection, pid: str, poi: str, *, art: str, text: s
     protokoll.ereignis(conn, kanal=kanal, nutzer_id=nutzer, project_id=pid,
                        art=ereignis, objekt_id=f"{poi}/{schluessel}",
                        nachher=_protokollform(r), token_name=token_name, now=now)
+    if ereignis == "eintrag.angelegt":
+        # F8: Mail vormerken, in derselben Transaktion (nur Personen mit Einwilligung).
+        post.vormerken(conn, pid, poi, art=art, eintrag=schluessel, autor=nutzer, now=now)
     return eintrag_json(r)
 
 
@@ -686,7 +691,7 @@ def zurueckziehen(conn: sqlite3.Connection, pid: str, poi: str, schluessel: str,
             raise StarletteHTTPException(status_code=404, detail=NICHT_GEFUNDEN)
         if r["erstellt_von"] != s.nutzer:
             raise StarletteHTTPException(status_code=403, detail=NUR_VERFASSER)
-        if r["art"] not in TEXT_ARTEN:
+        if r["art"] not in (*TEXT_ARTEN, "anhang"):
             raise Ungueltig(NUR_TEXT_ZURUECK)
         if r["zurueckgezogen_am"] is None:
             conn.execute("UPDATE befund_eintraege SET text=NULL, zurueckgezogen_am=?"

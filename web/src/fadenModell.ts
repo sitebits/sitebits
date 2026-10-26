@@ -38,9 +38,15 @@ export interface FadenEintrag {
   erstellt_am: number;
   kanal: string;
   zurueckgezogen_am: number | null;
+  /** Nur bei `art: 'anhang'`: Verarbeitungsstand (null nach dem Zurückziehen). */
+  anhang?: AnhangStand | null;
+}
+export interface AnhangStand {
+  id: string; typ: 'bild' | 'pdf'; status: 'pruefung' | 'bereit' | 'abgelehnt' | 'entfernt'; name: string | null;
+  groesse: number; breite: number | null; hoehe: number | null; aufnahme: string | null; fehler: string | null;
 }
 export interface FadenRechte { kommentieren: boolean; status: string[]; zustaendig: boolean; frist: boolean; intern: boolean }
-export interface Faden { stand: Stand; eintraege: FadenEintrag[]; rechte: FadenRechte }
+export interface Faden { stand: Stand; eintraege: FadenEintrag[]; rechte: FadenRechte; anhaenge?: boolean }
 export interface BefundZeile { poi: ServerEintrag<PoiDaten>; stand: Stand; ueberfaellig: boolean; letzter_eintrag_am: number | null }
 export interface Befunde { befunde: BefundZeile[]; zaehler: { ueberfaellig_meine: number } }
 
@@ -112,6 +118,7 @@ export const nummeriert = (l: readonly FadenEintrag[]): { nr: number; eintrag: F
 
 const ART_TEXT: Record<string, string> = {
   vorschlag: 'Vorschlag', kommentar: 'Kommentar', link: 'Link', status: 'Status', zustaendig: 'Zuständigkeit', frist: 'Frist', markierung: 'Markierung',
+  anhang: 'Anhang',
 };
 export const artText = (art: string): string => (Object.hasOwn(ART_TEXT, art) ? ART_TEXT[art]! : art);
 
@@ -171,9 +178,32 @@ export function eintragInhalt(e: FadenEintrag, n: Namen): string {
     }
     case 'markierung':
       return markierungText(e.wert);
+    case 'anhang':
+      return anhangText(e.anhang ?? null);
     default:
       return e.text ?? '';
   }
+}
+
+const KB = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 });
+
+/** Aufnahmezeit JJJJ-MM-TTThh:mm:ss (Kamerazeit, ohne Zone) als TT.MM.JJJJ hh:mm; sonst null. */
+export function aufnahmeText(a: string | null): string | null {
+  const m = a === null ? null : /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(a);
+  return m ? `${m[3]}.${m[2]}.${m[1]} ${m[4]}:${m[5]}` : null;
+}
+
+/** Ein Satz zum Anhang (Liste, Screenreader); das Bild selbst zeigt die Ansicht. */
+export function anhangText(a: AnhangStand | null): string {
+  if (a === null) return 'Anhang entfernt';
+  const name = a.name ? ` „${a.name}“` : '';
+  if (a.status === 'pruefung') return `${a.typ === 'pdf' ? 'PDF' : 'Foto'}${name} wird geprüft …`;
+  if (a.status === 'abgelehnt') return `Datei${name} abgelehnt: ${a.fehler ?? 'nicht verarbeitbar'}`;
+  if (a.status === 'entfernt') return 'Anhang entfernt';
+  if (a.typ === 'pdf') return `PDF${name} aus externer Quelle (${KB.format(Math.max(1, Math.round(a.groesse / 1024)))} KB) – nur zum Herunterladen`;
+  const masse = a.breite !== null && a.hoehe !== null ? `, ${a.breite} × ${a.hoehe} px` : '';
+  const zeit = aufnahmeText(a.aufnahme);
+  return `Foto${name}${masse}${zeit ? `, aufgenommen ${zeit}` : ''}`;
 }
 
 /** Adresse eines Link-Eintrags, nur wenn sie als Link taugt (https oder Pfad dieser Instanz) — sonst null. */

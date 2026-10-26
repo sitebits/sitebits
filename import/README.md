@@ -136,6 +136,14 @@ uv run --locked scanview-import verify /daten/wolke.laz /daten/paket
   --ziel-hoehensystem dhhn2016`); eine Umrechnung lehnt der Import ab.
 - **Nachweis:** `sourceOptions.hoehe` der Ebene hält Quelle, Ziel, Gitter und dessen SHA-256.
   `verify` rechnet die Quellpunkte für den Vergleich genauso um.
+- **Anonymisierte Panoramen (`--anonymisiert manifest.json`):** `panos-kameras` nimmt die Pixel dann nur aus
+  dem geprüften Lauf des Anonymisierungswerkzeugs (Manifest mit `panos[]`: Pano-ID, Quelle, Quell-SHA-256, Revision,
+  Aktion `geschwaerzt`/`unveraendert`, Ausgabe, `verifiziert`; daneben der Ordner `entscheidungen/`). Jede Kamera
+  muss über den SHA-256 ihres Bildes genau einem Eintrag zugeordnet sein; die Entscheidung muss `fertig` sein, mit
+  derselben Revision und Quelle; geschwärzte Ausgaben müssen verifiziert, reguläre Dateien und gleich groß sein.
+  Sonst bricht der Import ab, bevor er schreibt. Danach trägt `stations.json` `anonymization: {status: "reviewed",
+  tool, manifestSha256, files: {Pfad: SHA-256}}`. Ohne die Option schreibt jeder Panorama-Import `status:
+  "unreviewed"` mit derselben Dateiliste; die Plattform zeigt solche Panoramen Betrachtern erst nach einer Freigabe.
 - **Kameras aus `kameras.json`:** `panos-kameras` und `fotos-kameras` rechnen Kamerapositionen sowie
   Tie Points ins Paket-Höhensystem um, wenn `kameras.json` ellipsoidisch und das Paket DHHN2016
   ist (oder umgekehrt); die Drehung bleibt. Andere Abweichungen brechen ab.

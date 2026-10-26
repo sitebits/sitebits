@@ -1,6 +1,6 @@
 # 0003 Eigener Kachler für große Meshes
 
-- **Status:** angenommen, durch Vorstudie bestätigt (2026-09-28)
+- **Status:** angenommen, durch Vorstudie bestätigt (2026-09-28), umgesetzt (2026-10-26)
 - **Datum:** 2026-09-28
 
 ## Kontext
@@ -49,3 +49,11 @@ Wurzel-Transform, wie ihn projizierte Pakete (UTM) bräuchten, ist damit nicht z
 wird mit dem ersten solchen Paket entschieden.
 
 Der Messbericht liegt im Arbeitsarchiv.
+
+## Nachtrag Umsetzung 26.10.2026
+
+Umgesetzt als `scanview-import kacheln` (Beschreibung und Ausgabevertrag in `docs/mesh-kacheln.md`), Ebenenart
+`mesh-tiles` im Paket, Darstellung im Viewer und in Gast-Links (ADR 0016). Der Satz unter „Konsequenzen“, Mesh-Ebenen
+würden noch nicht importiert oder dargestellt, ist damit überholt. Die Frage nach einem affinen Wurzel-Transform für
+projizierte Pakete hat sich nicht gestellt: Die Kacheln liegen im lokalen Paketrahmen, die Lage in UTM steht über
+`originWorld` in `project.json`, das Tileset hat keinen Wurzel-Transform.

@@ -43,7 +43,7 @@ const fehlerText = (e: unknown): string =>
 
 const anzahlText = (n: number): string => (n === 0 ? 'Keine Befunde für diese Auswahl.' : n === 1 ? '1 Befund.' : `${n} Befunde.`);
 
-export async function zeigeBefunde(root: HTMLElement, pid: string, nutzerId: number | null): Promise<void> {
+export async function zeigeBefunde(root: HTMLElement, pid: string, nutzerId: number | null, oeffnen: string | null = null): Promise<void> {
   root.replaceChildren();
   const seite = el('div', 'sv-seite sv-befunde');
   const kopf = el('header', 'sv-kopf');
@@ -131,6 +131,7 @@ export async function zeigeBefunde(root: HTMLElement, pid: string, nutzerId: num
     });
     faden.element.id = `sv-bf-${i}-verlauf`;
     oeffner.setAttribute('aria-controls', faden.element.id);
+    oeffner.dataset['poi'] = b.poi.id;
     oeffner.addEventListener('click', () => {
       const auf = oeffner.getAttribute('aria-expanded') !== 'true';
       oeffner.setAttribute('aria-expanded', String(auf));
@@ -171,4 +172,15 @@ export async function zeigeBefunde(root: HTMLElement, pid: string, nutzerId: num
   for (const s of [status.select, zust.select, frist.select, kategorie.select]) s.addEventListener('change', () => void laden());
   filterForm.addEventListener('submit', (ev) => ev.preventDefault());
   await laden();
+  // Link aus einer Benachrichtigung (?b=<Befund>): Verlauf dieses Befunds öffnen und hinspringen.
+  if (oeffnen) {
+    const knopf = [...liste.querySelectorAll<HTMLButtonElement>('button[data-poi]')].find((k) => k.dataset['poi'] === oeffnen);
+    if (knopf) {
+      knopf.click();
+      knopf.closest('li')?.scrollIntoView({ block: 'start' });
+      knopf.focus({ preventScroll: true });
+    } else {
+      anzahl.textContent = `${anzahl.textContent ?? ''} Der Befund aus dem Link ist mit diesen Filtern nicht in der Liste oder nicht mehr vorhanden.`;
+    }
+  }
 }

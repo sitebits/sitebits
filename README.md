@@ -79,6 +79,8 @@ Importing point clouds, spherical panoramas and photos: [import guide](import/RE
 
 Working with mesh layers: [layers, framing and limits](docs/public/mesh-ebenen.md).
 
+Sun and shadows in the viewer and the sun report (German): [sun guide](docs/public/sonne.md).
+
 Setting up a server: [operations guide](docs/public/betrieb.md).
 
 ## Information under Annex II of the Cyber Resilience Act
@@ -87,7 +89,7 @@ Setting up a server: [operations guide](docs/public/betrieb.md).
 |---|---|
 | **Manufacturer** | Stiebitz Souverain Systems UG (haftungsbeschränkt), Potsdam, Germany, Local Court (Amtsgericht) Potsdam HRB 42359 P. The postal address will be added when the product is placed on the market; until then via the contact point. |
 | **Contact point for vulnerabilities** | security@sitebits.de, reporting process and deadlines in [`SECURITY.md`](SECURITY.md) |
-| **Product** | siteBits, version 0.11.0 (viewer/portal, platform server and MCP server carry the same version; `GET /api/v1/version` shows the installed version to signed-in users) |
+| **Product** | siteBits, version 0.12.0 (viewer/portal, platform server and MCP server carry the same version; `GET /api/v1/version` shows the installed version to signed-in users) |
 | **Intended use** | Viewing, measuring and jointly working on laser scan projects in the browser on a self-hosted platform, accessible only to invited users with permission for the project |
 | **Environment** | Linux server with Caddy as reverse proxy and HTTPS; current browsers with WebGL 2 and WebAssembly |
 | **Security notes** | Operate over HTTPS only; apply the hardening in the [operations guide](docs/public/betrieb.md#härtung); share invitation links and API tokens only over confidential channels; create API tokens with the smallest scope needed; with the MCP server, tool results go to the provider of the language model (see `mcp-server/README.md`); measured values depend on the accuracy of the scan data and do not replace an official survey |

@@ -331,6 +331,9 @@ def test_anonymisieren_bereinigt_vollstaendig_und_isoliert(conn: sqlite3.Connect
         "rechte": 2,
         "einladungenGeloescht": 2,
         "einladungenGeschwaerzt": 2,
+        "benachrichtigungKonto": 0,
+        "benachrichtigungAus": 0,
+        "benachrichtigungAusgang": 0,
     }
 
     zeile_user_80 = conn.execute(

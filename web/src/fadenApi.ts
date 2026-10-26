@@ -3,7 +3,7 @@
 // Fehler kommen als PlattformFehler mit dem unveränderten deutschen Servertext (409 trägt `aktuell`).
 import type { Befunde, Faden, FadenEintrag, Filter, Stand } from './fadenModell';
 import { filterQuery } from './fadenModell';
-import { anfrage, projektPfad } from './plattformApi';
+import { anfrage, PlattformFehler, projektPfad } from './plattformApi';
 
 export interface NeuerEintrag {
   art: 'kommentar' | 'link' | 'status' | 'zustaendig' | 'frist';
@@ -25,6 +25,39 @@ export const eintragSchreiben = (pid: string, poi: string, e: NeuerEintrag): Pro
 
 export const zurueckziehen = (pid: string, poi: string, schluessel: string): Promise<{ eintrag: FadenEintrag }> =>
   anfrage('POST', `${faden(pid, poi)}/${encodeURIComponent(schluessel)}/zurueckziehen`, {});
+
+export const ANHANG_TYPEN = ['image/jpeg', 'image/png', 'application/pdf'] as const;
+export const ANHANG_MAX = 20 * 1024 * 1024;
+
+/** Adresse der Datei eines Anhangs (Bild inline, PDF als Download). */
+export const anhangUrl = (pid: string, poi: string, id: string): string =>
+  `${faden(pid, poi)}/anhaenge/${encodeURIComponent(id)}`;
+
+/** Foto oder PDF als rohen Körper hochladen (kein multipart); Fehler wie `anfrage` (deutscher Servertext). */
+export async function anhangHochladen(pid: string, poi: string, datei: Blob, name: string, fetchFn: typeof fetch = fetch): Promise<{ eintrag: FadenEintrag }> {
+  const r = await fetchFn(`${faden(pid, poi)}/anhaenge?name=${encodeURIComponent(name)}`, {
+    method: 'POST', credentials: 'same-origin', body: datei,
+    headers: { 'X-Scanview': '1', 'Content-Type': datei.type || 'application/octet-stream' },
+  });
+  let daten: unknown = null;
+  try { daten = await r.json(); } catch { /* kein JSON, z. B. 413 vom Proxy */ }
+  if (!r.ok) {
+    const text = daten !== null && typeof daten === 'object' && typeof (daten as { fehler?: unknown }).fehler === 'string'
+      ? (daten as { fehler: string }).fehler
+      : r.status === 413 ? 'Höchstens 20 MB je Anhang.' : `Hochladen fehlgeschlagen (HTTP ${r.status}).`;
+    throw new PlattformFehler(r.status, text);
+  }
+  return daten as { eintrag: FadenEintrag };
+}
+
+export interface FadenBenachrichtigung { aus: boolean; konto: { eingeschaltet: boolean; bestaetigt: boolean } }
+
+/** E-Mails zu diesem Befund (F8); 404, wenn die Instanz keine Mails verschickt. */
+export const benachrichtigungLesen = (pid: string, poi: string): Promise<FadenBenachrichtigung> =>
+  anfrage('GET', `${faden(pid, poi)}/benachrichtigung`);
+
+export const benachrichtigungSetzen = (pid: string, poi: string, aus: boolean): Promise<FadenBenachrichtigung> =>
+  anfrage('PUT', `${faden(pid, poi)}/benachrichtigung`, { aus });
 
 export function befundeLesen(pid: string, f: Filter): Promise<Befunde> {
   const q = filterQuery(f);

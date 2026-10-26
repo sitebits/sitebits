@@ -1,6 +1,6 @@
 [project]
 name = "scanview-server"
-version = "0.11.0"
+version = "0.12.0"
 requires-python = ">=3.11,<3.13"
 # Exakte Top-Level-Pins (per `uv lock` mit >=-Untergrenzen ermittelt);
 # keine Extras wie fastapi[standard] / uvicorn[standard] — jedes Extra ist Angriffsfläche.
@@ -19,6 +19,8 @@ scanview-server = "scanview_server.cli:main"
 scanview-import-worker = "scanview_worker.worker:main"
 # Legt fertige Importpakete in den Eingang des Freischalt-Skripts (eigener Systemnutzer).
 scanview-uebergabe = "scanview_worker.uebergabe:main"
+# Versendet E-Mail-Benachrichtigungen aus dem Spool (eigener Nutzer, nur SMTP-Netz, keine DB).
+scanview-post = "scanview_post.versand:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11", "httpx>=0.27"]
@@ -32,7 +34,7 @@ requires = ["hatchling==1.32.3"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/scanview_server", "src/scanview_worker"]
+packages = ["src/scanview_server", "src/scanview_worker", "src/scanview_post"]
 
 [tool.uv]
 # Lieferkette: nur Pakete, die mindestens 7 Tage

@@ -190,7 +190,10 @@ def _quaternion(matrix: np.ndarray) -> Quat:
     return (float(w), float(x), float(y), float(z))
 
 
-def _station(camera: Camera) -> StationSource:
+def _station(camera: Camera, pixel: Path | None = None) -> StationSource:
+    """`pixel`: andere Datei mit denselben Maßen, aus der die Pixel stammen (anonymisierte
+    Ausgabe, F20); Identität (scanGuid) und Pose bleiben die der Quelle."""
+    bilddatei = camera.image_path if pixel is None else pixel
     size = min(camera.width // 4, 4096)
     rotation = camera.rotation @ np.diag([1.0, -1.0, -1.0])
     guid = str(
@@ -215,7 +218,7 @@ def _station(camera: Camera) -> StationSource:
 
     def read_image(im: ImageInfo) -> Image.Image:
         # Eine Quelle plus eine Ausgabeseite, niemals sechs dekodierte Seiten im Cache.
-        with _panorama_oeffnen(camera.image_path) as image:
+        with _panorama_oeffnen(bilddatei) as image:
             return cube_face(image, FACES[im.index], size)
 
     return StationSource(
@@ -229,10 +232,14 @@ def _station(camera: Camera) -> StationSource:
     )
 
 
-def kamera_station_sources(source: Path | CameraExport) -> list[StationSource]:
-    """Je geprüfter Kugelkamera ein Standpunkt; Seitenpixel erst beim Schreiben lesen."""
+def kamera_station_sources(
+    source: Path | CameraExport, pixel: dict[Path, Path] | None = None
+) -> list[StationSource]:
+    """Je geprüfter Kugelkamera ein Standpunkt; Seitenpixel erst beim Schreiben lesen.
+
+    `pixel` ordnet einer Quelle die Datei zu, aus der ihre Pixel gelesen werden (F20)."""
     export = read_cameras(source) if isinstance(source, Path) else source
-    return [_station(camera) for camera in export.cameras]
+    return [_station(camera, (pixel or {}).get(camera.image_path)) for camera in export.cameras]
 
 
 @dataclass(frozen=True)

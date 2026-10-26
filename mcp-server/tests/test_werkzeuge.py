@@ -126,6 +126,13 @@ AUFRUFE: dict[str, tuple[dict[str, Any], Any, dict[str, str]]] = {
     ),
     "gewerke_lesen": ({"projekt_id": PID}, None, {}),
     "paket_lesen": ({"projekt_id": PID}, None, {}),
+    "freigaben_lesen": ({"projekt_id": PID, "pruefen": True}, None, {"pruefen": "true"}),
+    # Eigene Tests unten (roher Körper aus einer Datei, Anhang-ID mit 32 Zeichen).
+    "anhang_hochladen": ({}, None, {}),
+    "anhang_stand": ({}, None, {}),
+    "benachrichtigung_lesen": ({"projekt_id": PID, "poi_id": EID}, None, {}),
+    "benachrichtigung_setzen": ({"projekt_id": PID, "poi_id": EID, "aus": True}, {"aus": True},
+                                {}),
     "auswertung_starten": (
         {"projekt_id": PID, "typ": "auswerten_pruefen",
          "optionen": {"profil": "bestandserfassung"}},
@@ -150,17 +157,20 @@ def standard_antwort(request: httpx.Request) -> httpx.Response:
 # --- Tabelle -------------------------------------------------------------------------------------
 
 def test_endpunkte_tabelle_vollstaendig() -> None:
-    assert len(ENDPUNKTE) == 26
+    assert len(ENDPUNKTE) == 31
     assert set(TABELLE) == set(werkzeuge.WERKZEUGE) == set(AUFRUFE)
     for e in ENDPUNKTE:
         assert set(e) == {"werkzeug", "methode", "pfad"}
-        assert e["methode"] in {"GET", "POST", "PATCH", "DELETE"}
+        assert e["methode"] in {"GET", "POST", "PUT", "PATCH", "DELETE"}
         assert e["pfad"].startswith(("/api/v1/projekte", "/api/v1/importe"))
 
 
 # --- Leitung: Methode, Pfad, Körper, Bearer, kein Cookie -----------------------------------------
 
-@pytest.mark.parametrize("name", sorted(AUFRUFE))
+SONDERFAELLE = {"anhang_hochladen", "anhang_stand"}
+
+
+@pytest.mark.parametrize("name", sorted(set(AUFRUFE) - SONDERFAELLE))
 def test_werkzeug_ruft_genau_seinen_endpunkt(name: str) -> None:
     c, auf = client_mit(standard_antwort)
     argumente, koerper, query = AUFRUFE[name]
@@ -466,7 +476,7 @@ def test_stdio_rauchtest_tools_list() -> None:
     async def ablauf() -> None:
         async with McpClient(params) as k:
             tools = (await k.list_tools()).tools
-            assert len(tools) == 26
+            assert len(tools) == 31
             assert sorted(t.name for t in tools) == sorted(TABELLE)
             r = await k.call_tool("projekte_auflisten", {})
             assert r.is_error
@@ -691,3 +701,46 @@ def test_import_status_filtert_nach_projekt() -> None:
     assert werkzeuge.import_status(c, "neu") == {"importe": [{"id": AID, "projekt": "neu"}],
                                                  "worker": "aktiv"}
     assert werkzeuge.import_status(c) == liste
+
+
+def test_anhang_hochladen_roh_mit_typ_aus_dem_inhalt(tmp_path: Path) -> None:
+    c, auf = client_mit(ok({"eintrag": {"art": "anhang"}}, 201))
+    datei = tmp_path / "Riss 1.jpg"
+    datei.write_bytes(b"\xff\xd8\xff\xe0" + b"x" * 10)
+    werkzeuge.anhang_hochladen(c, projekt_id=PID, poi_id=EID, pfad=str(datei))
+    r = auf.anfragen[-1]
+    assert (r.method, r.url.path) == ("POST", f"/api/v1/projekte/{PID}/pois/{EID}/faden/anhaenge")
+    assert r.headers["Content-Type"] == "image/jpeg" and r.content == datei.read_bytes()
+    assert dict(r.url.params) == {"name": "Riss 1.jpg"}
+    assert r.headers["Authorization"] == f"Bearer {TOKEN}" and "cookie" not in r.headers
+
+
+@pytest.mark.parametrize("inhalt,text", [(b"<svg/>", "Nur JPEG"), (b"", "Nur JPEG")])
+def test_anhang_hochladen_lehnt_ab(tmp_path: Path, inhalt: bytes, text: str) -> None:
+    c, auf = client_mit(standard_antwort)
+    datei = tmp_path / "x"
+    datei.write_bytes(inhalt)
+    with pytest.raises(ToolError, match=text):
+        werkzeuge.anhang_hochladen(c, projekt_id=PID, poi_id=EID, pfad=str(datei))
+    with pytest.raises(ToolError, match="nicht gefunden"):
+        werkzeuge.anhang_hochladen(c, projekt_id=PID, poi_id=EID, pfad=str(tmp_path / "fehlt"))
+    assert auf.anfragen == []
+
+
+def test_anhang_stand_pfad_und_id() -> None:
+    c, auf = client_mit(standard_antwort)
+    werkzeuge.anhang_stand(c, projekt_id=PID, poi_id=EID, anhang_id=UID)
+    erwartet = f"/api/v1/projekte/{PID}/pois/{EID}/faden/anhaenge/{UID}/stand"
+    assert auf.anfragen[-1].url.path == erwartet
+    with pytest.raises(ToolError):
+        werkzeuge.anhang_stand(c, projekt_id=PID, poi_id=EID, anhang_id="../x")
+
+
+def test_datenschutz_blendet_dateinamen_aus() -> None:
+    from scanview_mcp.datenschutz import Datenschutz
+
+    d = Datenschutz(voll=False, salz=b"s" * 32)
+    aus = d.filtern({"art": "anhang", "wert": {"anhang": UID, "typ": "bild", "name": "Erika.jpg"},
+                     "anhang": {"id": UID, "status": "bereit", "name": "Erika.jpg"}})
+    assert aus["wert"] == {"anhang": UID, "typ": "bild", "name": AUSGEBLENDET}
+    assert aus["anhang"]["name"] == AUSGEBLENDET and aus["anhang"]["status"] == "bereit"

@@ -126,6 +126,8 @@ export interface ProjektInfo {
   kategorien?: unknown;
   /** Projekt-Schalter „Befund-Fäden“; fehlt bei älteren Servern (dann aus). */
   befund_faeden?: boolean;
+  /** Panoramen für diese Rolle freigegeben (F20); fehlt bei älteren Servern (dann ja). */
+  panoramen_sichtbar?: boolean;
 }
 
 export const projektPfad = (pid: string): string => `/api/v1/projekte/${encodeURIComponent(pid)}`;

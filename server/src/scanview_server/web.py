@@ -41,7 +41,7 @@ _NICHT_PER_TOKEN = "Projektverwaltung nur im Browser, nicht per API-Token."
 # Token), sonst 422 — dieselbe Reihenfolge wie zugriff.leitung() mit gültigem Körper.
 _PROJEKT_VERWALTUNG_RE = re.compile(
     r"^/api/v1/projekte/(?P<pid>[^/]+)/"
-    r"(einladungen|beteiligte|gewerke|kategorien|einstellungen|einrichten|teilen)(/|$)")
+    r"(einladungen|beteiligte|gewerke|kategorien|einstellungen|einrichten|teilen|freigaben)(/|$)")
 _NICHT_ANGEMELDET = "nicht angemeldet"
 # Unter diesen Pfaden entscheidet die Admin-Rolle über 404 (statt 422) bei ungültigen Parametern.
 # Exakter Vergleich für das globale Protokoll statt Präfix — ein Präfix-Vergleich
@@ -360,7 +360,12 @@ def _auswertung_vorrang(
 
 @asynccontextmanager
 async def _lebenszeit(app: FastAPI) -> AsyncIterator[None]:
+    pumpe = getattr(app.state, "post_pumpe", None)
+    if pumpe is not None:
+        pumpe.starten()
     yield
+    if pumpe is not None:
+        pumpe.beenden()
     app.state.rechenplaetze.beenden()
 
 
@@ -409,6 +414,13 @@ def create_app(settings: Settings, katalog: Katalog | None = None) -> FastAPI:
         katalog = Katalog(settings.data_dir)
         katalog.laden()
     app.state.katalog = katalog
+    if settings.post_dir is not None and settings.post_absender is not None:
+        # F8: Mails rendern im Hintergrund (nie im Request); versendet scanview-post.
+        from . import post
+
+        app.state.post_pumpe = post.Pumpe(settings.db_path, post.Postdienst(
+            spool=settings.post_dir, absender=settings.post_absender, origin=settings.origin,
+            state_dir=settings.state_dir), katalog)
 
     @app.exception_handler(StarletteHTTPException)
     async def _http(_r: Request, e: StarletteHTTPException) -> JSONResponse:
@@ -505,15 +517,18 @@ def create_app(settings: Settings, katalog: Katalog | None = None) -> FastAPI:
 
     from . import (
         routen_admin,
+        routen_anhaenge,
         routen_api,
         routen_auswertungen,
         routen_auth,
         routen_barrierefreiheit,
         routen_export,
         routen_faden,
+        routen_freigaben,
         routen_inhalte,
         routen_konto,
         routen_lesezugriffe,
+        routen_post,
         routen_projekt,
         routen_teilen,
         routen_uploads,
@@ -525,6 +540,9 @@ def create_app(settings: Settings, katalog: Katalog | None = None) -> FastAPI:
     app.include_router(routen_v1.router)
     app.include_router(routen_inhalte.router)
     app.include_router(routen_faden.router)
+    app.include_router(routen_freigaben.router)
+    app.include_router(routen_anhaenge.router)
+    app.include_router(routen_post.router)
     app.include_router(routen_projekt.router)
     app.include_router(routen_export.router)
     app.include_router(routen_lesezugriffe.router)

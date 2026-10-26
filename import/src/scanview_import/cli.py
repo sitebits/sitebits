@@ -226,6 +226,28 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--version", action=VersionMitSpleen, nargs=0, help="Version anzeigen")
     sub = p.add_subparsers(dest="cmd", required=True)
 
+    s = sub.add_parser("anhang-bereinigen",
+                       help="Bildanhang dekodieren und ohne Metadaten neu kodieren (Worker)")
+    s.add_argument("ein", type=Path)
+    s.add_argument("aus", type=Path)
+
+    s = sub.add_parser("kacheln", help="OBJ → explizite 3D-Tiles-Geometriehierarchie")
+    s.add_argument("eingabe", type=Path)
+    s.add_argument("ausgabe", type=Path)
+    s.add_argument("--max-dreiecke", type=int, default=100_000)
+    s.add_argument("--blatt-dreiecke", type=int, default=40_000)
+    s.add_argument("--blatt-texel", type=int, default=2048,
+                   help="Texturseitenkante je Blatt (Zweierpotenz, 16 bis 4096)")
+    s.add_argument("--textur-cache-gib", type=float, default=4.0,
+                   help="LRU für dekodierte Quellbilder in GiB (0 deaktiviert)")
+    from .kacheln.parallel import STANDARD_JOBS
+
+    s.add_argument("--jobs", type=int, default=STANDARD_JOBS,
+                   help="Kachelarbeiter (1: ohne Prozesspool)")
+    s.add_argument("--packen", action="store_true", help="Prüffassung und meshopt-/KTX2-Paket")
+    s.add_argument("--crs")
+    s.add_argument("--hoehe")
+
     s = sub.add_parser("inventory", help="Metadaten einer E57 als JSON auf stdout")
     s.add_argument("e57", type=Path)
 
@@ -308,6 +330,8 @@ def _build_parser() -> argparse.ArgumentParser:
     s.add_argument("pkg", type=Path)
     s.add_argument("--levels", default="512,1024,2048,4096")
     s.add_argument("--hoehensystem", help="Höhensystem bestätigen, falls im Paket unbekannt")
+    s.add_argument("--anonymisiert", type=Path, metavar="MANIFEST",
+                   help="nur Ausgaben eines geprüften Anonymisierungslaufs (manifest.json)")
 
     s = sub.add_parser("fotos-kameras", help="Rahmenkameras (kameras.json) als orientierte Fotos")
     s.add_argument("--kameras", type=Path, required=True)
@@ -504,6 +528,22 @@ def _neu_ohne_wolke(a: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     a = _build_parser().parse_args(argv)
 
+    if a.cmd == "kacheln":
+        from .kacheln import kacheln
+        try:
+            cache_bytes = a.textur_cache_gib * 1024**3
+            if not math.isfinite(cache_bytes) or cache_bytes < 0:
+                raise ValueError("--textur-cache-gib benötigt eine endliche Zahl ab 0")
+            kachel_result = kacheln(a.eingabe, a.ausgabe, max_dreiecke=a.max_dreiecke,
+                                    blatt_dreiecke=a.blatt_dreiecke, crs=a.crs, hoehe=a.hoehe,
+                                    packen=a.packen, blatt_texel=a.blatt_texel,
+                                    textur_cache_bytes=int(cache_bytes), jobs=a.jobs)
+        except (ValueError, OSError, RuntimeError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        print(json.dumps(kachel_result, ensure_ascii=False, indent=2))
+        return 0
+
     if a.cmd == "add-splats":
         from .splat_convert import add_splats
         try:
@@ -549,8 +589,9 @@ def main(argv: list[str] | None = None) -> int:
                 if a.cmd == "verify":
                     report = verify_mesh(a.e57, a.pkg)
                     manifest = read_manifest(a.pkg)
-                    layer = next(lay for lay in manifest["layers"] if lay["kind"] == "mesh")
-                    layer["verify"]["ok"] = report["ok"]
+                    layer = next(lay for lay in manifest["layers"]
+                                 if lay["kind"] in ("mesh", "mesh-tiles"))
+                    layer.setdefault("verify", {})["ok"] = report["ok"]
                     write_manifest(a.pkg, manifest)
                     print(json.dumps(report, ensure_ascii=False, indent=2))
                     return 0 if report["ok"] else 2
@@ -574,6 +615,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Mesh-Import/Prüfung abgebrochen: {exc}", file=sys.stderr)
             return 1
 
+    if a.cmd == "anhang-bereinigen":
+        from .anhang import Abgelehnt, bereinigen
+
+        try:
+            print(json.dumps(bereinigen(a.ein, a.aus)))
+        except Abgelehnt as exc:
+            print(f"Abgelehnt: {exc}", file=sys.stderr)
+            return 2
+        return 0
+
     if a.cmd == "inventory":
         json.dump(inventory_to_json(read_inventory(a.e57)), sys.stdout, indent=2)
         return 0
@@ -581,7 +632,7 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "panos-kameras":
         try:
             levels = tuple(int(x) for x in a.levels.split(","))
-            report = import_kameras(a.kameras, a.pkg, levels, a.hoehensystem)
+            report = import_kameras(a.kameras, a.pkg, levels, a.hoehensystem, a.anonymisiert)
         except (OSError, ValueError, KeyError, TypeError) as exc:
             print(f"Panorama-Import abgebrochen: {exc}", file=sys.stderr)
             return 1

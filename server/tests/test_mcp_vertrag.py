@@ -26,7 +26,7 @@ def _tabelle() -> list[dict[str, str]]:
 
 def test_endpunkte_tabelle_vorhanden_und_eindeutig() -> None:
     tabelle = _tabelle()
-    assert len(tabelle) == 26
+    assert len(tabelle) == 31
     namen = [e["werkzeug"] for e in tabelle]
     assert len(set(namen)) == len(namen)
 

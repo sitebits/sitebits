@@ -22,6 +22,7 @@ ihr Inhalt ohnehin öffentlich dokumentiert ist oder sie nicht ausgelieferte Tei
 | **Import-Worker** (`server/`, Konsole `scanview-import-worker`) | rechnet Aufträge aus der Auftragsdatenbank `jobs.db` (Prüfbericht; neue Projekte aus hochgeladenen Meshes oder Splats), je Auftrag in einer eigenen, isolierten systemd-Unit | auf dem Host, eigener Dienst und Systemnutzer, kein Netz | ja (zuerst nur auf freigegebenen Hosts) |
 | **Übergabe** (`server/`, Konsole `scanview-uebergabe`, root-Skript `scanview-import-uebergabe`) | legt ein fertiges, geprüftes Importpaket in den Eingang und startet das unveränderte Freischalt-Skript | auf dem Host, eigener Systemnutzer ohne Anmeldung, per Timer | ja (nur mit eingeschaltetem Import) |
 | **Import-Werkzeug** (`import/`) | erzeugt Projektpakete aus Scandaten (Punktwolken, Panoramen, Standpunkte, Meshes, Splats) | beim Datenaufbereiter ohne Netz; auf dem Host nur innerhalb der isolierten Aufträge des Workers | auf Hosts mit Jobläufer (Import-Umgebung) |
+| **Postdienst** (`server/`, Konsole `scanview-post`) | versendet fertige E-Mail-Benachrichtigungen aus dem Spool per SMTP (ab Werk aus, ADR 0017) | auf dem Host, eigener Dienst und Systemnutzer, keine Datenbank, Netz nur zum SMTP-Server des Betreibers | ja (nur mit eingeschalteter Benachrichtigung) |
 | **Projektpaket** | `project.json` (Schema 2), COPC-Punktwolken, Panoramen, Draufsicht | als Dateien unter der Paketwurzel des Hosts | Daten, kein Code |
 
 ## Datenflüsse
@@ -50,6 +51,12 @@ Import-Worker ── neues Projekt: Unit mit dem eigenen Upload nur lesend ─�
                  ── Paketbaum geprüft ── <übergabe>/<projekt>/
 Timer (root) ── scanview-uebergabe (eigener Nutzer) kopiert in den Eingang ── Freischalt-Skript
                  (unverändert) ── Meldung (ein Wort) ── Import-Worker
+Plattform-Server ── Faden-Eintrag: Mail vormerken (gleiche Transaktion) ── Hintergrund-Thread prüft
+                 Rechte und Einwilligung, rendert ── <post>/ausgang/<id>.json
+scanview-post ── liest <post>/ausgang ──SMTP+TLS──> SMTP-Server des Betreibers
+                 └─ schreibt <post>/erledigt/<id>.json (Zustand) ── Plattform-Server liest zurück
+Bildanhang (F7) ── Webdienst prüft Kopfbytes ── Import-Worker dekodiert und kodiert neu
+                 in einer isolierten Unit ── Webdienst übernimmt die Ausgabe als fremde Eingabe
 ```
 
 - Der Viewer lädt ausschließlich von der eigenen Origin (Content-Security-Policy
@@ -74,6 +81,9 @@ Timer (root) ── scanview-uebergabe (eigener Nutzer) kopiert in den Eingang �
 | Uploader (Admin, Browser oder Skript) ↔ Plattform-Server | nur Admins der Instanz, nur mit `SCANVIEW_IMPORT=1` (sonst 404); Quote ohne Standardwert vor jeder Annahme, Plattenreserve; Pfade bis Tiefe 6 nach Positivliste, ohne `.`/`..`, ohne Groß/Klein-Dubletten, höchstens 10 000 Dateien; angelegt Segment für Segment über Ordner-Deskriptoren mit `O_NOFOLLOW`; Stücke nur an der angekündigten Stelle in fester Größe mit SHA-256 je Stück (sonst zurückgenommen), SHA-256 je Datei nachgerechnet; Endung und Kopfbytes müssen passen, Archive abgelehnt; halbe Uploads nach 24 h ohne Fortschritt entfernt. Der Webdienst liest vom Inhalt nur Kopfbytes |
 | Import-Worker ↔ Übergabe ↔ Freischalten | Der Worker schreibt fertige Pakete nur in die Übergabe, nie in Eingang oder Paketwurzel, und hat weder sudo noch Rechte am Eingang. Ein root-Timer startet `scanview-uebergabe` als eigenen Nutzer (nur Gruppe `scanview-deploy`, nie `scanview`): er kopiert das Paket mit neuen Inodes in den Eingang (nur Ordner und reguläre Dateien, ein Name je Datei, Grenzen); danach ruft root das unveränderte Freischalt-Skript, das alles erneut prüft. root liest dabei keine Dateiinhalte aus der Übergabe, nur geprüfte Ordnernamen. Das Ergebnis geht als ein Wort an den Worker zurück |
 | Import-Worker ↔ Auftrag (fremde Dateien) | Annahme: jeder Parser ist angreifbar. Je Auftrag eine transiente systemd-Unit: `PrivateNetwork`, Adressfamilien nur IP (kein Unix-Socket — sonst erreicht ein Job den Bus des User-Managers und startet eine Unit ohne Grenzen), `/run/user`, `/run/dbus`, `/run/systemd` unsichtbar, Pakete und Berichte anderer Projekte unsichtbar, `ProtectSystem=strict`, nur der Arbeitsordner beschreibbar, `NoNewPrivileges`, eigener PID-Namensraum, `RestrictNamespaces`, RAM ohne Swap, Laufzeit, Prozesse und Dateigröße begrenzt; Parallelität 1. Selbsttest beim Start (kein Netz, kein DNS, kein Unix-Socket, nichts außerhalb beschreibbar, RAM-Grenze greift), sonst startet der Worker nicht. Ausgabe nur nach Positivliste (reguläre Dateien, keine Links, Namen und Größe begrenzt) |
+| Plattform-Server ↔ Postdienst | nur über das Spool-Verzeichnis: der Webdienst schreibt fertige Nachrichten (Empfänger und RFC-5322-Bytes, gebaut mit `email.message.EmailMessage`, Adressen strukturiert geprüft), der Postdienst schreibt nur einen Zustand aus fester Liste zurück, den der Webdienst als fremde Eingabe liest. Der Postdienst hat keine Datenbank, keine Konten, keine Pakete (Import- und Bibliothekstest) und prüft jede Nachricht erneut (genau ein Empfänger, kein Cc/Bcc, To = Envelope). Der Webdienst öffnet keine Verbindung nach außen (statischer Test: kein `smtplib`/`socket` im Server) |
+| Postdienst ↔ SMTP-Server | TLS mit Zertifikats- und Hostnamenprüfung (implizit oder STARTTLS), ohne TLS nur localhost; Zugang aus einer Datei mit Rechten 0600; Netz der Unit ab Werk gesperrt, Freigabe per Drop-in nur für die Adressen des SMTP-Servers und den Resolver |
+| Mail-Empfänger ↔ Plattform (Links aus der Mail) | Links tragen nur eine zufällige Kennung, Ablauf und eine HMAC-Signatur (Schlüssel 0600 im Zustandsverzeichnis); kein Projekt, kein Befund, kein Konto im Link. Der Link zum Befund meldet nicht an: ohne Sitzung zur Anmeldung, mit fremdem Konto 404. Abbestellen ohne Anmeldung nur per POST (Ein-Klick nach RFC 8058), GET zeigt nur die Bestätigungsseite (Mail-Scanner) |
 | Dienst ↔ Betriebssystem | eigener Systemnutzer ohne Anmeldung, gehärtete systemd-Unit (unten), Schreibrecht nur auf das Zustandsverzeichnis |
 | MCP-Server ↔ KI-Anbieter | Werkzeugergebnisse gehen an den Anbieter des Sprachmodells; ab Werk datensparsam (Namen anderer Konten und Token-Namen pseudonymisiert, Freitexte ausgeblendet), Originaldaten nur mit `SCANVIEW_MCP_PERSONENDATEN=voll` als Entscheidung des Verantwortlichen; Hinweise in `mcp-server/README.md`, Lese-Token empfohlen |
 
@@ -136,6 +146,10 @@ Timer (root) ── scanview-uebergabe (eigener Nutzer) kopiert in den Eingang �
 | IP-Adresse fehlgeschlagener Passwort-Anmeldungen | Abwehr von Passwort-Raten (fail2ban) | nur Systemjournal, nie Datenbank | nach Journal-Rotation des Hosts |
 | Zugriffslog von Caddy (IP-Adresse, Pfad, Status, Zeit je Anfrage) | Betrieb und Fehlersuche; Log des Betreibers, nicht der Anwendung | Log bzw. Journal von Caddy | nach Einstellung des Betreibers; IP-Adressen gekürzt, wenn die Härtung (Betriebsanleitung, Punkt 6) umgesetzt ist |
 | Projektpakete (Punktwolken, Panoramen) | Anzeige | Paketwurzel, nur lesend | vom Betreiber verwaltet |
+| E-Mail-Benachrichtigung: Einwilligung, SHA-256 der bestätigten Adresse (keine Klartext-Kopie) und Zeitpunkt, Abbestellungen je Befund | Benachrichtigung über Neues an eigenen Befunden, nur nach Einwilligung | Datenbank | bis zum Anonymisieren des Kontos (löscht alle drei Tabellen des Kontos); Ausschalten beendet den Versand sofort; Bestätigungs-Token nur als SHA-256, 2 Tage gültig |
+| Mail-Ausgang (Empfänger-Konto, Projekt, Befund, Eintrag, Ereignisart, Zustand, Zeiten — kein Text) | Zustellung, Drosselung, Nachweis ohne Inhalt | Datenbank | 91 Tage, dann automatisch gelöscht (so lange gelten die Abbestell-Links) |
+| Gerenderte Mail im Spool (Empfängeradresse, Ereignisart, Links) | Übergabe an den Postdienst | Spool-Verzeichnis des Hosts | bis der Postdienst das Ergebnis gemeldet hat (Sekunden bis Stunden bei Störung); Ergebnisdateien ohne Inhalt nach 30 Tagen |
+| Freigaben von Panoramen und Fotos (Ebene, Art, Werkzeug, Manifest-SHA-256, Pfad und SHA-256 je Datei, freigebendes Konto, Zeiten) | Nachweis, welche Personenbilder wer für wen sichtbar gemacht hat | Datenbank, Dateiliste unveränderlich | solange das Projekt besteht; Zurücknehmen markiert, löscht nicht. Unanonymisierte Originale liegen nie in der Datenbank und sollen außerhalb der Paketwurzel bleiben (Löschfrist legt der Betreiber fest) |
 | Uploads (Dateien mit relativen Pfaden, Größe, SHA-256, hochladendes Konto, Zeiten) | Neues Projekt aus hochgeladenen Daten | Upload-Ordner des Hosts (außerhalb der Paketwurzel), Angaben in der Datenbank | bis zum Löschen durch einen Admin, spätestens 24 h nach dem letzten Fortschritt (außer ein offener Import liest sie); nicht in der Sicherung |
 | Auswertungen: Auftrag (Typ, Optionen, startendes Konto, Zeiten, Urteil) und Bericht (`ergebnis.json`, HTML, Karten) | Prüfbericht auf Anforderung der Projektleitung | `jobs.db` und Berichtsablage des Hosts; Freigabe für Bearbeiter in der Datenbank | bis die Projektleitung löscht; Löschen entfernt Ordner, Auftrag und Freigabe, im Protokoll bleibt nur, dass gelöscht wurde |
 | Lokaler Befundentwurf (Formularinhalt, Zielpunkt, Blickposition, verkleinertes Vorschaubild) | ein angefangener Befund übersteht einen Verbindungsabbruch | IndexedDB des Browsers, je Konto und Projekt; geht nicht an den Server | bis zur Bestätigung durch den Server (ohne Speicherung am Server: bis zum Speichern im Browser), zum Verwerfen oder zum Abmelden im Portal (löscht die Entwürfe aller Konten dieses Browsers); ohne diese Anlässe bleibt er im Browser liegen, bis dasselbe Konto das Projekt dort wieder öffnet — ist er dann älter als 30 Tage, trägt er einen Zeitpunkt mehr als einen Tag in der Zukunft oder ist er unlesbar, wird er gelöscht statt angeboten. Das Ablaufen der Sitzung allein löscht nicht. |
@@ -162,6 +176,7 @@ unverändert.
 | MCP-Server | die konfigurierte scanview-Instanz | bei jedem Werkzeugaufruf | nur `/api/v1/*`, gedrosselt je Token |
 | Import-Werkzeug | — | nie | läuft offline |
 | Übergabe und Freischalten | — | nie | eigene Unit ohne Netz |
+| Postdienst (optional) | SMTP-Server des Betreibers, Port 465 oder 587, TLS | nur bei eingeschalteter Benachrichtigung, je Nachricht | Unit ab Werk ohne Netz; Drop-in gibt nur die Adressen des SMTP-Servers und den Resolver frei ([Betriebsanleitung](betrieb.md#e-mail-benachrichtigung-optional)); TLS-Zertifikat geprüft; höchstens `SCANVIEW_POST_PRO_MINUTE` Versuche je Minute |
 | Import-Worker und seine Aufträge | — | nie | je Auftrag `PrivateNetwork=yes`, nur IP-Adressfamilien (im leeren Netz-Namensraum); geplante Ausnahme PVGIS-Abruf für Sonnenberichte als eigener Schritt ohne fremde Dateien, nur zum JRC-Host (noch nicht gebaut) |
 
 ## STRIDE je Komponente
@@ -205,6 +220,7 @@ ausweiten).
 | I | Header verraten Server und Proxy | `Server`- und `Via`-Header entfernt, auch auf Fehlerantworten | NT-HEADER; B-BB-N1, B-BB-I2 (behoben) |
 | I | Zwischenspeicher geben private Daten weiter | `Cache-Control: private` bzw. `no-store` je Dateiart | Instanzprüfung |
 | D | große Anfragekörper | Körpergrenzen je Bereich, Range-Auslieferung ohne Dienstbeteiligung | Instanzprüfung |
+| I | Personen auf Panoramen und Fotos erreichen Betrachter, Rückmelder oder Gäste | Freigabe an Dateien gebunden: unter Bearbeiter nur Dateien einer aktiven Freigabe mit passendem SHA-256 (Hash-Zwischenspeicher nach Inode, Größe, mtime und ctime); jede Datei unter `pano…`/`fotos…`/`images…`, die keine Freigabe nennt (Original, Sicherung, ausgetauschtes Bild), 404; Freigeben nur Projektleitung/Admin im Browser, „personenfrei“ nur Admin, beides im Protokoll; Gast-Links nie. Übergang: Panoramen älterer Pakete ohne Anonymisierungsblock bleiben sichtbar, bis die Projektleitung den Schalter einschaltet (akzeptiertes Risiko, im Portal gekennzeichnet) | NT-FREIGABE |
 | E | eingeschleuste aktive Inhalte im Paket laufen in der Origin | Paketdateien mit `sandbox`-CSP, `nosniff` und `Cross-Origin-Resource-Policy`; nur Paket-Dateiendungen | NT-PFADE; B-WB-N5 (behoben) |
 | E | Übernahme der Proxy-Konfiguration | empfohlen: Admin-Schnittstelle von Caddy auf einem Unix-Socket, systemd-Härtung für Caddy (Vorlagen in `deploy/platform/`) | Betriebsanleitung, Härtung 4/5 |
 
@@ -306,6 +322,54 @@ zum vorigen mit `O_NOFOLLOW` (Ablage, Projekt, Auftrag, Datei — ohne Wettlauf 
 Öffnen) und liefert keine Datei mit mehreren harten Links aus. Nachweis: Tests mit getauschtem
 Projektordner (auch bei bestandener Pfadprüfung) und hart verlinkter Datei.
 
+### E-Mail-Benachrichtigung und Postdienst
+
+| | Bedrohung | Maßnahme | Nachweis |
+|---|---|---|---|
+| S | Mail-Link als Anmeldung missbraucht (weitergeleitete Mail) | Link meldet nicht an; nur das Konto, an das die Mail ging, kommt nach normaler Anmeldung weiter, sonst 404 | `server/tests/test_post.py` (NT-POST) |
+| S | Fremde schalten Mails für ein Konto ein | Einwilligung nur in der eigenen Sitzung, Adresse erst nach Bestätigungslink im selben Konto; geänderte Konto-Adresse gilt als unbestätigt | NT-POST |
+| T | Kopfzeilen-Injektion (CRLF, zusätzliche Empfänger) über Titel, Texte oder Adressen | Mail enthält keine Nutzertexte; Adressen über `email.headerregistry` geprüft, Steuerzeichen und Kommas abgelehnt; Nachricht mit `EmailMessage`, Envelope getrennt; der Postdienst prüft genau einen Empfänger, kein Cc/Bcc | NT-POST, `server/tests/test_trennung_post.py` |
+| T | Link manipuliert (anderer Befund, anderes Konto, abgelaufen) | HMAC-SHA-256 über Art, Kennung und Ablauf; Schlüssel 0600; Ziel aus der Datenbank, nicht aus dem Link | NT-POST |
+| I | Projektinhalte erreichen Postfächer, Anbieter und Mitleser | Mail nennt nur die Ereignisart; kein Projektname, Titel, Text, Koordinate; Link ohne lesbare Kennungen | NT-POST |
+| I | Interne Einträge oder entzogene Rechte lösen Mails aus | Rechte, interne Sicht, Löschung, Einwilligung und Abbestellung werden unmittelbar vor dem Rendern geprüft, nicht beim Vormerken | NT-POST |
+| D | Mailflut (Spam über Kommentare, Schleifen) | höchstens 10 Mails je Person und Stunde, eine je Befund in 15 Minuten, Versuche je Minute begrenzt; keine Antworten auf Mails (kein Eingang) | NT-POST |
+| D | SMTP-Ausfall verliert Mails oder schickt sie doppelt | Ausgang in der Datenbank, Backoff bis 6 Versuche; Abbruch nach den Daten = „unklar“ ohne neuen Versuch | NT-POST |
+| E | Postdienst übernommen → Datenbank oder Konten | eigener Nutzer, keine Datenbank, keine Pakete, nur Standardbibliothek, Netz ab Werk aus; liefert dem Webdienst nur einen Zustand aus fester Liste | `server/tests/test_trennung_post.py` |
+| E | Webdienst bekommt Netz für Mail | Webdienst ohne `smtplib`/`socket` (statischer Test), Unit unverändert `IPAddressDeny=any` | `server/tests/test_trennung_post.py` |
+
+### Fotos und PDFs am Befund-Faden
+
+JPEG, PNG und PDF werden bis **20 MB** angenommen. Der Webdienst prüft Content-Type gegen
+Kopfbytes und zählt die Größe beim Empfang. Bilder dekodiert und kodiert ausschließlich der
+Jobläufer im isolierten Auftrag `anhang_bereinigen` neu: kein Netz, nur die Eingabedatei lesbar,
+ein eigener Arbeitsordner beschreibbar, **512 MB** RAM, 60 Sekunden und höchstens 40 Megapixel.
+Der isolierte Lauf mit 40 Megapixeln erreichte laut Messprotokoll im Commit `5bea336`
+**324,5 MB**, gedreht 353,6 MB. Das sind Einzelmessungen, keine Obergrenze für alle Eingaben.
+Maßgeblich bleibt das durchgesetzte Budget.
+
+| | Bedrohung | Maßnahme | Nachweis |
+|---|---|---|---|
+| T | Bilddecoder angreifbar (Dekompressionsbombe, Polyglott, Parser-Lücke) | isolierte Neukodierung mit Pixel-, Größen-, RAM- und Zeitgrenzen; der Webdienst dekodiert keine Bilder | NT-ANHANG, `import/tests/test_anhang.py`, `server/tests/test_worker_anhang.py` |
+| I | GPS, Gerät und Namen in Bildmetadaten | neues JPEG aus den Pixeln, ohne EXIF, GPS, XMP, IPTC, Kommentare, Vorschaubilder und angehängte Bytes; nur das Farbprofil bleibt im Bild; Aufnahmezeit separat als Kamerazeit ohne Zeitzone | NT-ANHANG |
+| T | Ausgabe des Decoders manipuliert | Worker und Webdienst prüfen die Ausgabe erneut als fremde Eingabe: reguläre Dateien, keine Symlinks oder Hardlinks, JPEG-Kopf, Maße und Größe; Ablage unter eigenem SHA-256 | NT-ANHANG |
+| T | aktive Inhalte im PDF | PDF wird nicht gerendert oder bereinigt, nur unverändert als Download mit Hinweis „PDF aus externer Quelle“ ausgeliefert; `attachment`, `nosniff`, CSP `sandbox`, `private, no-store` | NT-ANHANG |
+| I | fremdes Projekt, Gast oder gelöschter Befund liest Anhang | eigenes Zugriffstor prüft Projektrecht und sichtbaren, nicht zurückgezogenen Faden-Eintrag bei jedem Datei- und Statusabruf; kein Zugriff über Gast-Links | NT-ANHANG |
+| E | unbefugtes Hochladen oder Zurückziehen | Hochladen nur mit Recht zum Kommentieren und CSRF-Schutz in der Sitzung bzw. Schreib-Token; Zurückziehen nur durch den Verfasser | NT-ANHANG |
+| D | Uploadflut und volle Platte | höchstens 50 Anhänge je Befund, Projektquote (Standard 2048 MB), Platzreserve und begrenzte Warteschlange | NT-ANHANG |
+
+Bilder erscheinen bis zur erfolgreichen Übernahme als „in Prüfung“. Dateinamen sind nur bereinigte
+Anzeigenamen; Ablage und Downloadname werden aus Hash bzw. Anhang-ID gebildet. Die Bereinigung
+entfernt keine Personen aus den Bildpixeln und keine personenbezogenen Inhalte aus PDFs.
+
+### Panoramen und Fotos: Freigabe an Dateien gebunden
+
+| | Bedrohung | Maßnahme | Nachweis |
+|---|---|---|---|
+| I | Bild mit Personen nach der Freigabe ausgetauscht | Freigabe speichert Pfad und SHA-256 jeder Datei; das Tor vergleicht bei jeder Anfrage den Hash (Zwischenspeicher nach Inode, Größe, mtime, ctime) | NT-FREIGABE |
+| I | Original oder Sicherungskopie im Paketordner | alles unter `pano…`, `fotos…`, `images…`, das keine Freigabe nennt, ist für Betrachter und Rückmelder 404 | NT-FREIGABE |
+| E | Unbefugte geben frei | nur Projektleitung und Admin im Browser, „personenfrei“ nur Admin, beides im Protokoll; per Token nur lesen | NT-FREIGABE |
+| T | Anonymisierung im Import umgangen | `panos-kameras --anonymisiert` prüft Entscheidung, Revision, Quell-Hash und Verifikation selbst nach, verwendet nur die Ausgaben und prüft nach dem Schreiben erneut | `import/tests/test_anonymisiert.py` |
+
 ### Lieferkette und Auslieferung
 
 | | Bedrohung | Maßnahme | Nachweis |
@@ -336,6 +400,21 @@ Bewusst getragene Restrisiken der Rolle Projektleitung:
 
 - Eine Projektleitung erfährt, ob es zu einer E-Mail schon ein Konto gibt, und sieht nach dem Hinzufügen Name und letzte Anmeldung dieses Kontos; auch „gesperrt“ ist erkennbar. Hingenommen, weil nur die Instanzverwaltung Projektleitungen bestimmt; jede Einladung und jede Vergabe wird protokolliert und steht im Verlauf.
 - Bis zum E-Mail-Versand prüft niemand die E-Mail-Adresse einer Einladung: Eine Projektleitung kann per eigenem Link ein Konto für eine fremde Adresse anlegen; Einladungen anderer Projekte, die danach an diese Adresse gehen, erteilen dem Konto direkt Zugriff.
+
+Bewusst getragene Restrisiken von Freigabe und Benachrichtigung:
+
+- Panoramen älterer Pakete ohne Anonymisierungsblock bleiben für alle Beteiligten sichtbar, bis die
+  Projektleitung „Panoramen nur freigegeben zeigen“ einschaltet (Übergang; im Portal gekennzeichnet).
+- „Personenfrei“ ist eine Erklärung eines Admins ohne technische Prüfung; sie wird protokolliert.
+- Eine zurückgenommene Freigabe sperrt jede neue Anfrage sofort; Bilder, die ein Betrachter schon
+  geladen hat, kann sein Browser bis zu einer Stunde aus dem Zwischenspeicher zeigen
+  (`Cache-Control: private, max-age=3600` für Paketdateien).
+- Rahmenfotos haben noch keinen Anonymisierungsschritt; freigeben lassen sie sich nur als
+  „personenfrei“.
+- Die Mail-Adresse wird per Bestätigungslink geprüft, nicht die Person: wer das Postfach liest,
+  bekommt die (inhaltsfreien) Benachrichtigungen. Der Link zum Befund verlangt trotzdem das Konto.
+- Netzfreigabe des Postdienstes auf feste Adressen: wechselt der Anbieter seine Adressen, stockt der
+  Versand, bis der Betreiber nachzieht (nftables-Set mit eigenem Resolver ist noch offen).
 
 Bewusst getragene Restrisiken des Befund-Fadens:
 

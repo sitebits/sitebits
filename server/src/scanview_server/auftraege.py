@@ -39,12 +39,20 @@ TYPEN: tuple[str, ...] = (
     "ergaenzen_fotos_colmap",
     "ergaenzen_fotos_odm",
     "ergaenzen_panos",
+    "anhang_bereinigen",
 )
-VERFUEGBAR: frozenset[str] = frozenset({"auswerten_pruefen", "neu_mesh", "neu_splats"})
+VERFUEGBAR: frozenset[str] = frozenset({"auswerten_pruefen", "neu_mesh", "neu_splats",
+                                        "anhang_bereinigen"})
 # Aufträge, die ein neues Projekt aus einem Upload bauen (Route /api/v1/importe, nur Admin);
 # alle übrigen hängen an einem vorhandenen Projekt (Route …/auswertungen).
 IMPORTE: frozenset[str] = frozenset({"neu_mesh", "neu_splats"})
 AUSWERTUNGEN: frozenset[str] = frozenset(t for t in TYPEN if t.startswith("auswerten_"))
+# Bildanhänge am Befund-Faden (F7): nur der Webdienst reiht sie ein (Route …/faden/anhaenge),
+# nie über Auswertungen oder Importe. Eigene Grenze, zählen nicht gegen OFFEN_JE_PROJEKT_MAX, und
+# der Worker nimmt sie vor allen anderen (ein Foto soll nicht hinter einem Import warten).
+ANHAENGE: frozenset[str] = frozenset({"anhang_bereinigen"})
+ANHAENGE_OFFEN_JE_PROJEKT_MAX = 20
+ANHANG_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 
 # Mitgelieferte Prüfprofile = Dateien in import/src/scanview_import/pruefen/profile/*.toml
 # (Vertragstest test_auftraege.py). Nur diese Namen gehen als `--profil` an den Prüfer.
@@ -95,6 +103,8 @@ BUDGETS: dict[str, Budget] = {
     # Speicher; gemessen an synthetischen Eingaben, Grenze mit Reserve.
     "neu_mesh": Budget(ram_mb=4096, zeit_s=3 * 3600, prozesse=64),
     "neu_splats": Budget(ram_mb=4096, zeit_s=3 * 3600, prozesse=64),
+    # Ein Foto ≤ 40 MP dekodieren und neu kodieren (gemessen < 1 s, ~0,3 GB bei 40 MP).
+    "anhang_bereinigen": Budget(ram_mb=512, zeit_s=60, prozesse=8),
 }
 
 # Stufen eines laufenden Imports (der Worker setzt sie; beim Lesen gegen diese Liste geprüft).
@@ -180,6 +190,12 @@ def pruefe(typ: Any, optionen: Any, *, erlaubt: frozenset[str] = AUSWERTUNGEN,
         raise AuftragUngueltig("optionen muss ein Objekt sein.")
     if typ in IMPORTE:
         return _pruefe_import(typ, optionen)
+    if typ in ANHAENGE:
+        anhang = optionen.get("anhang")
+        if set(optionen) != {"anhang"} or not isinstance(anhang, str) \
+                or not ANHANG_ID_RE.fullmatch(anhang):
+            raise AuftragUngueltig("anhang: ID eines Anhangs fehlt.")
+        return {"anhang": anhang}
     unbekannt = set(optionen) - {"profil"}
     if unbekannt:
         raise AuftragUngueltig("Unbekannte Option. Erlaubt für auswerten_pruefen: profil.")
@@ -254,11 +270,15 @@ def einreihen(
     jetzt = int(time.time()) if now is None else now
     conn.execute("BEGIN IMMEDIATE")
     try:
+        gruppe = ANHAENGE if typ in ANHAENGE else frozenset(TYPEN) - ANHAENGE
         offen = conn.execute(
-            "SELECT COUNT(*) FROM auftraege WHERE projekt=? AND loeschen=0 AND status IN (?,?)",
-            (projekt, *OFFEN),
+            "SELECT COUNT(*) FROM auftraege WHERE projekt=? AND loeschen=0 AND status IN (?,?)"
+            " AND typ IN (SELECT value FROM json_each(?))",
+            (projekt, *OFFEN, _typen(gruppe)),
         ).fetchone()[0]
-        if offen >= (1 if typ in IMPORTE else OFFEN_JE_PROJEKT_MAX):
+        grenze = (1 if typ in IMPORTE else ANHAENGE_OFFEN_JE_PROJEKT_MAX if typ in ANHAENGE
+                  else OFFEN_JE_PROJEKT_MAX)
+        if offen >= grenze:
             raise ZuViele
         if typ in IMPORTE:
             alle = conn.execute(
@@ -386,6 +406,15 @@ def import_lesen(conn: sqlite3.Connection, aid: str) -> Auftrag | None:
     return _auftrag(r) if r is not None else None
 
 
+def anhang_auftrag(conn: sqlite3.Connection, aid: str) -> Auftrag | None:
+    """Auftrag zum Bereinigen eines Bildanhangs (nur dieser Typ)."""
+    if not AUFTRAG_ID_RE.fullmatch(aid):
+        return None
+    r = conn.execute("SELECT * FROM auftraege WHERE id=? AND typ IN (SELECT value FROM"
+                     " json_each(?))", (aid, _typen(ANHAENGE))).fetchone()
+    return _auftrag(r) if r is not None else None
+
+
 def uploads_in_arbeit(conn: sqlite3.Connection) -> set[str]:
     """Uploads, auf die ein wartender oder laufender Auftrag zugreift (nicht aufräumen)."""
     rows = conn.execute("SELECT optionen FROM auftraege WHERE status IN (?,?)", OFFEN)
@@ -488,12 +517,15 @@ def laufende(conn: sqlite3.Connection) -> list[Auftrag]:
 
 
 def naechster(conn: sqlite3.Connection) -> Auftrag | None:
-    """Den ältesten wartenden Auftrag atomar auf „laufend“ setzen (FIFO, Parallelität 1)."""
+    """Den ältesten wartenden Auftrag atomar auf „laufend“ setzen (FIFO, Parallelität 1);
+    Bildanhänge zuerst (Sekunden statt Stunden). Ein laufender Import blockiert sie trotzdem bis
+    zu seinem Ende — bekannte Grenze der Parallelität 1."""
     conn.execute("BEGIN IMMEDIATE")
     try:
         r = conn.execute(
-            "SELECT * FROM auftraege WHERE status=? AND loeschen=0 ORDER BY nr LIMIT 1",
-            (WARTEND,),
+            "SELECT * FROM auftraege WHERE status=? AND loeschen=0"
+            " ORDER BY typ IN (SELECT value FROM json_each(?)) DESC, nr LIMIT 1",
+            (WARTEND, _typen(ANHAENGE)),
         ).fetchone()
         if r is not None:
             conn.execute(

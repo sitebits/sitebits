@@ -1,0 +1,8 @@
+# Drop-in für scanview-server, nur mit E-Mail-Benachrichtigung (F8): Der Webdienst schreibt
+# fertige Nachrichten nach /srv/scanview/post/ausgang und liest Ergebnisse aus …/erledigt.
+# Installieren als /etc/systemd/system/scanview-server.service.d/post.conf (siehe betrieb.md).
+# Netz bleibt zu: gesendet wird nur von scanview-post.
+# Keine Zusatzgruppe nötig: ausgang/ gehört scanview, erledigt/ liest der Webdienst über die Gruppe scanview.
+[Service]
+ReadWritePaths=/srv/scanview/post/ausgang
+ReadOnlyPaths=/srv/scanview/post/erledigt

@@ -31,6 +31,8 @@ export interface PlattformViewer {
   /** Vorschläge im Feld Kategorie (aktive Projektkategorien, sonst die feste Liste). */
   readonly kategorien: readonly string[];
   readonly poiPersistenz: PoiPersistenz;
+  /** Panoramen für diese Rolle freigegeben (Server-Tor F20); sonst Standpunkte ohne Bilder. */
+  readonly panoramenSichtbar: boolean;
   /** Befund-Fäden des Projekts (Schalter an), sonst null: alles wie ohne Fäden. */
   readonly faeden: { pruefen: boolean; projectId: string; staende: FadenStaende; kategorien: readonly string[]; standGeaendert(serverId: string, version: number): void } | null;
   messungenGeaendert(): void;
@@ -260,6 +262,7 @@ export async function verbindePlattform(o: {
     nutzerId,
     kategorien: kategorieVorschlaege(info.kategorien),
     poiPersistenz: zaehlendePois,
+    panoramenSichtbar: info.panoramen_sichtbar !== false,
     faeden: info.befund_faeden === true
       ? {
           pruefen: r.alleAendern,

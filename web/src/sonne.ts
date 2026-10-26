@@ -52,7 +52,10 @@ export interface Sonne {
   dispose(): void;
 }
 
-export function erstelleSonne(o: { instance: Instance; ort: SonnenOrt | null; meshes: readonly MeshLayerHandle[]; start?: Date }): Sonne {
+/** Was die Sonne von einer Mesh-Ebene braucht: GLB-Meshes (MeshLayerHandle) und gekachelte Meshes (TilesLayerHandle). */
+export type SonneMesh = Pick<MeshLayerHandle, 'visible' | 'worldBox' | 'occluderMeshes' | 'setSonne' | 'onChange'>;
+
+export function erstelleSonne(o: { instance: Instance; ort: SonnenOrt | null; meshes: readonly SonneMesh[]; start?: Date }): Sonne {
   const { instance, ort } = o;
   const listeners: (() => void)[] = [];
   let an = false; let bahn = true; let spielt = false;

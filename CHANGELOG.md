@@ -10,6 +10,105 @@ Kennungen `B-…` verweisen auf das [Befundregister](docs/public/befunde.md).
 
 ## [Unreleased]
 
+## [0.12.0] – 2026-10-26
+
+Gekachelte Meshes im Viewer und in Gast-Links, der Kachler im Import-Werkzeug und die Etappe Mitmachen: Fotos und PDFs
+am Befund-Faden, E-Mail-Benachrichtigung und eine Freigabe von Panoramen und Fotos, die an die Dateien gebunden ist.
+
+**Betreiber, bitte vor dem Update lesen:**
+- **Panoramen und Fotos mit Personen neu freigeben (F20):** Ein Statuswert in `images.json` genügt nicht mehr. Wer
+  Fotos so freigegeben hatte, gibt sie nach dem Update einmal im Portal frei (Admin: „personenfrei“). Ältere
+  Panoramen ohne Anonymisierungsblock bleiben sichtbar, bis „Panoramen nur freigegeben zeigen“ eingeschaltet wird
+  (Abschnitt „Sicherheit“).
+- **Neue Funktionen sind ab Werk aus:** Anhänge am Faden (`SCANVIEW_ANHAENGE`, dazu die Caddy-Grenze von 21 MiB aus
+  `deploy/platform/scanview.caddy`) und E-Mail-Benachrichtigung (Dienst `scanview-post`, Einrichtung von Hand nach
+  `docs/public/betrieb.md`). Ohne diese Schalter ändert sich am Caddyfile nichts.
+- **Migrationen 0016 bis 0018** laufen beim Start automatisch (Freigaben, Benachrichtigung, Anhänge). Rücksprung auf
+  0.11 nur mit Datenbanksicherung.
+- **Gekachelte Meshes mit dem Beispiel-nginx:** `deploy/nginx.conf` hat drei neue Locations (Kacheln, `tileset.json`,
+  Texturen).
+
+```
+⣿⣿⣿⣿⣿⣿⣿⣻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣯⣿⣿⡿⡽⣝⡯⣯⣻⣿⣿⣟⣟⢿⢝⣟⢽⢯⡻⡿⣟⢯⡫⣳⢹⢜⢮⡺⣜⢮⡳⣝⢮⡳⣝⡽⣽⣿⣿⣟⣟⣿⣿⣿⣽⣯⡿⣿⣿⢿⣿⣿
+⣿⣿⣯⣿⣿⣷⣿⣿⣻⣿⣻⣿⣿⣿⣿⣿⣿⣿⣟⣿⢿⣿⣻⣿⢿⣿⣿⣿⣿⣿⣯⣿⢾⣵⣷⣗⣷⣽⡾⣿⣾⣵⣟⣮⣯⣿⢿⢿⣻⣳⣯⣷⣿⣿⣿⣯⣷⣻⣞⣾⣻⣿⣿⣿⣷⣿⣿⣿⣿⣿⣿⣾
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⣿⣽⢿⣾⣻⡿⣿⣻⡿⣿⣻⢿⡾⣟⣷⣿⣻⢿⣻⢽⢽⢯⢯⣟⣷⢿⣻⣽⡿⣯⡿⣿⢿⡿⣟⣿⡿⣾⣻⣽⣾⢿⣻⣿⣿⢿⣟⣿⣿⢿⣿⡿⣿⣿⢿⣿⣿
+⠁⠁⠂⠂⠂⢈⢰⣰⡴⣬⢼⢬⡪⢘⢌⢊⠌⠌⡐⠨⠨⠠⠁⠈⠠⢈⡠⣈⣂⢧⡢⡄⣅⢤⡡⢬⠤⣅⢆⢔⢅⡥⡦⣅⠅⡉⠂⠡⢁⢑⠠⠑⣈⢐⠨⢐⢁⢑⠨⢐⠡⢡⠑⢌⢈⢂⢉⠈⡈⠈⠄⠡
+⢨⠢⣄⢤⢬⡚⢙⠈⠌⡂⡂⡂⠢⠁⠢⢐⢈⠈⠀⠁⠂⠈⠐⠀⠁⠠⡹⢘⢌⢇⠣⡙⢌⠢⢃⠣⡑⢅⠣⡃⢏⠪⢊⢊⠢⡐⡡⢁⢂⢔⡀⢅⠄⢢⢈⢐⣄⠢⠡⠂⠂⠁⠅⢁⢳⢕⢮⢢⢆⢕⢭⢢
+⠱⡩⠪⡪⢪⢒⠔⢄⢄⢁⠐⠠⢁⠂⠍⠀⠀⡅⡀⠁⠈⠈⡀⡐⢈⠆⠂⡁⢂⠂⠅⠂⢂⠨⠐⠀⠂⠐⠐⡈⡐⢈⠐⠨⢐⢴⡰⢰⠠⢒⠀⠐⢨⢐⠐⢘⠌⠅⠕⠙⢌⠤⡡⡂⠅⠅⠕⡑⡑⢍⠊⢆
+⠨⢐⠡⢊⢢⠣⡱⡡⢂⠅⡂⠄⢀⠈⠄⢁⢁⢀⣇⢧⢊⡱⡍⢆⢅⠄⠄⠀⠐⠈⠄⠁⠂⡀⠂⠁⠠⠁⠐⠐⠀⠂⠈⠐⠀⢃⢣⢐⠨⠠⠨⢐⢈⢀⢢⢫⠠⠩⠈⠂⢁⢌⠌⠠⢁⠈⠐⠀⠌⢀⠊⠠
+⠐⢔⠥⡱⡜⡮⣲⡸⡐⡐⡐⡈⠄⢂⠁⡂⢑⢐⢸⡎⣻⡎⠈⠌⢦⠨⢄⠁⠈⡀⠄⠁⠠⠀⠂⠁⢈⠂⠁⠈⠀⠀⠀⠀⠀⠂⠂⠅⢣⡢⡬⡐⠱⠱⢛⢼⢆⠕⠱⠺⡸⢕⢀⠡⠀⠀⠈⠀⠀⠄⠠⠁
+⡸⡌⡷⣝⡗⣝⡮⣞⢜⢔⠢⡂⡑⠄⠌⠀⡀⢮⣛⢗⢜⡟⣩⠎⠌⠈⡀⠠⠀⢀⠠⠀⠠⠀⠀⢐⡀⠀⠠⠀⠀⠀⠀⠀⠀⠀⠁⠀⠂⠗⡆⡨⡌⠾⣞⢕⢶⠂⡐⡐⡀⢂⠑⠀⠀⠀⠀⠀⠀⢇⠁⢄
+⡪⡪⡳⢕⢭⡪⡏⡎⡇⣇⢇⠣⡊⠌⢌⠐⡀⠂⢴⠹⣕⡳⣄⠐⠀⠄⠀⠄⠐⠀⠀⠀⠀⡀⠀⠢⠁⠣⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢈⡸⡎⡗⣕⠁⠀⠈⡀⠀⠀⠀⠀⠠⠀⠂⢁⠂⡡⡱
+⢌⠪⠈⢆⢃⠎⠪⡘⠌⢜⢘⠜⡐⢅⢂⢁⢐⡸⡳⣩⢖⣕⢳⢵⣄⡂⠂⠀⠄⠠⠐⠈⠀⠀⡀⠀⠁⠁⠀⠂⠀⡀⠐⠀⠀⠂⠀⠂⠁⢀⢠⡢⡗⡍⣎⢎⢪⡣⡎⠀⠀⠀⠀⠠⢐⠀⠂⢌⠰⢨⢢⠣
+⣂⣁⣁⡢⣠⢨⡐⡄⣅⢔⣠⢄⣆⣆⣖⡲⡵⡵⡫⣞⢵⡳⣫⢦⣣⡫⣫⢳⡲⡲⡢⡦⢦⡢⡴⡰⡤⣢⡢⡆⡦⡔⣔⢴⢔⢖⡲⣪⢺⣩⡣⡫⡮⡺⣪⢺⢲⢕⡭⣝⡲⣢⢣⡢⣜⣔⢕⣕⢽⢬⣒⢕
+```
+
+Bild der Version: `glienicker-bruecke-1` · © 2026 André Stiebitz · CC BY 4.0
+
+### Hinzugefügt
+
+- Gast-Links zeigen gekachelte Meshes (`mesh-tiles`): Nur das geprüfte `tileset.json` und seine
+  referenzierten Mesh-Dateien samt glTF-Zubehör sind erreichbar; ungültige oder übergroße Tilesets
+  entfernen die ganze Ebene aus der Gast-Ansicht (ADR 0016).
+- `scanview-import kacheln`: zerlegt ein texturiertes OBJ in Projektkoordinaten in eine 3D-Tiles-1.1-Hierarchie
+  (räumliche Teilung, vereinfachte innere Stufen mit gebackener Textur, Blätter in voller Quelldichte) und packt sie
+  mit `--packen` als meshopt-/KTX2-Paket. Texturseiten haben Kanten als Vielfaches von 4 (KTX2-Pflicht), der
+  Packschritt verweigert andere Maße. `--jobs` (Standard: Prozessorzahl, höchstens 8) backt und packt Kacheln
+  parallel mit bytegleichem Ergebnis zu `--jobs 1`. Messpunkte je Kachel als JSON-Zeilen auf stderr.
+- E-Mail-Benachrichtigung zu Befund-Fäden (Etappe Mitmachen, F8, ab Werk aus, ADR 0017): Wer in seinen
+  Einstellungen einwilligt und die Adresse per Link bestätigt, bekommt bei neuem Kommentar, Link, Status oder
+  Zuständigkeit an eigenen Befunden eine kurze Mail: nur die Art des Ereignisses und Links, keine Projektnamen,
+  Titel, Texte oder Koordinaten. Der Link führt nach der normalen Anmeldung zum Verlauf (nur für das Konto, an das
+  die Mail ging); geantwortet wird im Browser. Abbestellen je Befund (Verlauf, API, MCP) und für alles, auch per
+  Ein-Klick-Link ohne Anmeldung; Projektleitungen schalten Mails im Projekt ab. Der Webdienst bleibt ohne Netz:
+  ein Hintergrund-Thread prüft vor dem Rendern Rechte, interne Sicht, Einwilligung und Drosselung (10 je Stunde,
+  eine je Befund in 15 Minuten) und legt die Nachricht in ein Spool-Verzeichnis; versendet wird sie vom neuen
+  Dienst `scanview-post` (eigener Nutzer, keine Datenbank, SMTP mit TLS, herstellerneutral). Einrichtung von Hand
+  nach `docs/public/betrieb.md` (Unit und Umgebungsdatei in `deploy/platform/`). Migration 0017.
+- Fotos und PDFs am Befund-Faden (Etappe Mitmachen, F7, ab Werk aus): Beteiligte mit Recht zum
+  Kommentieren laden JPEG, PNG oder PDF bis 20 MB hoch. Fotos werden im Jobläufer isoliert neu kodiert
+  (höchstens 40 Megapixel, 512 MB, 60 Sekunden), ohne EXIF/GPS, Geräte- oder Personennamen und angehängte
+  Inhalte. Bis dahin zeigt der Faden „in Prüfung“, danach das Foto; PDFs bleiben unverändert und werden
+  nur als Download mit dem Hinweis „PDF aus externer Quelle“ angeboten. Zugriff nur mit Projektrecht,
+  nie über Gast-Links; Zurückziehen nur durch den Verfasser. Einrichtung mit `SCANVIEW_ANHAENGE`,
+  Projektquote und Löschverhalten in `docs/public/betrieb.md`. Negativtests `NT-ANHANG`, Migration 0018.
+- Freigabe von Panoramen und Fotos an Dateien gebunden (Etappe Mitmachen, F20): Die Projektleitung gibt in den
+  Projekt-Einstellungen frei („Freigabe von Panoramen und Fotos“); der Server hasht dabei jede Bilddatei und
+  speichert Pfad und SHA-256. Betrachter und Rückmelder bekommen nur Dateien einer aktiven Freigabe, deren Hash
+  noch passt. Ein danach ausgetauschtes Bild, Original- und Sicherungsordner (`panos.alt/`, `fotos-alt/` …) und
+  Dateien, die kein Manifest nennt, sind für sie 404. Art „anonymisiert“ verlangt eine geprüfte Anonymisierung im
+  Paket; Art „personenfrei“ erklärt ein Admin (Altbestand), protokolliert. `scanview-import panos-kameras
+  --anonymisiert <manifest.json>` übernimmt Kugelpanoramen nur aus einem geprüften Anonymisierungslauf, prüft dessen
+  Bedingungen selbst nach (Entscheidung fertig, gleiche Revision, Quelle unverändert, Ausgabe verifiziert) und
+  schreibt Werkzeug, Manifest-SHA-256 und den Hash jeder Stufendatei nach `stations.json`. API
+  `GET/POST/DELETE /api/v1/projekte/{pid}/freigaben[/{ebene}]` (Freigeben nur im Browser), MCP-Werkzeug
+  `freigaben_lesen`, Client `freigaben()`. Migration 0016.
+- Panoramen sind für Betrachter und Rückmelder nicht mehr ohne Weiteres sichtbar: Jeder Panorama-Import schreibt
+  `anonymization.required` mit Dateiliste nach `stations.json`, solche Panoramen erscheinen erst nach einer
+  Freigabe. Ältere Pakete ohne diesen Block bleiben sichtbar, bis die Projektleitung den neuen Schalter „Panoramen
+  nur freigegeben zeigen“ einschaltet (für neu eingerichtete Projekte an). Der Viewer zeigt die Standpunkte weiter,
+  ohne Panoramabilder anzufragen. Für Fotos genügt `anonymization.status: released` in `images.json` nicht mehr:
+  Betreiber, die Fotos so freigegeben hatten, geben sie einmal im Portal frei (Admin: „personenfrei“).
+- Gekachelte Meshes (3D Tiles 1.1) als Mesh-Ebene im Viewer: Ebenenart `mesh-tiles` im Manifest (Schema 2, alte Pakete
+  unverändert), Darstellung über Giro3D `Tiles3D` mit Bildfehler und Speichergrenze je Gerät (Touch-Geräte gröber),
+  Ebenen-Register, Schnittbox, Live-Sonne und Deckkraft wie beim GLB-Mesh. Messen und Markieren gehen über einen
+  eigenen Blattabruf auf die feinste Stufe; ohne rechtzeitiges Blatt bleibt es bei der bestehenden Meldung, ein
+  Ersatzwert aus einer gröberen Stufe ist ausgeschlossen. Der Viewer prüft das Tileset beim Laden (Rahmen, Lage,
+  Hierarchie, relative Pfade) und sperrt nur diese Ebene mit Begründung. KTX2 und Meshopt laufen mit den
+  mitgelieferten Decodern, kein Fremdserver. `deploy/nginx.conf` liefert `tileset.json`, Kachel-GLBs und `texturen/`
+  aus (und `.glb` als `model/gltf-binary`); drei Einträge in `egress-ausnahmen.toml` für Giro3D-Vorgabewerte, die
+  `tilesLayer.ts` überschreibt.
+
+### Sicherheit
+
+- Neue Vertrauensgrenzen mit der E-Mail-Benachrichtigung (ab Werk aus): Webdienst ↔ Postdienst nur über ein
+  Spool-Verzeichnis, Postdienst ↔ SMTP-Server mit TLS; Bedrohungsmodell und Negativtests NT-POST. Der Webdienst
+  behält `IPAddressDeny=any`. Betreiber: keine Maßnahme, solange die Benachrichtigung aus bleibt.
+- Personenbilder (F20): Die Freigabe von Panoramen und Fotos gilt nur noch für die Dateien, deren SHA-256 der
+  Server beim Freigeben festgehalten hat; vorher genügte für Fotos ein Statuswert in `images.json`, und Panoramen
+  waren gar nicht gesperrt. Betreiber: nach dem Update Panoramen und Fotos mit Personen einmal freigeben, bei
+  Altbeständen „Panoramen nur freigegeben zeigen“ einschalten. Negativtests NT-FREIGABE.
+
 ## [0.11.0] – 2026-10-24
 
 Upload im Browser, Auswertungen auf dem Server, Sonnen- und Prüfberichte, eine typisierte API mit Client und eine

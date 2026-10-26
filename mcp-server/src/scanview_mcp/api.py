@@ -90,16 +90,27 @@ class Client:
     def patch(self, pfad: str, json: Any) -> Any:
         return self._anfrage("PATCH", pfad, json=json)
 
+    def put(self, pfad: str, json: Any) -> Any:
+        return self._anfrage("PUT", pfad, json=json)
+
+    def post_roh(self, pfad: str, daten: bytes, typ: str, **params: Any) -> Any:
+        """Roher Körper (Datei) mit eigenem Content-Type, z. B. ein Anhang am Faden."""
+        return self._anfrage("POST", pfad, params=params, roh=(daten, typ))
+
     def delete(self, pfad: str, json: Any = None, **params: Any) -> Any:
         return self._anfrage("DELETE", pfad, json=json, params=params)
 
     def _anfrage(self, methode: str, pfad: str, *, json: Any = None,
-                 params: dict[str, Any] | None = None) -> Any:
+                 params: dict[str, Any] | None = None,
+                 roh: tuple[bytes, str] | None = None) -> Any:
         params = {k: v for k, v in (params or {}).items() if v is not None}
         # Kein Cookie senden, auch keines, das eine frühere Antwort gesetzt hat.
         self._http.cookies.clear()
         try:
-            r = self._http.request(methode, pfad, json=json, params=params or None)
+            r = (self._http.request(methode, pfad, content=roh[0], params=params or None,
+                                    headers={"Content-Type": roh[1]})
+                 if roh is not None else
+                 self._http.request(methode, pfad, json=json, params=params or None))
         except httpx.TimeoutException:
             raise ApiFehler(0, "Zeitlimit überschritten – Server antwortet nicht.") from None  # noqa: RUF001
         except httpx.HTTPError as e:

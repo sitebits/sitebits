@@ -93,6 +93,7 @@ async function seite(post: () => Response | Promise<Response>): Promise<Element>
     const daten: Record<string, unknown> = {
       p1: { titel: 'Testprojekt', rolle: 'projektleitung', kategorien: [], einstellungen: { nurLeseLinks: true } },
       beteiligte: { beteiligte: [] }, einladungen: { einladungen: [] }, gewerke: { gewerke: [] }, teilen: { links: [] },
+      freigaben: { ebenen: [], panoramenNurFreigegeben: false },
     };
     if (!ende || !(ende in daten)) throw new Error(`Unerwartete Anfrage: ${url}`);
     return Promise.resolve(antwort(daten[ende]));

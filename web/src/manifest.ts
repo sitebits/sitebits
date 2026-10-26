@@ -112,6 +112,34 @@ export interface MeshLayer {
   mobile?: { url: string; sizeBytes: number; triangleCount: number };
 }
 
+/**
+ * Gekachelte Mesh-Ebene (3D Tiles 1.1, REPLACE): tileset.json mit einem GLB je Kachel. Die Kacheln liegen in den
+ * Koordinaten des Paketrahmens (frame.crs, Z oben); es gibt keinen weiteren Versatz — die Lage ergibt sich aus den
+ * Kachel-Transformationen im tileset.json (beim Laden gegen boundsWorld geprüft). Gemessen wird nur auf Blättern
+ * (geometricError 0), nie auf gröberen Stufen. `crs`/`heightSystem` müssen mit `extras` des tileset.json
+ * übereinstimmen (tilesMath.pruefeTileset).
+ */
+export interface TilesLayer {
+  id: string;
+  kind: 'mesh-tiles';
+  title: string;
+  /** false = beim Start ausgeblendet (Voreinstellung ohne ly=); fehlt = sichtbar. */
+  startVisible?: boolean;
+  format: '3dtiles';
+  /** tileset.json, relativ zum Paket. */
+  url: string;
+  /** Dreiecke der feinsten Stufe (Summe der Blätter). */
+  triangleCount: number;
+  boundsWorld: [Vec3, Vec3];
+  /** Kleinste Positions-Schrittweite der Blätter [m] (wie bei MeshLayer). */
+  positionStepM: number;
+  /** z. B. `EPSG:25833`. */
+  crs: string;
+  /** z. B. `DHHN2016`. */
+  heightSystem: string;
+  provenance: Provenance;
+}
+
 /** Gaussian-Sichtschicht: lokale Mittelpunkte relativ zu frame.originWorld, niemals messbar. */
 export interface SplatsLayer {
   id: string;
@@ -156,7 +184,7 @@ export interface UnsupportedLayer {
   unsupported: true;
 }
 
-export type Layer = PointcloudLayer | PanoramasLayer | MeshLayer | SplatsLayer | ImagesLayer | UnsupportedLayer;
+export type Layer = PointcloudLayer | PanoramasLayer | MeshLayer | TilesLayer | SplatsLayer | ImagesLayer | UnsupportedLayer;
 
 export interface Project {
   schemaVersion: 1 | 2;
@@ -171,6 +199,8 @@ export interface Project {
   /** Primäre Punktwolke (erste Ebene kind 'pointcloud') oder null; dasselbe Objekt wie in layers. */
   cloud: PointcloudLayer | null;
   meshes: MeshLayer[];
+  /** Gekachelte Mesh-Ebenen (kind 'mesh-tiles'). */
+  tiles: TilesLayer[];
   splats: SplatsLayer[];
   /** Panorama-Ebene (erste kind 'panoramas') oder null. */
   stations: PanoramasLayer | null;
@@ -186,6 +216,9 @@ export interface Project {
 export const LAYER_ID_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
 
 export class ManifestError extends Error {}
+
+/** Relativer Pfad ohne Schema, führenden Schrägstrich, Rückwärtsschrägstrich und `.`/`..`-Segmente, endet auf .json. */
+const RELATIVER_JSON_PFAD = /^(?![a-z][a-z0-9+.-]*:|\/)(?:(?!\.\.?\/)[^/\\]+\/)*(?!\.\.?$)[^/\\]+\.json$/i;
 
 const isVec3 = (v: unknown): v is Vec3 =>
   Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === 'number' && Number.isFinite(x));
@@ -350,6 +383,7 @@ function finalize(base: ProjectBase): Project {
     crs: base.frame.crs,
     cloud,
     meshes: base.layers.filter((l): l is MeshLayer => !('unsupported' in l) && l.kind === 'mesh'),
+    tiles: base.layers.filter((l): l is TilesLayer => !('unsupported' in l) && l.kind === 'mesh-tiles'),
     stations,
     images,
     splats: base.layers.filter((l): l is SplatsLayer => !('unsupported' in l) && l.kind === 'splats'),
@@ -515,6 +549,26 @@ function parseV2(m: Record<string, unknown>): Project {
         provenance: parseProvenance(l.provenance, where),
         ...(typeof l.mobileUrl === 'string' ? { mobile: { url: l.mobileUrl, sizeBytes: l.mobileSizeBytes as number,
           triangleCount: l.mobileTriangleCount as number } } : {}) };
+    }
+    // Wie beim Mesh: erst ein erklärtes Format macht die Ebene prüfpflichtig (ohne format bleibt sie nicht unterstützt).
+    if (l.kind === 'mesh-tiles' && l.format !== undefined) {
+      const where = `Ebene ${id}`;
+      if (l.format !== '3dtiles') throw new ManifestError(`${where}: format "${String(l.format)}" wird nicht unterstützt (erwartet 3dtiles).`);
+      if (typeof l.url !== 'string' || !RELATIVER_JSON_PFAD.test(l.url))
+        throw new ManifestError(`${where}: url muss ein relativer Pfad zu einer .json-Datei im Paket sein.`);
+      if (!Number.isSafeInteger(l.triangleCount) || (l.triangleCount as number) < 0)
+        throw new ManifestError(`${where}: triangleCount ungültig.`);
+      if (!Array.isArray(l.boundsWorld) || l.boundsWorld.length !== 2 ||
+          !isVec3(l.boundsWorld[0]) || !isVec3(l.boundsWorld[1]) ||
+          l.boundsWorld[0].some((x, i) => x > (l.boundsWorld as Vec3[])[1]![i]!))
+        throw new ManifestError(`${where}: boundsWorld ungültig.`);
+      if (typeof l.positionStepM !== 'number' || !Number.isFinite(l.positionStepM) || l.positionStepM <= 0)
+        throw new ManifestError(`${where}: positionStepM ungültig.`);
+      if (typeof l.crs !== 'string' || !l.crs || typeof l.heightSystem !== 'string' || !l.heightSystem)
+        throw new ManifestError(`${where}: crs/heightSystem fehlen.`);
+      return { id, kind: 'mesh-tiles', title, format: '3dtiles', url: l.url, triangleCount: l.triangleCount as number,
+        boundsWorld: l.boundsWorld as [Vec3, Vec3], positionStepM: l.positionStepM, crs: l.crs, heightSystem: l.heightSystem,
+        provenance: parseProvenance(l.provenance, where) };
     }
     if (l.kind === 'images') {
       if (typeof l.url !== 'string' || !l.url) throw new ManifestError(`Ebene ${id}: url fehlt.`);

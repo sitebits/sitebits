@@ -9,8 +9,8 @@ from scanview_server import db
 
 def test_migrate_legt_tabellen_an_und_ist_idempotent(tmp_path: Path) -> None:
     conn = db.connect(tmp_path / "x.db")
-    assert db.migrate(conn) == 15
-    assert db.migrate(conn) == 15
+    assert db.migrate(conn) == 18
+    assert db.migrate(conn) == 18
     names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert {
         "users", "invites", "sessions", "project_roles", "passkeys", "challenges",
@@ -46,7 +46,7 @@ def test_migration_0002_behaelt_drosselzeilen_und_setzt_zeitstempel(tmp_path: Pa
         conn.execute(stmt)
     conn.execute("INSERT INTO schema_version VALUES (1)")
     conn.execute("INSERT INTO throttle (key, failures) VALUES ('alt', 3)")
-    assert db.migrate(conn) == 15
+    assert db.migrate(conn) == 18
     row = conn.execute("SELECT failures, geaendert_am FROM throttle WHERE key='alt'").fetchone()
     assert row["failures"] == 3 and row["geaendert_am"] > 1_700_000_000
     idx = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")}
@@ -67,7 +67,7 @@ def test_migration_0003_auf_bestehender_datenbank(tmp_path: Path) -> None:
         "INSERT INTO project_meta (project_id, title, description, updated_at)"
         " VALUES ('p', 'T', 'B', 1)",
     )
-    assert db.migrate(conn) == 15
+    assert db.migrate(conn) == 18
     row = conn.execute("SELECT title, description, version FROM project_meta").fetchone()
     assert tuple(row) == ("T", "B", 0)
 
@@ -116,7 +116,7 @@ def test_migration_0004_zieht_fehlenden_ersetzen_trigger_nach(tmp_path: Path) ->
             conn.execute(stmt)
     conn.execute("DROP TRIGGER ereignisse_kein_ersetzen")
     conn.execute("INSERT INTO schema_version (version) VALUES (3)")
-    assert db.migrate(conn) == 15
+    assert db.migrate(conn) == 18
     trigger = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='trigger'")}
     assert "ereignisse_kein_ersetzen" in trigger
     idx = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='index'")}
@@ -143,7 +143,7 @@ def test_migration_0005_bestehende_ereignisse_bleiben_unveraendert(tmp_path: Pat
         " VALUES (1000, 'cli', 'konto.gesperrt', '1')",
     )
     eid = conn.execute("SELECT id FROM ereignisse").fetchone()[0]
-    assert db.migrate(conn) == 15
+    assert db.migrate(conn) == 18
     row = conn.execute(
         "SELECT zeit, kanal, art, objekt_id, token_name FROM ereignisse WHERE id=?", (eid,),
     ).fetchone()
@@ -169,7 +169,7 @@ def test_migration_0006_bestehende_nutzer_bekommen_vorgabe_aus(tmp_path: Path) -
         "INSERT INTO users (name, email, is_admin, created_at) VALUES ('T', 't@b.de', 0, 1000)",
     )
     uid = conn.execute("SELECT id FROM users").fetchone()[0]
-    assert db.migrate(conn) == 15
+    assert db.migrate(conn) == 18
     row = conn.execute(
         "SELECT name, email, git_name_zeigen FROM users WHERE id=?", (uid,),
     ).fetchone()
@@ -211,7 +211,7 @@ def test_migration_9_erhaelt_rollen_und_erweitert_check(tmp_path: Path) -> None:
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("INSERT INTO project_roles (user_id, project_id, role)"
                      " VALUES (1, 'west', 'rueckmelder')")
-    assert db.migrate(conn) == 15
+    assert db.migrate(conn) == 18
     rollen = conn.execute(
         "SELECT user_id, project_id, role FROM project_roles ORDER BY 1, 2").fetchall()
     assert [tuple(r) for r in rollen] == [
@@ -253,7 +253,7 @@ def test_migration_10_erhaelt_rollen_und_einladungen(tmp_path: Path) -> None:
     )
     with pytest.raises(sqlite3.IntegrityError):
         conn.execute("INSERT INTO project_roles VALUES (3, 'ost', 'projektleitung')")
-    assert db.migrate(conn) == 15
+    assert db.migrate(conn) == 18
     rollen = conn.execute(
         "SELECT user_id, project_id, role, gewerk_id FROM project_roles ORDER BY 1, 2"
     ).fetchall()

@@ -67,7 +67,7 @@
   },
   "e2e/a11y/portal.spec.ts": {
     "playwright/consistent-spacing-between-blocks": {
-      "count": 33
+      "count": 31
     },
     "playwright/expect-expect": {
       "count": 29

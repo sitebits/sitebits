@@ -11,7 +11,8 @@ def test_faden_lesen_vertrag(welt: Welt) -> None:  # noqa: F811 — Fixture
     r = welt.c["bh"].get(FADEN)
     assert r.status_code == 200
     d = r.json()
-    assert set(d) == {"stand", "eintraege", "rechte"}
+    assert set(d) == {"stand", "eintraege", "rechte", "anhaenge"}
+    assert d["anhaenge"] is False  # ohne SCANVIEW_ANHAENGE
     assert d["stand"] == {"status": "offen", "zustaendig": None, "frist": None, "version": 1,
                           "ueberfaellig": False}
     e = d["eintraege"][0]

@@ -8,7 +8,7 @@ verweist auf ihre Nachfolgerin.
 |---|---|---|
 | 0001 | [Paketformat v2 mit Ebenen](0001-paketformat-v2-mit-ebenen.md) | angenommen |
 | 0002 | [COPC als Punktwolkenformat](0002-copc-als-punktwolkenformat.md) | angenommen |
-| 0003 | [Eigener Kachler für große Meshes](0003-eigener-kachler.md) | angenommen, durch Vorstudie bestätigt |
+| 0003 | [Eigener Kachler für große Meshes](0003-eigener-kachler.md) | angenommen, durch Vorstudie bestätigt, umgesetzt |
 | 0004 | [Plattform-Server in Python mit SQLite](0004-plattform-server-python-sqlite.md) | angenommen |
 | 0005 | [Paketauslieferung durch Caddy mit forward_auth](0005-paketauslieferung-caddy-forward-auth.md) | angenommen |
 | 0006 | [Anmeldung per Einladung und Passkey](0006-anmeldung-einladung-passkey.md) | angenommen |
@@ -22,3 +22,4 @@ verweist auf ihre Nachfolgerin.
 | 0014 | [Lizenz EUPL-1.2 und Herkunftserklärung (DCO)](0014-lizenz-eupl.md) | angenommen |
 | 0015 | [Höhensystem: NHN als Standard, Umrechnung im Import](0015-hoehensystem.md) | angenommen |
 | 0016 | [Nur-Lese-Links für Gäste](0016-nur-lese-links.md) | angenommen, ergänzt 0005 |
+| 0017 | [Ausgehende E-Mail-Benachrichtigung über einen eigenen Postdienst](0017-ausgehende-mail.md) | angenommen, ergänzt 0006 |

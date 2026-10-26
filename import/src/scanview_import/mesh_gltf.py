@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import struct
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 
@@ -242,12 +243,34 @@ def read_gltf(source: PointSource) -> Mesh:
     )
 
 
+def _uv_attribut(uv: np.ndarray, attribute: Callable[..., int]) -> int:
+    """UV unverändert als normalisierte Integer oder Float32 schreiben."""
+    if np.all((uv >= 0) & (uv <= 1)):
+        uv = np.ascontiguousarray(np.rint(uv * 65535), dtype="<u2")
+        return attribute(uv, "VEC2", g.UNSIGNED_SHORT, g.ARRAY_BUFFER, True)
+    else:
+        return attribute(
+            np.asarray(uv, dtype="<f4"), "VEC2", g.FLOAT, g.ARRAY_BUFFER
+        )
+
+
+def _erweiterungen(quantized: bool, texturiert: bool) -> list[str]:
+    """Benötigte glTF-Erweiterungen in stabiler Reihenfolge."""
+    extensions = ["KHR_materials_unlit", "EXT_meshopt_compression"]
+    if quantized:
+        extensions.append("KHR_mesh_quantization")
+    if texturiert:
+        extensions.append("KHR_texture_basisu")
+    return extensions
+
+
 def write_glb(
     mesh: Mesh,
     path: Path,
     origin: np.ndarray,
     encoded: dict[int, bytes],
     removal: dict[str, Any] | None = None,
+    *, position_step_limit: float = 0.001 / np.sqrt(3), node_origin: bool = False,
 ) -> float:
     """Y oben im lokalen Rahmen; Integerpositionen mit expliziter Dekodiertransformation."""
     mesh = optimize_layout(mesh)
@@ -300,13 +323,18 @@ def write_glb(
         accessors.append(a)
         return len(accessors) - 1
 
-    positions, minimum, step, quantized = quantize_positions(mesh.positions, origin)
+    positions, minimum, step, quantized = quantize_positions(
+        mesh.positions, origin, position_step_limit
+    )
     if quantized:
         position = attribute(positions, "VEC3", g.UNSIGNED_SHORT, g.ARRAY_BUFFER)
         node = g.Node(mesh=0, translation=minimum.tolist(), scale=[step] * 3)
     else:
         position = attribute(positions, "VEC3", g.FLOAT, g.ARRAY_BUFFER)
         node = g.Node(mesh=0)
+    if node_origin:
+        node.translation = (np.asarray(node.translation or [0, 0, 0])
+                            + origin[[0, 2, 1]] * [1, 1, -1]).tolist()
     mask, quantization_report = degenerate_mask(positions[:, :3], mesh.triangles)
     if mask.all():
         raise ValueError("Mesh nach Quantisierung vollständig entartet")
@@ -315,13 +343,7 @@ def write_glb(
     faces, material_ids = mesh.triangles[~mask], mesh.materials[~mask]
     attrs = g.Attributes(POSITION=position)
     if mesh.uv is not None:
-        if np.all((mesh.uv >= 0) & (mesh.uv <= 1)):
-            uv = np.ascontiguousarray(np.rint(mesh.uv * 65535), dtype="<u2")
-            attrs.TEXCOORD_0 = attribute(uv, "VEC2", g.UNSIGNED_SHORT, g.ARRAY_BUFFER, True)
-        else:
-            attrs.TEXCOORD_0 = attribute(
-                np.asarray(mesh.uv, dtype="<f4"), "VEC2", g.FLOAT, g.ARRAY_BUFFER
-            )
+        attrs.TEXCOORD_0 = _uv_attribut(mesh.uv, attribute)
     # Sind alle Materialien texturiert, entfallen die Vertexfarben: glTF multipliziert COLOR_0 mit
     # der Textur, und die Vertexfarben der Mesh-Exporte sind nur eine grobe Kopie der
     # Texturfarben — das Produkt dunkelte die Textur doppelt ab. Untexturierte Materialien
@@ -354,11 +376,7 @@ def write_glb(
         acc = attribute(idx, "SCALAR", g.UNSIGNED_INT, g.ELEMENT_ARRAY_BUFFER)
         primitives.append(g.Primitive(attributes=attrs, indices=acc, material=len(materials) - 1))
     blob = b"".join(chunks)
-    extensions = ["KHR_materials_unlit", "EXT_meshopt_compression"]
-    if quantized:
-        extensions.append("KHR_mesh_quantization")
-    if textures:
-        extensions.append("KHR_texture_basisu")
+    extensions = _erweiterungen(quantized, bool(textures))
     gltf = g.GLTF2(
         asset=g.Asset(version="2.0", generator="scanview-import"),
         scene=0,

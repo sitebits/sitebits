@@ -551,6 +551,15 @@ def _alle_routen(routen: Any) -> list[tuple[str, set[str]]]:
 
 # Leserouten unter /api/v1/projekte/{pid}, die bewusst keinen Eintrag erzeugen, mit Begründung.
 AUSNAHMEN: dict[str, str] = {
+    "/api/v1/projekte/{pid}/pois/{eid}/faden/anhaenge/{aid}":
+        "nur mit eingerichteten Anhängen (sonst 404); erfasst (art api, objekt anhang) — geprüft "
+        "in test_anhaenge_api.py",
+    "/api/v1/projekte/{pid}/pois/{eid}/faden/anhaenge/{aid}/stand":
+        "nur mit eingerichteten Anhängen (sonst 404); erfasst wie der Faden — geprüft in "
+        "test_anhaenge_api.py",
+    "/api/v1/projekte/{pid}/pois/{eid}/faden/benachrichtigung":
+        "nur mit eingerichtetem Postdienst (sonst 404); erfasst wie der Faden (art api, objekt "
+        "faden) — geprüft in test_post.py",
     "/api/v1/projekte/{pid}/auswertungen":
         "nur Auftragsstatus, kein Inhalt; braucht jobs.db (Inhalte siehe test_auswertungen)",
     "/api/v1/projekte/{pid}/auswertungen/{aid}":

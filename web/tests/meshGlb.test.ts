@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { prepareMeshGlb } from '../src/meshLayer';
+import { glbOhneTexturen, prepareMeshGlb } from '../src/meshLayer';
 function glb(json: object): ArrayBuffer {
   const bytes = new TextEncoder().encode(JSON.stringify(json));
   const n = Math.ceil(bytes.length / 4) * 4;
@@ -31,4 +31,20 @@ it('Vorschau ohne GPU-Kompression erhält Geometrie und entfernt Materialtexture
 });
 it('weist ungültige GLB-Header zurück', () => {
   expect(() => prepareMeshGlb(new ArrayBuffer(20))).toThrow('Ungültiges GLB');
+});
+
+const jsonVon = (b: ArrayBuffer): Record<string, unknown> => JSON.parse(new TextDecoder().decode(new Uint8Array(b, 20, new DataView(b).getUint32(12, true)))) as Record<string, unknown>;
+it('glbOhneTexturen erklärt KHR_materials_unlit als benutzt (sonst ignoriert der GLTFLoader es)', () => {
+  const j = jsonVon(glbOhneTexturen(glb({ materials: [{ pbrMetallicRoughness: { baseColorTexture: { index: 0 } } }], extensionsUsed: ['KHR_texture_basisu'] })));
+  expect(j.extensionsUsed).toEqual(['KHR_texture_basisu', 'KHR_materials_unlit']);
+  expect(jsonVon(glbOhneTexturen(glb({}))).extensionsUsed).toEqual(['KHR_materials_unlit']);
+});
+it('glbOhneTexturen: Seite nur auf Wunsch erhalten (Vorschau bleibt wie bisher einseitig)', () => {
+  const quelle = glb({ materials: [{ doubleSided: true }, { doubleSided: false }, {}] });
+  expect(jsonVon(glbOhneTexturen(quelle)).materials).toEqual([{ extensions: { KHR_materials_unlit: {} } }, { extensions: { KHR_materials_unlit: {} } }, { extensions: { KHR_materials_unlit: {} } }]);
+  expect(jsonVon(glbOhneTexturen(quelle, true)).materials).toEqual([
+    { doubleSided: true, extensions: { KHR_materials_unlit: {} } }, { extensions: { KHR_materials_unlit: {} } }, { extensions: { KHR_materials_unlit: {} } }]);
+});
+it('glbOhneTexturen weist ungültige GLB-Header zurück', () => {
+  expect(() => glbOhneTexturen(new ArrayBuffer(20))).toThrow('Ungültiges GLB');
 });

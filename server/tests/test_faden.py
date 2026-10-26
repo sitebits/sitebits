@@ -102,7 +102,7 @@ def test_zurueckziehen_kommentar_und_link(conn: sqlite3.Connection) -> None:
 
 def test_status_nicht_zurueckziehbar(conn: sqlite3.Connection) -> None:
     e, _ = _status(conn, BEARBEITER, "in_arbeit")
-    with pytest.raises(Ungueltig, match="Kommentar oder Link"):
+    with pytest.raises(Ungueltig, match="Kommentar, Link oder Anhang"):
         faden.zurueckziehen(conn, "ost", "P-1", e["schluessel"], BEARBEITER)
 
 

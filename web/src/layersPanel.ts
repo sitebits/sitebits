@@ -13,7 +13,7 @@ import type { LayerEntry, LayerRegistry } from './layers';
 import { MESH_FLAECHEN } from './meshMath';
 import type { MeshFlaeche } from './meshMath';
 
-const KIND_LABEL: Record<string, string> = { pointcloud: 'Punktwolke', panoramas: 'Standpunkte', mesh: 'Mesh', splats: 'Sichtschicht', images: 'Fotos' };
+const KIND_LABEL: Record<string, string> = { pointcloud: 'Punktwolke', panoramas: 'Standpunkte', mesh: 'Mesh', 'mesh-tiles': 'Mesh (gekachelt)', splats: 'Sichtschicht', images: 'Fotos' };
 const artLabel = (kind: string): string => KIND_LABEL[kind] ?? 'nicht unterstützt';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string): HTMLElementTagNameMap[K] => {
@@ -85,7 +85,7 @@ function buildRow(reg: LayerRegistry, e: LayerEntry, keyNumber: number | null): 
     label.prepend(shade); li.append(label);
   }
   let range: HTMLInputElement | null = null;
-  if (e.supported && (e.kind === 'pointcloud' || e.kind === 'mesh' || e.kind === 'splats')) {
+  if (e.supported && (e.kind === 'pointcloud' || e.kind === 'mesh' || e.kind === 'mesh-tiles' || e.kind === 'splats')) {
     range = document.createElement('input');
     range.type = 'range';
     range.min = '0';

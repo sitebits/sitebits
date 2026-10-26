@@ -433,7 +433,9 @@ export function attachPanorama(
       notify(
         s.panoramaIssue === 'legacy'
           ? `Standpunkt ${id}: Panorama im alten Paketformat – „scanview-import panos“ neu ausführen`
-          : `Standpunkt ${id}: kein Panorama`,
+          : s.panoramaIssue === 'gesperrt'
+            ? `Standpunkt ${id}: Panorama für dieses Konto nicht freigegeben`
+            : `Standpunkt ${id}: kein Panorama`,
       );
       return false;
     }

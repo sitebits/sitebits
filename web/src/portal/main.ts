@@ -3,6 +3,7 @@ import '../spleenStart';
 // seiten.ts, Netzwerk in api.ts, Titel/Fußzeile/Instanz-Angaben in rahmen.ts.
 import { ApiFehler, projekte, sitzung, type Sitzung } from './api';
 import { zeigeBarrierefreiheit } from './barrierefreiheit';
+import { bestaetigeAusHash, BESTAETIGEN_PRAEFIX, zeigeAbmelden } from './benachrichtigung';
 import { zeigeZuPruefen } from './zuPruefen';
 import { zeigeBefunde } from './befunde';
 import { baueFusszeile, ladeInstanz, OHNE_INSTANZ, seitenTitel, type Instanz } from './rahmen';
@@ -32,7 +33,14 @@ function tokenAusHash(hash: string): string {
   return /^#t=([A-Za-z0-9_-]+)$/.exec(hash)?.[1] ?? '';
 }
 
+const MAIL_MERKER = 'sv-mail-bestaetigen';
+
 function zuAnmelden(): void {
+  // Bestätigungslink ohne Sitzung: das Fragment überlebt die Anmeldung nicht (und gehört nicht in
+  // die Adresse der Anmeldeseite) — kurz im Tab merken, nach der Anmeldung auf der Startseite einlösen.
+  if (location.hash.startsWith(BESTAETIGEN_PRAEFIX)) {
+    try { sessionStorage.setItem(MAIL_MERKER, location.hash); } catch { /* ohne Speicher: Link erneut öffnen */ }
+  }
   const weiter = encodeURIComponent(zielPfad(location.pathname + location.search, location.origin));
   location.href = `/anmelden?weiter=${weiter}`;
 }
@@ -58,6 +66,13 @@ async function start(): Promise<void> {
     const token = location.hash === '' ? null : tokenAusHash(location.hash);
     history.replaceState(null, '', location.pathname + location.search);
     zeigeEinladung(root, token);
+    await fusszeile(instanzP, null);
+    return;
+  }
+
+  if (location.pathname === '/abmelden') {
+    // E-Mails abbestellen (F8): Token im Fragment, ohne Anmeldung.
+    zeigeAbmelden(root, location.hash);
     await fusszeile(instanzP, null);
     return;
   }
@@ -101,7 +116,8 @@ async function start(): Promise<void> {
       zuAnmelden();
       return;
     }
-    await zeigeBefunde(root, new URLSearchParams(location.search).get('p') ?? '', n.id ?? null);
+    const q = new URLSearchParams(location.search);
+    await zeigeBefunde(root, q.get('p') ?? '', n.id ?? null, q.get('b'));
     await fusszeile(instanzP, n);
     return;
   }
@@ -148,6 +164,11 @@ async function start(): Promise<void> {
   try {
     const liste = await projekte();
     zeigeStart(root, nutzer, liste);
+    await mailBestaetigen(root);
+    // Bestätigungslink in einem schon offenen Portal-Tab: nur das Fragment ändert sich, kein Neuladen.
+    window.addEventListener('hashchange', () => {
+      if (location.hash.startsWith(BESTAETIGEN_PRAEFIX)) void mailBestaetigen(root);
+    });
     await fusszeile(instanzP, nutzer);
   } catch (e) {
     if (e instanceof ApiFehler && e.status === 401) {
@@ -173,6 +194,22 @@ async function start(): Promise<void> {
     if (suche) suche.disabled = true;
     await fusszeile(instanzP, nutzer);
   }
+}
+
+async function mailBestaetigen(root: HTMLElement): Promise<void> {
+  let gemerkt: string | null = null;
+  try {
+    gemerkt = sessionStorage.getItem(MAIL_MERKER);
+    sessionStorage.removeItem(MAIL_MERKER);
+  } catch { /* kein Speicher */ }
+  if (!location.hash.startsWith(BESTAETIGEN_PRAEFIX) && gemerkt) history.replaceState(null, '', `/${gemerkt}`);
+  const status = document.createElement('p');
+  status.className = 'sv-status';
+  status.setAttribute('role', 'status');
+  await bestaetigeAusHash((t) => {
+    status.textContent = t;
+    root.querySelector('.sv-kopf')?.after(status);
+  });
 }
 
 void start();

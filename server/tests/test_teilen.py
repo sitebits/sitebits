@@ -369,3 +369,157 @@ def test_ip_flut_sperrt_andere_nicht(welt: dict[str, Konto]) -> None:
     assert [_austausch(g, "x" * 43) for _ in range(10)] == [404, 404] + [429] * 8
     # Die abgewiesenen Anfragen derselben IP belegen das globale Fenster nicht: ein Platz ist frei.
     assert app.state.teilen_drosseln.austausch_global.erlaubt("alle")  # type: ignore[attr-defined]
+
+
+@pytest.fixture
+def kachelpaket(welt: dict[str, Konto]) -> Path:
+    d = Path(welt["leitung"].c.app.state.settings.data_dir) / "ost"
+    k = d / "layers/kacheln"
+    k.mkdir(parents=True)
+    for name in ("grob", "fein", "mehr", "unreferenziert"):
+        (k / f"{name}.glb").write_bytes(_glb({"buffers": [{"uri": "daten.bin"}]}))
+    (k / "daten.bin").write_bytes(b"\0" * 4)
+    (k / "packen-log.json").write_text('{"intern": true}')
+    (k / "tileset.json").write_text(json.dumps({
+        "asset": {"version": "1.1"},
+        "root": {"content": {"uri": "grob.glb"}, "children": [
+            {"content": {"uri": "fein.glb"}, "contents": [{"uri": "mehr.glb"}]}]},
+    }))
+    m = json.loads((d / "project.json").read_text())
+    m["layers"].append({
+        "id": "kacheln", "kind": "mesh-tiles", "format": "3dtiles", "title": "Kacheln",
+        "url": "layers/kacheln/tileset.json", "triangleCount": 3,
+        "boundsWorld": [[0, 0, 0], [1, 1, 1]], "positionStepM": 0.001,
+        "crs": "EPSG:25833", "heightSystem": "DHHN2016", "startVisible": False,
+        "provenance": {"kind": "photogrammetry", "interpolated": False,
+                       "scaleVerified": True, "scaleSource": "control-points"},
+    })
+    (d / "project.json").write_text(json.dumps(m))
+    return d
+
+
+def _kachelgast(welt: dict[str, Konto]) -> TestClient:
+    _erlauben(welt["leitung"])
+    _, token = _anlegen(welt["leitung"])
+    g = _gast(welt["leitung"].c)
+    assert _austausch(g, token) == 200
+    return g
+
+
+def _kacheln_gesperrt(g: TestClient, caplog: pytest.LogCaptureFixture) -> None:
+    m = g.get("/api/teilen/manifest")
+    assert m.status_code == 200
+    assert [e["kind"] for e in m.json()["layers"]] == ["pointcloud", "mesh"]
+    for name in ("tileset.json", "grob.glb", "fein.glb", "mehr.glb", "daten.bin"):
+        assert _authz(g, f"/data/ost/layers/kacheln/{name}") == 404
+    assert _authz(g, "/data/ost/cloud.copc.laz") == 200
+    assert "Mesh-Kacheln kacheln ausgelassen" in caplog.text
+
+
+def test_gast_kacheln_exakte_positivliste(welt: dict[str, Konto], kachelpaket: Path) -> None:
+    g = _kachelgast(welt)
+    manifest = g.get("/api/teilen/manifest").json()
+    erwartet = json.loads((kachelpaket / "project.json").read_text())["layers"][-1]
+    assert manifest["layers"][-1] == erwartet
+    for name in ("tileset.json", "grob.glb", "fein.glb", "mehr.glb", "daten.bin"):
+        assert _authz(g, f"/data/ost/layers/kacheln/{name}") == 200
+    for name in ("packen-log.json", "unreferenziert.glb"):
+        assert _authz(g, f"/data/ost/layers/kacheln/{name}") == 404
+
+
+@pytest.mark.parametrize("uri", [
+    "../../../ausbruch.glb", "%2e%2e/fein.glb", "/fremd.glb",
+    "https://example.test/fein.glb", "https:fein.glb", "../../fotos/F0001/512.jpg",
+    "../../images.json", "../../panos/S001/0.jpg", "fehlt.glb", "extern.json",
+])
+@pytest.mark.parametrize("feld", ["content", "contents"])
+def test_gast_kacheln_unzulaessiger_verweis(
+    welt: dict[str, Konto], kachelpaket: Path, uri: str, feld: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    k = kachelpaket / "layers/kacheln"
+    # Auch ein vorhandenes externes Tileset bleibt gesperrt.
+    (k / "extern.json").write_text('{"root": {}}')
+    inhalt = {"uri": uri}
+    kind = {feld: [inhalt] if feld == "contents" else inhalt}
+    (k / "tileset.json").write_text(json.dumps({
+        "root": {"content": {"uri": "grob.glb"}, "children": [kind]},
+    }))
+    _kacheln_gesperrt(_kachelgast(welt), caplog)
+
+
+@pytest.mark.parametrize("fehler", [
+    "tiefe", "knoten", "inhalte", "bytes", "json", "json-tiefe", "wurzel",
+    "kinder", "inhalt", "uri", "contents", "implizit", "glb", "glb-verweis",
+])
+def test_gast_kacheln_kaputt_oder_zu_gross(
+    welt: dict[str, Konto], kachelpaket: Path, fehler: str,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    k = kachelpaket / "layers/kacheln"
+    knoten: dict[str, object] = {"content": {"uri": "grob.glb"}}
+    if fehler == "tiefe":
+        for _ in range(teilen._TILESET_TIEFE_MAX + 1):
+            knoten = {"children": [knoten]}
+    elif fehler == "knoten":
+        knoten["children"] = [{}] * teilen._TILESET_KNOTEN_MAX
+    elif fehler == "inhalte":
+        knoten["contents"] = [{"uri": "fein.glb"}] * teilen._TILESET_INHALTE_MAX
+    elif fehler == "kinder":
+        knoten["children"] = {}
+    elif fehler == "inhalt":
+        knoten["content"] = None
+    elif fehler == "uri":
+        knoten["content"] = {"uri": 7}
+    elif fehler == "contents":
+        knoten["contents"] = {}
+    elif fehler == "implizit":
+        knoten["implicitTiling"] = {}
+    elif fehler == "glb":
+        (k / "grob.glb").write_bytes(b"kaputt")
+    elif fehler == "glb-verweis":
+        (k / "grob.glb").write_bytes(_glb({"images": [{"uri": "../../fotos/F0001/512.jpg"}]}))
+    roh = json.dumps({"root": knoten})
+    if fehler == "bytes":
+        roh = ' ' * (teilen.MAX_PROJECT_JSON + 1)
+    roh = {"json": '{kaputt', "json-tiefe": '[' * 2000 + '0' + ']' * 2000,
+           "wurzel": '[]'}.get(fehler, roh)
+    (k / "tileset.json").write_text(roh)
+    _kacheln_gesperrt(_kachelgast(welt), caplog)
+
+
+@pytest.mark.parametrize("ziel", ["tileset", "kachel", "verzeichnis", "buffer"])
+def test_gast_kacheln_symlink_abgelehnt(
+    welt: dict[str, Konto], kachelpaket: Path, ziel: str,
+    caplog: pytest.LogCaptureFixture, tmp_path: Path,
+) -> None:
+    k = kachelpaket / "layers/kacheln"
+    if ziel == "verzeichnis":
+        (tmp_path / "kachel.glb").write_bytes(_glb({}))
+        (k / "extern").symlink_to(tmp_path, target_is_directory=True)
+        (k / "tileset.json").write_text('{"root":{"content":{"uri":"extern/kachel.glb"}}}')
+    else:
+        name = {"tileset": "tileset.json", "kachel": "grob.glb", "buffer": "daten.bin"}[ziel]
+        datei = k / name
+        extern = tmp_path / name
+        extern.write_bytes(datei.read_bytes())
+        datei.unlink()
+        datei.symlink_to(extern)
+    _kacheln_gesperrt(_kachelgast(welt), caplog)
+
+
+def test_gast_kacheln_paketaustausch_erneuert_cache(
+    welt: dict[str, Konto], kachelpaket: Path,
+) -> None:
+    g = _kachelgast(welt)
+    assert _authz(g, "/data/ost/layers/kacheln/grob.glb") == 200
+    (kachelpaket / "layers/kacheln/tileset.json").write_text(
+        '{"root":{"content":{"uri":"unreferenziert.glb"}}}')
+    manifest = kachelpaket / "project.json"
+    m = json.loads(manifest.read_text())
+    m["revision"] += 1
+    manifest.write_text(json.dumps(m))
+    st = manifest.stat()
+    os.utime(manifest, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000_000))
+    assert _authz(g, "/data/ost/layers/kacheln/grob.glb") == 404
+    assert _authz(g, "/data/ost/layers/kacheln/unreferenziert.glb") == 200

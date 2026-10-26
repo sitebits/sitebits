@@ -70,6 +70,7 @@ interface GltfJson {
   images?: { mimeType?: string; uri?: string }[];
   materials?: Record<string, unknown>[];
   buffers?: { uri?: string }[];
+  extensionsUsed?: string[];
 }
 // three typisiert `instanceof Mesh` als Mesh<any>; der Wächter gibt die tatsächlichen Typen zurück.
 const isMesh = (o: Object3D): o is Mesh<BufferGeometry, Material | Material[]> => o instanceof Mesh;
@@ -92,8 +93,27 @@ export function prepareMeshGlb(buffer: ArrayBuffer, withoutTextures = false): Ar
   }
   if (json.buffers?.some((b) => b.uri)) throw new Error('Mesh-Geometrie muss im GLB eingebettet sein');
   if (!withoutTextures) return buffer;
+  return glbOhneTexturen(buffer);
+}
+
+/**
+ * GLB mit unlit-Materialien ohne Texturreferenz: der GLTFLoader lädt dann kein Bild, die Geometrie (auch Meshopt,
+ * Quantisierung, Knotentransformationen) bleibt vollständig. Genutzt für Vorschauen ohne GPU-Kompression und für
+ * den Blattabruf der gekachelten Meshes (Messen braucht nur Geometrie). `seiteBehalten`: doppelseitige Materialien
+ * bleiben doppelseitig, damit der Strahltest dieselben Flächen trifft wie die Darstellung.
+ */
+export function glbOhneTexturen(buffer: ArrayBuffer, seiteBehalten = false): ArrayBuffer {
+  const header = new DataView(buffer);
+  if (buffer.byteLength < 20 || header.getUint32(0, true) !== 0x46546c67 || header.getUint32(4, true) !== 2 ||
+      header.getUint32(8, true) !== buffer.byteLength || header.getUint32(16, true) !== 0x4e4f534a)
+    throw new Error('Ungültiges GLB');
+  const length = header.getUint32(12, true);
+  const json = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer, 20, length))) as GltfJson;
   // Ohne GPU-Kompression bleibt auch bei älteren texturierten Vorschauen die Geometrie benutzbar.
-  json.materials = (json.materials ?? []).map(() => ({ extensions: { KHR_materials_unlit: {} } }));
+  json.materials = (json.materials ?? []).map((m) => ({ ...(seiteBehalten && m.doubleSided === true ? { doubleSided: true } : {}),
+    extensions: { KHR_materials_unlit: {} } }));
+  // Der GLTFLoader wertet die Erweiterung nur aus, wenn sie als benutzt erklärt ist.
+  json.extensionsUsed = [...new Set([...(json.extensionsUsed ?? []), 'KHR_materials_unlit'])];
   const encoded = new TextEncoder().encode(JSON.stringify(json));
   const padded = Math.ceil(encoded.length / 4) * 4;
   const rest = new Uint8Array(buffer, 20 + length);

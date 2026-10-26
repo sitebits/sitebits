@@ -6,7 +6,7 @@ Jeder eigene und fremde Sicherheitsbefund mit stabiler ID. Release-Schwelle: kei
 
 Diese Fassung nennt je Befund nur Kennung, Schwere, Kategorie und Status. Beschreibung, Fundstelle und Nachweis der Behebung liegen in der internen Dokumentation und werden Prüfern auf Anfrage vorgelegt.
 
-Stand: 180 Befunde — offen: 36, behoben: 40, akzeptiert: 0, kein-befund: 104.
+Stand: 181 Befunde — offen: 36, behoben: 40, akzeptiert: 0, kein-befund: 105.
 
 | ID | Schwere | Kategorie | Status | Betrifft |
 |---|---|---|---|---|
@@ -190,3 +190,4 @@ Stand: 180 Befunde — offen: 36, behoben: 40, akzeptiert: 0, kein-befund: 104.
 | B-SAST-SEMGREP-D6B7DA0E5F2B91F5 | mittel | haertung | kein-befund | alle |
 | B-SAST-BANDIT-723722FF08CF2C61 | mittel | haertung | kein-befund | import |
 | B-SCAN-IMPORT-LOCK | kritisch | lieferkette | behoben | import |
+| B-SAST-SEMGREP-93AE2814229F29C7 | mittel | haertung | kein-befund | alle |

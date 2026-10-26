@@ -22,6 +22,7 @@ erhalten, wenn die Standpunkt-ID im alten und neuen Lauf denselben ``scanGuid`` 
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 from collections.abc import Callable, Iterable, Iterator
@@ -180,12 +181,28 @@ def _image_json(
     }
 
 
+def _sha256(pfad: Path) -> str:
+    return hashlib.sha256(pfad.read_bytes()).hexdigest()
+
+
 def write_stations(
-    pkg: Path, sources: Iterable[StationSource], levels: tuple[int, ...]
+    pkg: Path,
+    sources: Iterable[StationSource],
+    levels: tuple[int, ...],
+    *,
+    anonymization: dict[str, Any] | None = None,
+    vor_abschluss: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     """Schreibt Stufen-JPEGs und ``stations.json`` (Schema 2), aktualisiert die Standpunkte in
     ``project.json`` (``set_stations`` — Schema 1: ``stations``, Schema 2: Ebene
-    ``standpunkte``)."""
+    ``standpunkte``).
+
+    ``anonymization`` (F20): Jeder Lauf schreibt ``{"required": true, "status": "unreviewed",
+    "files": {Pfad: SHA-256}}`` — Panoramen gelten für die Plattform als personenbezogen, bis eine
+    Freigabe sie an genau diese Dateien bindet. Ein geprüfter Anonymisierungslauf überlagert
+    Status, Werkzeug und Manifest-Hash. ``vor_abschluss`` läuft nach den Bildern und vor
+    ``stations.json``; bricht es ab, bleibt das alte Manifest stehen und passt nicht mehr zu den
+    Dateien (auf der Plattform gesperrt statt falsch freigegeben)."""
     prev = _previous_ground_z(pkg)
     stations: list[dict[str, Any]] = []
     for n, src in enumerate(sources, start=1):
@@ -231,7 +248,18 @@ def write_stations(
             }
         )
 
-    out = {"schemaVersion": STATIONS_SCHEMA_VERSION, "stations": stations}
+    if vor_abschluss is not None:
+        vor_abschluss()
+    dateien = {
+        f"{p['faces'][f]}/{LEVEL_FILE.format(level=lv)}": _sha256(
+            pkg / p["faces"][f] / LEVEL_FILE.format(level=lv))
+        for s in stations if (p := s["panorama"]) is not None
+        for f in FACES for lv in p["levels"]
+    }
+    anon: dict[str, Any] = {"required": True, "status": "unreviewed"}
+    anon.update(anonymization or {})
+    anon["files"] = dateien
+    out = {"schemaVersion": STATIONS_SCHEMA_VERSION, "stations": stations, "anonymization": anon}
     (pkg / "stations.json").write_text(json.dumps(out, indent=2))
 
     m = read_manifest(pkg)

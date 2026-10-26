@@ -110,6 +110,10 @@ class Datenschutz:
             elif k == "wert" and wert.get("art") == "link" and isinstance(v, dict):
                 aus[k] = {lk: AUSGEBLENDET if isinstance(lv, str) and lv.strip() else lv
                           for lk, lv in v.items()}
+            elif k in ("wert", "anhang") and isinstance(v, dict) and isinstance(v.get("name"), str):
+                # Anhang (F7): Dateiname ist Freitext der Person; Kennung, Typ, Stand bleiben.
+                aus[k] = {**self._filtern({lk: lv for lk, lv in v.items() if lk != "name"}),
+                          "name": AUSGEBLENDET if v["name"].strip() else v["name"]}
             elif k in FREITEXT and isinstance(v, str):
                 aus[k] = AUSGEBLENDET if v.strip() else v
             elif k in KONTO_ID and isinstance(v, int) and not isinstance(v, bool):

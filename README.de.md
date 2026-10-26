@@ -77,6 +77,8 @@ Punktwolken, Kugelpanoramen und Fotos importieren: [Import-Anleitung](import/REA
 
 Mesh-Ebenen bedienen: [Ebenen, Rahmung und Grenzen](docs/public/mesh-ebenen.md).
 
+Sonne und Schatten im Viewer und der Sonnenbericht: [Anleitung Sonne](docs/public/sonne.md).
+
 Einrichtung auf einem Server: [Betriebsanleitung](docs/public/betrieb.md).
 
 ## Angaben nach Anhang II des Cyber Resilience Act
@@ -85,7 +87,7 @@ Einrichtung auf einem Server: [Betriebsanleitung](docs/public/betrieb.md).
 |---|---|
 | **Hersteller** | Stiebitz Souverain Systems UG (haftungsbeschränkt), Potsdam, Amtsgericht Potsdam HRB 42359 P. Die Postanschrift wird mit dem Inverkehrbringen ergänzt; bis dahin über die Kontaktstelle. |
 | **Kontaktstelle für Schwachstellen** | security@sitebits.de, Meldeweg und Fristen in [`SECURITY.md`](SECURITY.md) |
-| **Produkt** | siteBits, Version 0.11.0 (Viewer/Portal, Plattform-Server, MCP-Server tragen dieselbe Version; die installierte Version zeigt `GET /api/v1/version` angemeldeten Nutzern) |
+| **Produkt** | siteBits, Version 0.12.0 (Viewer/Portal, Plattform-Server, MCP-Server tragen dieselbe Version; die installierte Version zeigt `GET /api/v1/version` angemeldeten Nutzern) |
 | **Bestimmungsgemäße Verwendung** | Anzeige, Vermessung und gemeinsame Bearbeitung von Laserscan-Projekten im Browser auf einer selbst betriebenen Plattform, zugänglich nur für eingeladene Nutzer mit Recht auf das jeweilige Projekt |
 | **Umgebung** | Linux-Server mit Caddy als Reverse Proxy und HTTPS; aktuelle Browser mit WebGL 2 und WebAssembly |
 | **Sicherheitshinweise** | Nur über HTTPS betreiben; Härtung nach [Betriebsanleitung](docs/public/betrieb.md#härtung) umsetzen; Einladungslinks und API-Tokens nur über vertrauliche Kanäle weitergeben; API-Tokens mit dem kleinsten nötigen Umfang anlegen; beim MCP-Server gehen Werkzeugergebnisse an den Anbieter des Sprachmodells (Hinweise in `mcp-server/README.md`); Messwerte hängen von der Genauigkeit der Scandaten ab und ersetzen keine amtliche Vermessung |

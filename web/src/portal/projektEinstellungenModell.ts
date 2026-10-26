@@ -18,7 +18,7 @@ export interface Beteiligter {
 }
 export interface ProjektEinladung { id: string; name: string; email: string; rolle: string | null; gewerk: number | null; erstelltAm: number; ablauf: number }
 export interface Kategorie { name: string; aktiv: boolean }
-export interface Einstellungen { vorlage: 'bestandsaufnahme' | 'bauprojekt' | null; rueckmeldungen: boolean; exportBearbeiter: boolean; befundFaeden?: boolean; nurLeseLinks?: boolean }
+export interface Einstellungen { vorlage: 'bestandsaufnahme' | 'bauprojekt' | null; rueckmeldungen: boolean; exportBearbeiter: boolean; befundFaeden?: boolean; nurLeseLinks?: boolean; panoramenNurFreigegeben?: boolean; benachrichtigung?: boolean }
 export type EinladungsAntwort =
   | { ergebnis: 'eingeladen'; link: string; einladung: ProjektEinladung }
   | { ergebnis: 'zugriff-erteilt' | 'zugriff-besteht'; gesperrt: boolean; text: string };

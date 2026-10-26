@@ -1,6 +1,6 @@
 [project]
 name = "scanview-import"
-version = "0.11.0"
+version = "0.12.0"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "pye57>=0.4",

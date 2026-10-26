@@ -230,6 +230,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projekte/{pid}/freigaben": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stand der Freigaben (Panoramen, Fotos): Anonymisierung im Paket, aktive Freigabe; mit pruefen=true zusätzlich abweichende Dateien (hasht alle, Sekunden je GB) (Bearbeiter+) */
+        get: operations["freigaben_lesen"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projekte/{pid}/gewerke": {
         parameters: {
             query?: never;
@@ -442,6 +459,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projekte/{pid}/pois/{eid}/faden/anhaenge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Foto (JPEG, PNG) oder PDF an den Befund-Faden hängen: roher Körper, Content-Type, höchstens 20 MB; Bilder werden isoliert ohne Metadaten neu kodiert */
+        post: operations["anhang_hochladen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projekte/{pid}/pois/{eid}/faden/anhaenge/{aid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Datei eines Anhangs (Bild als JPEG, PDF immer als Download) */
+        get: operations["anhang_laden"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projekte/{pid}/pois/{eid}/faden/anhaenge/{aid}/stand": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stand eines Anhangs: in Prüfung, bereit oder abgelehnt (mit Grund) */
+        get: operations["anhang_stand"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projekte/{pid}/pois/{eid}/faden/benachrichtigung": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Mails zu diesem Befund für das eigene Konto: abbestellt? (nur mit eingerichtetem Postdienst) */
+        get: operations["faden_benachrichtigung_lesen"];
+        /** Mails zu diesem Befund für das eigene Konto ab- oder wieder anbestellen */
+        put: operations["faden_benachrichtigung_setzen"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projekte/{pid}/pois/{eid}/faden/{schluessel}/annehmen": {
         parameters: {
             query?: never;
@@ -485,7 +571,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Eigenen Kommentar oder Link zurückziehen (Text für alle ersetzt) */
+        /** Eigenen Kommentar, Link oder Anhang zurückziehen (Text für alle ersetzt, Anhang-Datei gelöscht) */
         post: operations["faden_eintrag_zurueckziehen"];
         delete?: never;
         options?: never;
@@ -822,10 +908,14 @@ export interface components {
         Einstellungen: {
             /** Befundfaeden */
             befundFaeden: boolean;
+            /** Benachrichtigung */
+            benachrichtigung: boolean;
             /** Exportbearbeiter */
             exportBearbeiter: boolean;
             /** Nurleselinks */
             nurLeseLinks: boolean;
+            /** Panoramennurfreigegeben */
+            panoramenNurFreigegeben: boolean;
             /** Rueckmeldungen */
             rueckmeldungen: boolean;
             /**
@@ -895,6 +985,11 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** FadenIn */
+        FadenIn: {
+            /** Aus */
+            aus: boolean;
+        };
         /**
          * Fehler
          * @description Jede Fehlerantwort (4xx): Dienstkennung und ein Satz für Menschen.
@@ -909,11 +1004,6 @@ export interface components {
             dienst: string;
             /** Fehler */
             fehler: string;
-        };
-        /** FreigabeIn */
-        FreigabeIn: {
-            /** Freigegeben */
-            freigegeben: boolean;
         };
         /**
          * Genauigkeit
@@ -1106,6 +1196,11 @@ export interface components {
             id: string;
             /** Kategorien */
             kategorien: components["schemas"]["Kategorie"][];
+            /**
+             * Panoramen Sichtbar
+             * @description Panoramen für diese Rolle freigegeben (F20)
+             */
+            panoramen_sichtbar: boolean;
             /** Punkte */
             punkte: number | null;
             /**
@@ -1311,6 +1406,11 @@ export interface components {
             gewerk_id: number | null;
             /** Nutzer Id */
             nutzer_id: number | null;
+        };
+        /** FreigabeIn */
+        scanview_server__routen_auswertungen__FreigabeIn: {
+            /** Freigegeben */
+            freigegeben: boolean;
         };
     };
     responses: never;
@@ -1744,7 +1844,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["FreigabeIn"];
+                "application/json": components["schemas"]["scanview_server__routen_auswertungen__FreigabeIn"];
             };
         };
         responses: {
@@ -1869,6 +1969,39 @@ export interface operations {
     export_json_api_v1_projekte__pid__export_json_get: {
         parameters: {
             query?: never;
+            header?: never;
+            path: {
+                pid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Fehler */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Fehler"];
+                };
+            };
+        };
+    };
+    freigaben_lesen: {
+        parameters: {
+            query?: {
+                pruefen?: boolean;
+            };
             header?: never;
             path: {
                 pid: string;
@@ -2483,6 +2616,175 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Fehler */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Fehler"];
+                };
+            };
+        };
+    };
+    anhang_hochladen: {
+        parameters: {
+            query?: {
+                name?: string | null;
+            };
+            header?: never;
+            path: {
+                pid: string;
+                eid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Fehler */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Fehler"];
+                };
+            };
+        };
+    };
+    anhang_laden: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+                eid: string;
+                aid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
+                    "image/jpeg": unknown;
+                };
+            };
+            /** @description Fehler */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Fehler"];
+                };
+            };
+        };
+    };
+    anhang_stand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+                eid: string;
+                aid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Fehler */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Fehler"];
+                };
+            };
+        };
+    };
+    faden_benachrichtigung_lesen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+                eid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Fehler */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Fehler"];
+                };
+            };
+        };
+    };
+    faden_benachrichtigung_setzen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pid: string;
+                eid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FadenIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
