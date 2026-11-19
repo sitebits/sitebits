@@ -14,7 +14,14 @@ kann diese Zeilen nicht fälschen.
 
 Welche Properties im User-Manager wirken, steht in docs/public/sicherheitsarchitektur.md
 (Abschnitt „Import-Worker und Auswertungsjobs“, gemessen mit systemd 262); `selbsttest` prüft
-Netz, DNS, Unix-Socket, Schreiben außerhalb und RAM-Grenze bei jedem Worker-Start.
+Netz, DNS, Unix-Socket, eigenen Netz-Namensraum, Schreiben außerhalb und RAM-Grenze bei jedem
+Worker-Start.
+
+`PrivateNetwork=yes` lässt der User-Manager still weg, wenn er keinen Namensraum anlegen darf
+(„proceeding without“), und entscheidet das bei jedem Unit-Start neu. Deshalb startet jeder
+Auftrag hinter einem Vorspann (`VORSPANN`, `python -I -c`): Der prüft in der Auftrags-Unit selbst,
+dass sie einen eigenen Netz-Namensraum hat, und ersetzt sich erst dann per `execv` durch das
+Werkzeug; sonst endet er mit `NETZRAUM_VERSTOSS`, bevor das Werkzeug läuft (fail-closed).
 """
 
 from __future__ import annotations
@@ -22,6 +29,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -37,6 +45,66 @@ _HAUPT_RE = re.compile(
 )
 # Puffer über dem Zeitlimit der Unit, bevor der Worker systemd-run selbst abbricht.
 _ZEIT_PUFFER_S = 120
+
+# Netz-Namensraum der Unit, als Quelltext: läuft in der Unit per `python -I -c` (Vorspann jedes
+# Auftrags und Probe des Selbsttests), daher nur Standardbibliothek, kein `$`/`%` (systemd).
+# Geräte aus zwei Quellen: /proc/self/net/dev zeigt den Namensraum des Lesers, /sys/class/net den
+# des sysfs-Einhängers. „zu“ nur, wenn beide gelesen sind, übereinstimmen, `lo` enthalten und
+# sonst nur Fallback-Tunnel, die der Kernel beim Laden von ipip/ip_gre/sit/ip6_tunnel/ip6_gre/
+# ip_vti/ip6_vti in jedem neuen Namensraum selbst anlegt (ohne Gegenstelle, nicht aktiv; Kernel-
+# Doku net.core.fb_tunnels_only_for_init_net, Vorgabe 0). Jeder Lesefehler ist „offen“.
+NETZRAUM_QUELLE = r'''
+import os
+FALLBACK_TUNNEL = frozenset({"tunl0", "gre0", "gretap0", "erspan0", "sit0", "ip6tnl0", "ip6gre0",
+                             "ip6gretap0", "ip6erspan0", "ip_vti0", "ip6_vti0"})
+
+
+def netzraum_geraete():
+    try:
+        with open("/proc/self/net/dev") as f:
+            zeilen = f.read().splitlines()[2:]
+        proc = sorted(z.split(":", 1)[0].strip() for z in zeilen if z.strip())
+    except (OSError, ValueError):
+        proc = None
+    try:
+        sysfs = sorted(os.listdir("/sys/class/net"))
+    except OSError:
+        sysfs = None
+    return proc, sysfs
+
+
+def netzraum_bewerten(proc, sysfs):
+    if proc is None or sysfs is None or proc != sysfs:
+        return "offen"
+    if "lo" not in proc or not set(proc) - {"lo"} <= FALLBACK_TUNNEL:
+        return "offen"
+    return "zu"
+
+
+def netzraum_text(proc, sysfs):
+    return "/proc/self/net/dev: " + repr(proc) + ", /sys/class/net: " + repr(sysfs)
+'''
+# Exit-Code des Vorspanns bei fehlendem eigenen Netz-Namensraum (kein Werkzeug gestartet) und
+# bei nicht startbarem Werkzeug.
+NETZRAUM_VERSTOSS = 97
+_WERKZEUG_FEHLT = 127
+VORSPANN = NETZRAUM_QUELLE + rf'''
+import sys
+try:
+    _geraete = netzraum_geraete()
+    _urteil = netzraum_bewerten(*_geraete)
+except Exception:
+    _geraete, _urteil = (None, None), "offen"
+if _urteil != "zu":
+    sys.stderr.write("scanview: Isolation greift nicht: netzraum (" + netzraum_text(*_geraete)
+                     + "); Werkzeug nicht gestartet.\n")
+    sys.exit({NETZRAUM_VERSTOSS})
+try:
+    os.execv(sys.argv[1], sys.argv[1:])
+except OSError as e:
+    sys.stderr.write("scanview: Werkzeug nicht startbar: " + str(e) + "\n")
+    sys.exit({_WERKZEUG_FEHLT})
+'''
 
 
 @dataclass(frozen=True)
@@ -65,6 +133,10 @@ class Lauf:
     # Nur für die RAM-Probe des Selbsttests: `OOMPolicy=continue`, damit ein OOM-Kill eines
     # Kindprozesses die Unit nicht als `oom-kill` beendet. Echte Aufträge: nie gesetzt.
     oom_fortsetzen: bool = False
+    # Vorspann (`VORSPANN`) prüft den Netz-Namensraum vor dem Werkzeug. Nur die Proben des
+    # Selbsttests laufen ohne ihn (sie prüfen selbst und schreiben ihr Ergebnis). Echte
+    # Aufträge: immer an.
+    vorspann: bool = True
 
 
 @dataclass(frozen=True)
@@ -110,6 +182,9 @@ class SystemdLaeufer:
     # ProtectHome: „read-only“ am Arbeitsplatz (Import-Umgebung liegt unter /home),
     # „tmpfs“ auf dem Server (Import-Umgebung unter /opt).
     home: Literal["read-only", "tmpfs", "yes"] = "read-only"
+    # Interpreter des Vorspanns: derselbe wie der des Workers (in der Unit lesbar, wie für die
+    # Proben des Selbsttests).
+    python: str = sys.executable
 
     def _sperrpfade(self) -> list[Path]:
         # Sockets des Systems und der User-Manager (Bus, resolved, Docker …): zusätzlich zur
@@ -161,7 +236,11 @@ class SystemdLaeufer:
                     **lauf.umgebung}
         for k, v in umgebung.items():
             cmd += ["-E", f"{k}={v}"]
-        return [*cmd, "--", *lauf.argv]
+        # -I: weder Umgebung noch Arbeitsordner (den ein früherer Lauf beschrieben haben kann)
+        # im Suchpfad. Der Vorspann ersetzt sich per execv durch das Werkzeug: gleiche PID,
+        # gleiche Grenzen, Exit-Code des Werkzeugs.
+        vorspann = [self.python, "-I", "-c", VORSPANN] if lauf.vorspann else []
+        return [*cmd, "--", *vorspann, *lauf.argv]
 
     def ausfuehren(self, lauf: Lauf) -> Ergebnis:
         t0 = time.monotonic()

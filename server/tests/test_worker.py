@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +15,15 @@ from jobswelt import BASIS, ERGEBNIS, PRUEFEN, Welt, pruefer_schreibt, welt  # n
 
 from scanview_server import auftraege
 from scanview_worker import worker as W
-from scanview_worker.laeufer import Ergebnis, Lauf, SystemdLaeufer, deutung
+from scanview_worker.laeufer import (
+    NETZRAUM_QUELLE,
+    NETZRAUM_VERSTOSS,
+    VORSPANN,
+    Ergebnis,
+    Lauf,
+    SystemdLaeufer,
+    deutung,
+)
 
 
 def _auftrag(w: Welt, aid: str) -> sqlite3.Row:
@@ -62,6 +71,7 @@ def test_fifo_parallelitaet_eins_und_feste_argumentliste(welt: Welt) -> None:  #
     (Ergebnis("exit", 1, 0.1), "fehlgeschlagen", "keinen gültigen Bericht"),
     (Ergebnis("exit", 137, 0.1), "fehlgeschlagen", "abgebrochen (Exit 137)"),
     (Ergebnis("abgebrochen", None, 0.1), "fehlgeschlagen", "abgebrochen (Exit ?)"),
+    (Ergebnis("exit", NETZRAUM_VERSTOSS, 0.1), "fehlgeschlagen", W.F_ISOLATION),
 ])
 def test_fehlerbilder_ohne_pfade(welt: Welt, ergebnis: Ergebnis, status: str,  # noqa: F811
                                  text: str) -> None:
@@ -310,8 +320,10 @@ def test_systemd_befehl_hat_alle_grenzen_und_keine_shell(tmp_path: Path) -> None
               "TemporaryFileSystem=/srv/data:ro", "TemporaryFileSystem=/srv/berichte:ro",
               "BindReadOnlyPaths=/srv/data/ost", f"BindPaths={tmp_path}"):
         assert p in props, p
-    assert cmd[cmd.index("--") + 1:] == list(lauf.argv)
-    assert not any(t in ("sh", "/bin/sh", "bash", "-c") for t in cmd)
+    # Vor dem Werkzeug der Vorspann (Netz-Namensraum prüfen, dann execv), kein Shell.
+    assert cmd[cmd.index("--") + 1:] == [sys.executable, "-I", "-c", VORSPANN, *lauf.argv]
+    assert not any(t in ("sh", "/bin/sh", "bash") for t in cmd)
+    assert cmd.count("-c") == 1 and cmd[cmd.index("-c") + 1] == VORSPANN
     assert "--wait" in cmd and "--collect" in cmd
     system = SystemdLaeufer(benutzer=False).befehl(lauf)
     assert "--user" not in system
@@ -383,6 +395,71 @@ def test_systemd_befehl_verlangt_absoluten_programmpfad(tmp_path: Path) -> None:
                 protokoll=tmp_path / "l", grenzen=Grenzen(ram_mb=1, zeit_s=1))
     with pytest.raises(ValueError, match="absoluter Pfad"):
         SystemdLaeufer().befehl(lauf)
+
+
+# --- Netz-Namensraum: Auswertung (Vorspann und Selbsttest) ------------------------------------
+
+
+def _netzraum() -> dict[str, Any]:
+    """Genau der Quelltext, der in der Unit läuft (Vorspann und Probe), hier als Funktionen."""
+    ns: dict[str, Any] = {}
+    exec(compile(NETZRAUM_QUELLE, "<NETZRAUM_QUELLE>", "exec"), ns)
+    return ns
+
+
+_TUNNEL = ["erspan0", "gre0", "gretap0", "ip6_vti0", "ip6erspan0", "ip6gre0", "ip6gretap0",
+           "ip6tnl0", "ip_vti0", "sit0", "tunl0"]
+
+
+@pytest.mark.parametrize(("proc", "sysfs", "erwartet"), [
+    (["lo"], ["lo"], "zu"),
+    # Fallback-Tunnel legt der Kernel in jedem neuen Namensraum selbst an
+    # (net.core.fb_tunnels_only_for_init_net=0, Vorgabe): kein Fehlalarm.
+    (["lo", "sit0", "tunl0"], ["lo", "sit0", "tunl0"], "zu"),
+    (sorted(["lo", *_TUNNEL]), sorted(["lo", *_TUNNEL]), "zu"),
+    (["eth0", "lo"], ["eth0", "lo"], "offen"),
+    (["lo", "sit0", "wg0"], ["lo", "sit0", "wg0"], "offen"),
+    (["sit0"], ["sit0"], "offen"),           # ohne lo: kein frischer Namensraum
+    ([], [], "offen"),
+    (["lo"], ["eth0", "lo"], "offen"),       # sysfs aus dem Namensraum des Hosts
+    (["eth0", "lo"], ["lo"], "offen"),       # Leser im Namensraum des Hosts
+    (["lo"], ["lo", "sit0"], "offen"),       # Listen weichen ab
+    (None, ["lo"], "offen"),                 # /proc nicht lesbar
+    (["lo"], None, "offen"),                 # /sys nicht lesbar
+    (None, None, "offen"),
+])
+def test_netzraum_bewerten(proc: list[str] | None, sysfs: list[str] | None,
+                           erwartet: str) -> None:
+    assert _netzraum()["netzraum_bewerten"](proc, sysfs) == erwartet
+
+
+def test_netzraum_fallback_liste_wie_kernel() -> None:
+    """Namen aus der Kernel-Doku (fb_tunnels_only_for_init_net: ipip, ip_gre, sit, ip6_tunnel,
+    ip6_gre, ip_vti, ip6_vti) — keine Geräte mit Gegenstelle."""
+    assert sorted(_netzraum()["FALLBACK_TUNNEL"]) == _TUNNEL
+
+
+def test_netzraum_geraete_liest_proc_und_sys() -> None:
+    """Liest beide Quellen dieses Prozesses (Namensraum des Tests), `lo` immer dabei."""
+    proc, sysfs = _netzraum()["netzraum_geraete"]()
+    assert sysfs == sorted(os.listdir("/sys/class/net"))
+    assert proc == sorted(proc) and "lo" in proc and "lo" in sysfs
+    assert all(n and ":" not in n and " " not in n for n in proc), proc
+
+
+def test_vorspann_ohne_dollar_und_prozent() -> None:
+    """systemd-run könnte `$`/`%` im Befehl expandieren; der Vorspann enthält keins."""
+    assert "$" not in VORSPANN and "%" not in VORSPANN
+    assert f"sys.exit({NETZRAUM_VERSTOSS})" in VORSPANN
+
+
+def test_nur_die_proben_des_selbsttests_ohne_vorspann() -> None:
+    """Echte Aufträge laufen immer mit Vorspann: im Worker steht `vorspann=False` genau zweimal
+    (Probe und RAM-Probe des Selbsttests), Vorgabe des Laufs ist an."""
+    quelle = Path(W.__file__).read_text(encoding="utf-8")
+    assert quelle.count("vorspann=False") == 2
+    assert Lauf(name="x", argv=["/x"], arbeit=Path("/a"), protokoll=Path("/a/l"),
+                grenzen=W.Grenzen(ram_mb=1, zeit_s=1)).vorspann is True
 
 
 # --- Einstellungen aus der Umgebung ------------------------------------------------------------

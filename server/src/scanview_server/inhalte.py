@@ -33,7 +33,7 @@ from typing import Any, Literal
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import protokoll
+from . import genauigkeit, protokoll
 from .db import transaktion
 from .web import Konflikt, Ungueltig
 
@@ -246,6 +246,80 @@ class Eintrag:
             "erstelltVonName": self.erstellt_von_name, "herkunft": self.herkunft,
             "pruefstand": self.pruefstand, "loeschenVorgeschlagen": self.loeschen_vorgeschlagen,
         }
+
+
+#: Arten, die Daten setzen (jede trägt die vollen Daten vorher/nachher); Prüf- und Löschschritte
+#: ändern keine Geometrie und zählen nicht.
+_GEOMETRIE_ARTEN = ("angelegt", "wiederhergestellt", "vorgeschlagen", "geaendert",
+                    "vorschlag_geaendert")
+
+
+#: Feste Abfragen je Tabelle und Umfang (alle, einer): Ereignisse, die ein Feld der Geometrie
+#: setzen oder ändern; ein Wiederherstellen zählt immer (es legt den Eintrag neu an). Verglichen
+#: in SQL, ohne die Daten in Python zu dekodieren. Bewusst ausgeschrieben statt zusammengesetzt
+#: (SAST B608); dass „einer“ zu „alle“ passt, prüft test_grundlage.
+_KANAL_SQL: dict[str, tuple[str, str]] = {
+    "pois": (
+        "SELECT objekt_id, kanal FROM ereignisse WHERE project_id=? AND art IN (?,?,?,?,?)"
+        " AND nachher IS NOT NULL AND (vorher IS NULL OR art LIKE '%.wiederhergestellt'"
+        " OR json_extract(nachher, '$.position') IS NOT json_extract(vorher, '$.position')"
+        " OR json_extract(nachher, '$.positionSource')"
+        " IS NOT json_extract(vorher, '$.positionSource'))"
+        " ORDER BY id",
+        "SELECT objekt_id, kanal FROM ereignisse WHERE project_id=? AND art IN (?,?,?,?,?)"
+        " AND nachher IS NOT NULL AND (vorher IS NULL OR art LIKE '%.wiederhergestellt'"
+        " OR json_extract(nachher, '$.position') IS NOT json_extract(vorher, '$.position')"
+        " OR json_extract(nachher, '$.positionSource')"
+        " IS NOT json_extract(vorher, '$.positionSource'))"
+        " AND objekt_id=?"
+        " ORDER BY id",
+    ),
+    "messungen": (
+        "SELECT objekt_id, kanal FROM ereignisse WHERE project_id=? AND art IN (?,?,?,?,?)"
+        " AND nachher IS NOT NULL AND (vorher IS NULL OR art LIKE '%.wiederhergestellt'"
+        " OR json_extract(nachher, '$.points') IS NOT json_extract(vorher, '$.points')"
+        " OR json_extract(nachher, '$.pointSources') IS NOT json_extract(vorher, '$.pointSources'))"
+        " ORDER BY id",
+        "SELECT objekt_id, kanal FROM ereignisse WHERE project_id=? AND art IN (?,?,?,?,?)"
+        " AND nachher IS NOT NULL AND (vorher IS NULL OR art LIKE '%.wiederhergestellt'"
+        " OR json_extract(nachher, '$.points') IS NOT json_extract(vorher, '$.points')"
+        " OR json_extract(nachher, '$.pointSources') IS NOT json_extract(vorher, '$.pointSources'))"
+        " AND objekt_id=?"
+        " ORDER BY id",
+    ),
+}
+
+
+def geometrie_kanaele(conn: sqlite3.Connection, tabelle: Tabelle, pid: str,
+                      eid: str | None = None) -> dict[str, str]:
+    """Kanal (web, api, cli) der letzten Änderung der Geometrie je Eintrag, aus dem
+    unveränderlichen Protokoll."""
+    arten = tuple(f"{ART[tabelle]}.{a}" for a in _GEOMETRIE_ARTEN)
+    alle, einer = _KANAL_SQL[tabelle]
+    if eid is None:
+        zeilen = conn.execute(alle, (pid, *arten))
+    else:
+        zeilen = conn.execute(einer, (pid, *arten, eid))
+    return {r["objekt_id"]: r["kanal"] for r in zeilen}
+
+
+def grundlagen(conn: sqlite3.Connection, tabelle: Tabelle, pid: str, eintraege: list[Eintrag],
+               ebenen: tuple[genauigkeit.EbeneGenauigkeit, ...]) -> dict[str, str]:
+    """ID → Grundlage (genauigkeit.grundlage)."""
+    if not eintraege:
+        return {}
+    kanaele = geometrie_kanaele(conn, tabelle, pid,
+                                eintraege[0].id if len(eintraege) == 1 else None)
+    return {e.id: genauigkeit.grundlage(e.daten, e.herkunft, ebenen, kanaele.get(e.id))
+            for e in eintraege}
+
+
+def mit_grundlage(conn: sqlite3.Connection, tabelle: Tabelle, pid: str,
+                  eintraege: list[Eintrag], ebenen: tuple[genauigkeit.EbeneGenauigkeit, ...],
+                  ) -> list[dict[str, Any]]:
+    """`als_json()` je Eintrag plus `grundlage`."""
+    g = grundlagen(conn, tabelle, pid, eintraege, ebenen)
+    return [{**e.als_json(), "grundlage": g[e.id]} for e in eintraege]
 
 
 def _eintrag(r: sqlite3.Row) -> Eintrag:

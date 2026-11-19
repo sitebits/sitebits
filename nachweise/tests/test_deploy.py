@@ -27,7 +27,14 @@ from types import ModuleType
 from typing import Any
 
 import pytest
-from pflicht import auf_schema_1, auf_schema_2, berichte_dateien, werkzeuge
+from pflicht import (
+    auf_schema_1,
+    auf_schema_2,
+    auf_schema_3,
+    auf_schema_4,
+    berichte_dateien,
+    werkzeuge,
+)
 
 from scanview_nachweise import abschluss, manifest
 from scanview_nachweise.artefakte import Artefakt, Netzschritt
@@ -394,6 +401,31 @@ def test_schema_2_ohne_import_angenommen(tmp_path: Path, schluessel: tuple[Path,
     baum = Path(_stdout_felder(ergebnis)["baum"])
     assert (baum / "server/uv.lock").is_file() and not (baum / "import").exists()
     assert "import:" not in _stdout_felder(ergebnis)["artefakte"]
+
+
+@pytest.mark.parametrize("schema", [auf_schema_3, auf_schema_4], ids=["schema-3", "schema-4"])
+def test_schema_3_und_4_angenommen(tmp_path: Path, schluessel: tuple[Path, Path],
+                                   schema: Callable[[dict[str, Any]], None]) -> None:
+    """Prüfer-Vorlauf (K1.3): der Prüfer kennt /4, bevor die Kette es erzeugt, und nimmt
+    archivierte /3-Releases weiter an."""
+    release = _baue_release(tmp_path / "rel", schluessel[0], aendern=schema)
+    ergebnis = _pruefen(release, schluessel[1])
+    assert ergebnis.returncode == 0, ergebnis.stderr
+
+
+@pytest.mark.parametrize("fehlt", ["stufe-upgrade", "upgrade"])
+def test_schema_4_ohne_upgrade_abgelehnt(tmp_path: Path, schluessel: tuple[Path, Path],
+                                         fehlt: str) -> None:
+    def aendern(d: dict[str, Any]) -> None:
+        auf_schema_4(d)
+        if fehlt == "stufe-upgrade":
+            del d["berichte"][fehlt]
+        else:
+            del d["pruefungen"][fehlt]
+    release = _baue_release(tmp_path / "rel", schluessel[0], aendern=aendern)
+    ergebnis = _pruefen(release, schluessel[1])
+    _abgelehnt(ergebnis, "manifest")
+    assert ("Berichte nicht vollständig" if fehlt == "stufe-upgrade" else fehlt) in ergebnis.stderr
 
 
 def test_artefakt_dateiname_fest(tmp_path: Path, schluessel: tuple[Path, Path]) -> None:
@@ -846,7 +878,8 @@ def test_bootstrap_gueltig_entpackt_und_ruft_einrichten(tmp_path: Path,
     assert (wurzel / "scanview-release" / VERSION / "manifest.json").is_file()
 
 
-@pytest.mark.parametrize("zurueck", [auf_schema_1, auf_schema_2], ids=["schema-1", "schema-2"])
+@pytest.mark.parametrize("zurueck", [auf_schema_1, auf_schema_2, auf_schema_3, auf_schema_4],
+                         ids=["schema-1", "schema-2", "schema-3", "schema-4"])
 def test_bootstrap_nimmt_archivierte_schemata(tmp_path: Path, schluessel: tuple[Path, Path],
                                                zurueck: Callable[[dict[str, Any]], None]) -> None:
     release = _baue_release(tmp_path / "rel", schluessel[0], aendern=zurueck)

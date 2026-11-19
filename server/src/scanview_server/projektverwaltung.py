@@ -19,6 +19,7 @@ from typing import Any
 from . import protokoll
 from .db import transaktion
 from .inhalte import POI_LIMITS, RUECKMELDUNG
+from .teilen import PROFIL_STANDARD, PROFILE
 from .web import Ungueltig
 
 GEWERK_NAME_MAX = 80
@@ -237,18 +238,21 @@ class Einstellungen:
     export_bearbeiter: bool = True
     befund_faeden: bool = False         # Standard nach Vorlage (FAEDEN_VORLAGEN)
     nur_lese_links: bool = False        # F28: Gäste per Link, Standard aus
-    # F20: Panoramen für Betrachter/Rückmelder nur mit Freigabe (freigabe.py). Ohne Einrichtung
-    # und bei Projekten von vor 0016 aus (Übergang), bei neu eingerichteten an.
-    panoramen_nur_freigegeben: bool = False
+    # F20: Panoramen für Betrachter/Rückmelder nur mit Freigabe (freigabe.py). Seit 0021 überall an,
+    # auch ohne Einrichtung (fail-closed); aus nur als bewusste, protokollierte Entscheidung.
+    panoramen_nur_freigegeben: bool = True
     # F8: E-Mail-Benachrichtigungen im Projekt (wirkt nur, wenn die Instanz Mail eingerichtet hat).
     benachrichtigung: bool = True
+    # P08-S6: Standardprofil neuer Nur-Lese-Links (teilen.PROFILE); gilt nicht für Beteiligte.
+    ansichtsprofil: str = PROFIL_STANDARD
 
     def als_json(self) -> dict[str, Any]:
         return {"vorlage": self.vorlage, "rueckmeldungen": self.rueckmeldungen,
                 "exportBearbeiter": self.export_bearbeiter, "befundFaeden": self.befund_faeden,
                 "nurLeseLinks": self.nur_lese_links,
                 "panoramenNurFreigegeben": self.panoramen_nur_freigegeben,
-                "benachrichtigung": self.benachrichtigung}
+                "benachrichtigung": self.benachrichtigung,
+                "ansichtsprofil": self.ansichtsprofil}
 
 
 VORGABE = Einstellungen()
@@ -260,20 +264,22 @@ def _einstellungen(r: sqlite3.Row) -> Einstellungen:
                          befund_faeden=bool(r["befund_faeden"]),
                          nur_lese_links=bool(r["nur_lese_links"]),
                          panoramen_nur_freigegeben=bool(r["panoramen_nur_freigegeben"]),
-                         benachrichtigung=bool(r["benachrichtigung"]))
+                         benachrichtigung=bool(r["benachrichtigung"]),
+                         ansichtsprofil=str(r["ansichtsprofil"]))
 
 
 def einstellungen(conn: sqlite3.Connection, pid: str) -> Einstellungen:
     r = conn.execute("SELECT vorlage, rueckmeldungen, export_bearbeiter, befund_faeden,"
-                     " nur_lese_links, panoramen_nur_freigegeben, benachrichtigung FROM projekte"
-                     " WHERE project_id=?", (pid,)).fetchone()
+                     " nur_lese_links, panoramen_nur_freigegeben, benachrichtigung, ansichtsprofil"
+                     " FROM projekte WHERE project_id=?", (pid,)).fetchone()
     return VORGABE if r is None else _einstellungen(r)
 
 
 def alle_einstellungen(conn: sqlite3.Connection) -> dict[str, Einstellungen]:
     return {str(r["project_id"]): _einstellungen(r) for r in conn.execute(
         "SELECT project_id, vorlage, rueckmeldungen, export_bearbeiter, befund_faeden,"
-        " nur_lese_links, panoramen_nur_freigegeben, benachrichtigung FROM projekte")}
+        " nur_lese_links, panoramen_nur_freigegeben, benachrichtigung, ansichtsprofil"
+        " FROM projekte")}
 
 
 def wirksame_rolle(rolle: str | None, e: Einstellungen) -> str | None:
@@ -281,11 +287,11 @@ def wirksame_rolle(rolle: str | None, e: Einstellungen) -> str | None:
     return "betrachter" if rolle == "rueckmelder" and not e.rueckmeldungen else rolle
 
 
-def _schalter(e: Einstellungen) -> dict[str, bool]:
+def _schalter(e: Einstellungen) -> dict[str, bool | str]:
     return {"rueckmeldungen": e.rueckmeldungen, "exportBearbeiter": e.export_bearbeiter,
             "befundFaeden": e.befund_faeden, "nurLeseLinks": e.nur_lese_links,
             "panoramenNurFreigegeben": e.panoramen_nur_freigegeben,
-            "benachrichtigung": e.benachrichtigung}
+            "benachrichtigung": e.benachrichtigung, "ansichtsprofil": e.ansichtsprofil}
 
 
 @dataclass(frozen=True)
@@ -313,15 +319,15 @@ class SchonEingerichtet(Exception):
             "Kategorien und Schalter lassen sich weiter ändern.")
 
 
-def _anlegen(conn: sqlite3.Connection, pid: str, vorlage: str, von: int, n: int, *,
-             panos_gesperrt: bool) -> None:
+def _anlegen(conn: sqlite3.Connection, pid: str, vorlage: str, von: int, n: int) -> None:
     """In laufender Transaktion: Zeile in `projekte` und Startkategorien der Vorlage.
 
-    `panos_gesperrt`: nur beim ausdrücklichen Einrichten an; entsteht die Zeile nebenbei (erste
-    Änderung an Kategorien oder Schaltern eines Bestandsprojekts), bleibt der Übergang."""
+    Panoramen nur freigegeben: immer an, auch wenn die Zeile nebenbei entsteht (erste Änderung an
+    Kategorien oder Schaltern eines Bestandsprojekts) — sonst öffnete eine Kategorienänderung das
+    Tor für Altpakete ohne Anonymisierungsblock."""
     conn.execute("INSERT INTO projekte (project_id, vorlage, angelegt_am, befund_faeden,"
-                 " panoramen_nur_freigegeben) VALUES (?,?,?,?,?)",
-                 (pid, vorlage, n, int(vorlage in FAEDEN_VORLAGEN), int(panos_gesperrt)))
+                 " panoramen_nur_freigegeben) VALUES (?,?,?,?,1)",
+                 (pid, vorlage, n, int(vorlage in FAEDEN_VORLAGEN)))
     for i, name in enumerate(VORLAGEN[vorlage]):
         conn.execute("INSERT INTO projekt_kategorien (project_id, name, reihenfolge, aktiv)"
                      " VALUES (?,?,?,1)", (pid, name, i))
@@ -332,7 +338,7 @@ def _anlegen(conn: sqlite3.Connection, pid: str, vorlage: str, von: int, n: int,
 
 def _sicherstellen(conn: sqlite3.Connection, pid: str, von: int, n: int) -> None:
     if conn.execute("SELECT 1 FROM projekte WHERE project_id=?", (pid,)).fetchone() is None:
-        _anlegen(conn, pid, STANDARD_VORLAGE, von, n, panos_gesperrt=False)
+        _anlegen(conn, pid, STANDARD_VORLAGE, von, n)
 
 
 def einrichten(conn: sqlite3.Connection, pid: str, vorlage: str, *, von: int,
@@ -344,7 +350,7 @@ def einrichten(conn: sqlite3.Connection, pid: str, vorlage: str, *, von: int,
         alt = conn.execute("SELECT vorlage FROM projekte WHERE project_id=?", (pid,)).fetchone()
         if alt is not None:
             raise SchonEingerichtet(str(alt["vorlage"]))
-        _anlegen(conn, pid, vorlage, von, n, panos_gesperrt=True)
+        _anlegen(conn, pid, vorlage, von, n)
     return einstellungen(conn, pid)
 
 
@@ -354,7 +360,10 @@ def einstellungen_aendern(conn: sqlite3.Connection, pid: str, *, rueckmeldungen:
                           nur_lese_links: bool | None = None,
                           panoramen_nur_freigegeben: bool | None = None,
                           benachrichtigung: bool | None = None,
+                          ansichtsprofil: str | None = None,
                           now: int | None = None) -> Einstellungen:
+    if ansichtsprofil is not None and ansichtsprofil not in PROFILE:
+        raise ValueError(ansichtsprofil)
     n = _jetzt(now)
     with transaktion(conn):
         alt = einstellungen(conn, pid)
@@ -369,16 +378,18 @@ def einstellungen_aendern(conn: sqlite3.Connection, pid: str, *, rueckmeldungen:
                                        if panoramen_nur_freigegeben is None
                                        else panoramen_nur_freigegeben),
             benachrichtigung=(alt.benachrichtigung if benachrichtigung is None
-                              else benachrichtigung))
+                              else benachrichtigung),
+            ansichtsprofil=alt.ansichtsprofil if ansichtsprofil is None else ansichtsprofil)
         if _schalter(neu) == _schalter(alt):
             return einstellungen(conn, pid)
         _sicherstellen(conn, pid, von, n)
         conn.execute("UPDATE projekte SET rueckmeldungen=?, export_bearbeiter=?, befund_faeden=?,"
-                     " nur_lese_links=?, panoramen_nur_freigegeben=?, benachrichtigung=?"
-                     " WHERE project_id=?",
+                     " nur_lese_links=?, panoramen_nur_freigegeben=?, benachrichtigung=?,"
+                     " ansichtsprofil=? WHERE project_id=?",
                      (int(neu.rueckmeldungen), int(neu.export_bearbeiter),
                       int(neu.befund_faeden), int(neu.nur_lese_links),
-                      int(neu.panoramen_nur_freigegeben), int(neu.benachrichtigung), pid))
+                      int(neu.panoramen_nur_freigegeben), int(neu.benachrichtigung),
+                      neu.ansichtsprofil, pid))
         protokoll.ereignis(conn, kanal="web", nutzer_id=von, project_id=pid,
                            art="einstellung.geaendert", objekt_id=pid, vorher=_schalter(alt),
                            nachher=_schalter(neu), now=n)

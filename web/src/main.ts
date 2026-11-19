@@ -40,7 +40,7 @@ import { attachMeasureList } from './measureList';
 import type { MeasureList } from './measureList';
 import { createToolbar } from './toolbar';
 import { anschlagMoeglich, oeffneAnschlag, trifftAnschlag } from './anschlag';
-import { erkenneModus, gastFetch, starteDebug, zeigeGastHinweis, zeigeZurueck } from './platform';
+import { erkenneModus, gastFetch, gastHinweisText, starteDebug, zeigeGastHinweis, zeigeZurueck } from './platform';
 import { debugAn, setzeDebug, viewerVersion } from './debug';
 import { verbindePlattform } from './plattformViewer';
 import { attachShortcuts, PANEL_AKTION } from './keymap';
@@ -111,6 +111,10 @@ import type { MenueEintrag, PadSteuerung } from './padSteuerung';
 import { hinweisSchluessel } from './hinweise';
 import { attachEmpfang } from './empfang';
 import { attachSprunglinks } from './sprunglinks';
+import { attachZeigeLeiste, sichereAusgeblendete } from './zeigen';
+import type { Messwerkzeug } from './zeigen';
+import { aktionErlaubt, hilfeZeigt, MESSWERKZEUGE, schlank, werkzeugReihe, wirksamesProfil } from './profil';
+import './styles/zeigen.css';
 
 /** Kamera-/Messänderungen werden gedrosselt in den URL-Hash geschrieben (kein replaceState pro Frame). */
 const HASH_THROTTLE_MS = 300;
@@ -159,6 +163,12 @@ async function start(): Promise<void> {
   // Nur-Lese-Link (F28): bereinigtes Manifest vom Server, Kennzeichnung unten.
   const gast = modus.art === 'einzeln' ? modus.gast : undefined;
   if (gast) zeigeGastHinweis(document.body, gast);
+  // Ansichtsprofil (profil.ts): als Gast vom Link (Server), `?zeigen=1` verkleinert höchstens. Schlanke Profile blenden
+  // die Bedienelemente von Anfang an aus (zeigen.ts), damit beim Laden nichts aufblitzt.
+  const profil = wirksamesProfil(location.search, gast?.profil);
+  const zeigen = schlank(profil);
+  document.body.dataset.profil = profil;
+  if (zeigen) document.body.classList.add('sv-zeigen');
   const pkg = new URLSearchParams(location.search).get('p') ?? (modus.art === 'einzeln' ? standardPaketPfad(import.meta.env.VITE_STANDARDPAKET) : '');
   const base = new URL(pkg, location.href).toString();
   say('Lade Projekt …');
@@ -456,7 +466,8 @@ async function start(): Promise<void> {
     vollbild: vollbildMoeglich,
     eigenesFenster: eigenesFenster(),
   });
-  const tastenhilfeDialog = createBedienung({ belegung: () => belegung, kuerzel, kontext: hilfeKontext });
+  const tastenhilfeDialog = createBedienung({ belegung: () => belegung, kuerzel, kontext: hilfeKontext, zeigt: (a) => hilfeZeigt(profil, a),
+    padErlaubt: (a) => aktionErlaubt(profil, a) });
   const einstellungenDialog = createEinstellungen({
     belegung: () => belegung,
     setzeBelegung: (b: Belegung): void => {
@@ -514,12 +525,15 @@ async function start(): Promise<void> {
   document.addEventListener('webkitfullscreenchange', zeigeVollbild);
   // Schalter „Messwerte zeigen“ der Empfängeransicht (sie entsteht erst weiter unten — per Variable).
   let messwerteGeaendert = (): void => undefined;
+  // Show-Modus: nach jeder Messänderung höchstens die jüngste Strecke behalten (Belegung unten).
+  let nachMessung = (): void => undefined;
   const tool = attachMeasureTool({
     v,
     store,
     sourceLayers: p.layers,
     vorschlaegeSichtbar: () => vorschlaegeSichtbar,
     onChange: () => {
+      nachMessung();
       scheduleHashUpdate();
       list?.refresh();
       messwerteGeaendert();
@@ -973,6 +987,7 @@ async function start(): Promise<void> {
     stations,
     notify,
     hiddenCloudMessage,
+    paketPois: !gast,
     persistenz: plattform?.poiPersistenz,
     vorschlaegeSichtbar: () => vorschlaegeSichtbar,
     kategorieFest: plattform?.rechte.nurRueckmeldung ? RUECKMELDUNG : undefined,
@@ -1023,6 +1038,7 @@ async function start(): Promise<void> {
   v.controls.addEventListener('change', () => { orbitBewegt = true; });
   v.controls.addEventListener('end', () => { if (orbitBewegt) hinweise?.zaehle(zeigerArt()); });
   v.onDrehpunktGesetzt(() => hinweise?.zaehle(zeigerArt()));
+  v.setDrehpunktSperre(() => tool.linieOffen());
   // Auswahl → Seitentitel, nach dem Speichern Auswahl und Fokus auf die 3D-Ansicht (befundSteuerung.ts).
   const befundSteuerung = attachBefundSteuerung({
     pois, persistenz: plattform?.poiPersistenz, leinwand: v.instance.domElement, manifest: p, melde: say, hinweis: notify,
@@ -1141,6 +1157,9 @@ async function start(): Promise<void> {
 
   // Ein Verteiler für alle Kürzel (keymap.ts), Esc-Vorrang Ziehen → Zeichnung → Begehen → Panorama.
   const run = (a: KeyAction): void => {
+    // Schlanke Profile: nur Navigieren, erlaubte Messwerkzeuge und Hilfe; sonst öffnete eine Taste oder ein
+    // Controller-Knopf, was die Oberfläche bewusst weglässt (Panels, Ebenen, Befund, Teilen …).
+    if (!aktionErlaubt(profil, a)) return;
     hinweise?.beobachte(a);
     // Im Begehen und im Panorama-Fadenkreuz verwirft ein Werkzeugwechsel per Taste kein offenes Befund-Formular.
     if ((a.type === 'tool' || a.type === 'werkzeug-wechsel') && (walk.aktiv || zielpunkt.panoramaZiel()) && pois.formularOffen()) {
@@ -1206,10 +1225,11 @@ async function start(): Promise<void> {
         else zielpunkt.panoHalte(a.aktion, true);
         return;
       case 'werkzeug-wechsel': {
-        // Reihenfolge der Werkzeugleiste, zyklisch.
-        const i = WERKZEUG_REIHENFOLGE.indexOf(toolbar.tool());
-        const n = WERKZEUG_REIHENFOLGE.length;
-        toolbar.setTool(WERKZEUG_REIHENFOLGE[(i + a.richtung + n) % n]!);
+        // Reihenfolge der Werkzeugleiste, zyklisch; in den schlanken Profilen nur Navigieren und die Messwerkzeuge.
+        const reihe = werkzeugReihe(profil, WERKZEUG_REIHENFOLGE);
+        const i = reihe.indexOf(toolbar.tool());
+        const n = reihe.length;
+        toolbar.setTool(reihe[(i + a.richtung + n) % n]!);
         return;
       }
       // Abfragetaste: frische Vorschau, sofort ansagen (ohne die Ruhezeit abzuwarten).
@@ -1257,8 +1277,10 @@ async function start(): Promise<void> {
       werkzeug: (richtung) => run({ type: 'werkzeug-wechsel', richtung }),
       standpunkt: (richtung) => run({ type: 'standpunkt', richtung }),
       fang: () => {
+        // Nur ansagen, was geschah: ein Profil ohne Fang (aktionErlaubt) lässt den Zustand stehen.
+        const vorher = toolbar.snapEdges();
         run({ type: 'toggle-snap' });
-        say(toolbar.snapEdges() ? 'Fang ein' : 'Fang aus');
+        if (toolbar.snapEdges() !== vorher) say(vorher ? 'Fang aus' : 'Fang ein');
       },
       allesZeigen: () => run({ type: 'alles-zeigen' }),
       begehenStarten: () => run({ type: 'begehen-start' }),
@@ -1271,7 +1293,10 @@ async function start(): Promise<void> {
       panoramaVerlassen: () => run({ type: 'leave-panorama' }),
     },
     // Das Menü bündelt nur, was es auch per Taste oder Knopf gibt.
-    menue: () => [
+    menue: () => (zeigen ? [
+      !walk.aktiv && !pano.active ? { text: 'Alles zeigen', tue: () => run({ type: 'alles-zeigen' }) } : null,
+      { text: 'Bedienung (Hilfe)', tue: () => run({ type: 'tastenhilfe' }) },
+    ] : [
       walk.aktiv ? { text: 'Begehen beenden', tue: () => walk.beenden(austrittsTreffer()) }
         : !pano.active && !empfang.aktiv ? { text: 'Begehen starten', tue: () => run({ type: 'begehen-start' }) } : null,
       pano.active ? { text: 'Panorama verlassen', tue: () => run({ type: 'leave-panorama' }) } : null,
@@ -1281,11 +1306,12 @@ async function start(): Promise<void> {
       empfang.aktiv ? null : { text: 'Messliste ein/aus', tue: () => run({ type: 'toggle-list' }) },
       { text: 'Bedienung (Hilfe)', tue: () => run({ type: 'tastenhilfe' }) },
       empfang.aktiv ? null : { text: 'Einstellungen: Tastatur, Controller und Bewegung', tue: einstellungenOeffnen },
-    ].filter((e): e is MenueEintrag => e !== null),
+    ]).filter((e): e is MenueEintrag => e !== null),
     benutztAenderung: (an) => {
       hinweise?.padAktiv(an);
       zielpunkt.padKreuz(an);
     },
+    erlaubt: (a) => aktionErlaubt(profil, a),
   });
   const padQuelle = padSt;
   walk.setzeEingabeQuelle((dt) => padQuelle.quelle(dt));
@@ -1307,6 +1333,63 @@ async function start(): Promise<void> {
     loslassen: (a) => (walk.aktiv ? walk.halte(a, false) : zielpunkt.panoHalte(a, false)),
     belegung: () => belegung,
   });
+
+  if (zeigen) {
+    // Keine CRS- oder Ladehinweise in der Vorführung; Fehlermeldungen beim Messen kommen weiter über notify().
+    msg.dataset.base = '';
+    say('');
+    const meshIds = p.layers.filter((l) => l.kind === 'mesh' || l.kind === 'mesh-tiles').map((l) => l.id);
+    let messenZustand: (an: boolean) => void = () => undefined;
+    let werkzeugWechsel: (w: Messwerkzeug | null) => void = () => undefined;
+    const dunkel = v.instance.engine.clearColor;
+    const werkzeuge = MESSWERKZEUGE[profil];
+    attachZeigeLeiste(document.body, {
+      titel: p.title,
+      grau: meshHandles.length ? { setzen: (an) => { for (const id of meshIds) reg!.setFlaeche(id, an ? 'grau' : 'textur'); } } : undefined,
+      // Profil „messen“: vier Werkzeuge, Messungen bleiben stehen, bis „Löschen“.
+      werkzeuge: profil === 'messen' ? {
+        liste: werkzeuge,
+        waehlen: (w) => toolbar.setTool(w ?? 'navigate'),
+        onWechsel: (cb) => { werkzeugWechsel = cb; },
+        loeschen: () => { store.clear(); tool.sync(); },
+      } : undefined,
+      einstellungen: {
+        hintergrund: { setzen: (hell) => { v.instance.engine.clearColor = hell ? '#d7d9de' : dunkel; v.instance.notifyChange(); } },
+        licht: sonne?.ort ? { an: sonne.an, setzen: (an) => sonne.setzen({ an }) } : undefined,
+        punktgroesse: v.cloud ? { wert: Number(v.cloud.pointSize) || 2, setzen: (px) => v.setPointSize(px) } : undefined,
+        vollbild: vollbildMoeglich ? { an: () => vollbildElement() !== null, umschalten: wechsleVollbild } : undefined,
+        info: [
+          p.layers.filter((l) => l.kind === 'pointcloud' || l.kind === 'mesh' || l.kind === 'mesh-tiles' || l.kind === 'splats')
+            .map((l) => l.title).join(' · '),
+          ...(gast ? [gastHinweisText(gast)] : []),
+          ...(v.crsHint ? [v.crsHint] : []),
+        ].filter(Boolean),
+        hilfe: () => tastenhilfe.oeffne(),
+      },
+      messen: {
+        // Eine Strecke: vorige Messung weg, dann zwei Punkte antippen (das Werkzeug schließt nach dem zweiten selbst).
+        setzen: (an) => {
+          store.clear();
+          tool.sync();
+          toolbar.setTool(an ? 'distance' : 'navigate');
+        },
+        onZustand: (cb) => { messenZustand = cb; },
+      },
+    });
+    toolbar.onChange((t) => {
+      messenZustand(t === 'distance');
+      werkzeugWechsel(t === 'navigate' || t === 'poi' ? null : t);
+    });
+    // Zweite Sicherung neben display:none (zeigen.css): ausgeblendete Bedienelemente sind auch nicht fokussierbar und
+    // für Hilfstechnik nicht da, auch später angehängte. Dialoge (Bedienung, Rückfrage) bleiben bedienbar.
+    sichereAusgeblendete(document.body);
+    nachMessung = profil === 'messen' ? (): void => undefined : () => {
+      const alle = store.list();
+      if (alle.length < 2) return;
+      for (const m of alle.slice(0, -1)) store.remove(m.id);
+      tool.sync();
+    };
+  }
 
   const fps = { frames: 0, samples: [] as number[] };
   let last = performance.now();

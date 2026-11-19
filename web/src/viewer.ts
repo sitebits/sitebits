@@ -57,6 +57,9 @@ export interface Viewer {
   setEdl(on: boolean): void;
   /** Drehpunkt per Doppelklick neu gesetzt (Marker, Ansage: drehpunktMarker.ts). */
   onDrehpunktGesetzt(cb: () => void): void;
+  /** Sperre für den Drehpunkt-Doppelklick: liefert sie true, setzt ein Doppelklick keinen Drehpunkt (offene
+   *  Polylinie: der Doppelklick beendet sie, measure.ts). */
+  setDrehpunktSperre(gesperrt: () => boolean): void;
   /** Punktwolken-Nachladen anhalten (keine neuen COPC-Anfragen ans Netz) bzw. fortsetzen. */
   setStreamingPaused(paused: boolean): void;
   readonly streamingPaused: boolean;
@@ -197,8 +200,9 @@ export async function createViewer(
 
   // Doppelklick auf einen Punkt setzt den Drehpunkt dorthin.
   const drehpunktCbs: (() => void)[] = [];
+  let drehpunktGesperrt = (): boolean => false;
   instance.domElement.addEventListener('dblclick', (ev) => {
-    if (!controls.enabled || !cloud) return;
+    if (!controls.enabled || !cloud || drehpunktGesperrt()) return;
     const hit = instance.pickObjectsAt(ev, { where: [cloud], radius: 3, limit: 1, sortByDistance: true })[0];
     if (hit) {
       controls.target.copy(hit.point);
@@ -245,6 +249,9 @@ export async function createViewer(
     },
     onDrehpunktGesetzt: (cb) => {
       drehpunktCbs.push(cb);
+    },
+    setDrehpunktSperre: (f) => {
+      drehpunktGesperrt = f;
     },
     setStreamingPaused: (paused) => (paused ? gate.close() : gate.open()),
     get streamingPaused() {

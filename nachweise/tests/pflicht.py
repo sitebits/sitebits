@@ -8,42 +8,52 @@ from pathlib import Path
 from typing import Any
 
 from scanview_nachweise.manifest import (
+    AUSGELIEFERT_JE_SCHEMA,
     PFLICHT_BERICHTE,
     PFLICHT_JE_SCHEMA,
-    PFLICHT_PRUEFUNGEN,
     PFLICHT_WERKZEUGE,
     SCHEMA_1,
     SCHEMA_2,
+    SCHEMA_3,
+    SCHEMA_4,
 )
 from scanview_nachweise.werkzeuge import Werkzeug
 
-#: Berichte/Prüfungen/Werkzeuge, die erst Schema /2 verlangt — ein Test, der ein /2-Manifest auf
-#: /1 zurücksetzt, nimmt sie heraus (sonst lehnt der /1-Parser sie als unbekannt ab).
-BERICHTE_NUR_2 = tuple(n for n in PFLICHT_BERICHTE if n not in PFLICHT_JE_SCHEMA[SCHEMA_1][0])
-WERKZEUGE_NUR_2 = tuple(n for n in PFLICHT_WERKZEUGE if n not in PFLICHT_JE_SCHEMA[SCHEMA_1][1])
-PRUEFUNGEN_NUR_2 = tuple(n for n in PFLICHT_PRUEFUNGEN if n not in PFLICHT_JE_SCHEMA[SCHEMA_1][2])
+
+def auf_schema(d: dict[str, Any], schema: str) -> None:
+    """Formgültiges Manifest des aktuellen Schemas (als dict) auf `schema` umstellen: genau dessen
+    Pflichtberichte, -prüfungen und -werkzeuge (fehlende Berichte mit Platzhalter-Hash, fehlende
+    Prüfungen „bestanden“) und dessen Auslieferungsmenge. Nur für Lese-/Prüfer-Tests — die
+    Berichtsdateien selbst prüft dort niemand."""
+    berichte, werkzeuge_, pruefungen = PFLICHT_JE_SCHEMA[schema]
+    d["schema"] = schema
+    d["berichte"] = {n: d["berichte"].get(n, {"datei": bericht_datei(n), "sha256": "0" * 64})
+                     for n in berichte}
+    d["pruefungen"] = {n: d["pruefungen"].get(n, "bestanden") for n in pruefungen}
+    d["werkzeuge"] = {n: d["werkzeuge"][n] for n in werkzeuge_}
+    for a in d["artefakte"]:
+        a["ausgeliefert"] = a["name"] in AUSGELIEFERT_JE_SCHEMA[schema]
+
+
+def auf_schema_4(d: dict[str, Any]) -> None:
+    """/4: dazu `stufe-upgrade` und die Prüfung `upgrade`."""
+    auf_schema(d, SCHEMA_4)
+
+
+def auf_schema_3(d: dict[str, Any]) -> None:
+    """/3: Pflichtlisten wie /2, import ausgeliefert."""
+    auf_schema(d, SCHEMA_3)
 
 
 def auf_schema_2(d: dict[str, Any]) -> None:
-    """Formgültiges /3-Manifest (als dict) auf Schema /2 zurücksetzen: /2 liefert import nicht
-    aus (gleiche Pflichtlisten, andere Auslieferungsmenge)."""
-    d["schema"] = SCHEMA_2
-    for a in d["artefakte"]:
-        if a["name"] == "import":
-            a["ausgeliefert"] = False
+    """/2: liefert import nicht aus (Pflichtlisten wie /3)."""
+    auf_schema(d, SCHEMA_2)
 
 
 def auf_schema_1(d: dict[str, Any]) -> None:
-    """Formgültiges /3-Manifest (als dict) auf Schema /1 zurücksetzen: Auslieferungsmenge wie /2,
-    dazu ohne die erst mit /2 verlangten Berichte, Prüfungen und Werkzeuge."""
-    auf_schema_2(d)
-    d["schema"] = SCHEMA_1
-    for name in BERICHTE_NUR_2:
-        del d["berichte"][name]
-    for name in PRUEFUNGEN_NUR_2:
-        del d["pruefungen"][name]
-    for name in WERKZEUGE_NUR_2:
-        del d["werkzeuge"][name]
+    """/1: Auslieferungsmenge wie /2, ohne die erst mit /2 verlangten Berichte, Prüfungen und
+    Werkzeuge."""
+    auf_schema(d, SCHEMA_1)
 
 
 def bericht_datei(name: str) -> str:

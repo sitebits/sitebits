@@ -13,7 +13,7 @@ import type { PadAktion, PadLage, PadRoh, PadTyp } from './gamepad';
 import { drehRuhe, drehSchritt, zoomFaktor } from './padGefuehl';
 import type { DrehRaten, DrehZustand } from './padGefuehl';
 import { belegungsTabelle, kontextLeiste, MODUS_TITEL, symbol, TYP_NAME } from './padModus';
-import type { PadKontext, PadModus } from './padModus';
+import type { PadErlaubt, PadKontext, PadModus } from './padModus';
 import type { Panorama } from './panorama';
 import type { RueckfrageDialog } from './rueckfrage';
 import type { Viewer } from './viewer';
@@ -95,6 +95,8 @@ export function attachPadSteuerung(o: {
   menue: () => MenueEintrag[];
   /** Controller benutzt bzw. nicht mehr (Tastenhinweise treten zurück, Fadenkreuz in der Übersicht). */
   benutztAenderung?: (an: boolean) => void;
+  /** Ansichtsprofil: wirkt das Kürzel? Die Belegungsübersicht lässt gesperrte Knöpfe weg (wie der Dialog „Bedienung“). */
+  erlaubt?: PadErlaubt;
   /** Nur für Tests: Pads lesen (Vorgabe navigator.getGamepads). */
   pads?: () => ArrayLike<PadAblesbar | null> | null;
 }): PadSteuerung {
@@ -242,7 +244,7 @@ export function attachPadSteuerung(o: {
     const sichtbar = benutztAn && padTyp !== null && !o.formularOffen() && uebersicht.hidden;
     leiste.hidden = !sichtbar;
     if (!sichtbar || padTyp === null) return;
-    const teile = kontextLeiste(kontext(), padTyp, o.belegung());
+    const teile = kontextLeiste(kontext(), padTyp, o.belegung(), o.erlaubt);
     leiste.replaceChildren(...teile.map((t) => {
       const s = document.createElement('span');
       const k = document.createElement('b');
@@ -263,7 +265,7 @@ export function attachPadSteuerung(o: {
     info.className = 'sv-pad-id';
     const t = document.createElement('table');
     const body = document.createElement('tbody');
-    for (const z of belegungsTabelle(m, typ, o.belegung())) {
+    for (const z of belegungsTabelle(m, typ, o.belegung(), o.erlaubt)) {
       const tr = document.createElement('tr');
       const th = document.createElement('th');
       th.scope = 'row';

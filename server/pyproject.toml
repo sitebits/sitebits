@@ -1,6 +1,6 @@
 [project]
 name = "scanview-server"
-version = "0.12.0"
+version = "0.12.6"
 requires-python = ">=3.11,<3.13"
 # Exakte Top-Level-Pins (per `uv lock` mit >=-Untergrenzen ermittelt);
 # keine Extras wie fastapi[standard] / uvicorn[standard] — jedes Extra ist Angriffsfläche.
@@ -49,6 +49,14 @@ packages = ["src/scanview_server", "src/scanview_worker", "src/scanview_post"]
 # feste ISO-Wert bleibt dagegen über jeden künftigen Lock/Sync konstant, bis jemand ihn
 # bewusst vorzieht.
 exclude-newer = "2026-09-20T00:00:00Z"
+# Sicherheitsausnahme je Paket (gleiche 7-Tage-Regel, eigener fester Stichtag): pyasn1 0.6.5
+# (PyPI 2026-10-27T06:32Z) behebt CVE-2026-119194/-119195/-119196/-119197 (quadratische
+# Laufzeit beim BER/DER-Dekodieren, über webauthn erreichbar). Scan-Tor Release 0.12.1, 04.11.2026.
+# certifi 2026.10.19 (PyPI 2026-10-20T02:24Z, am 05.11.2026 ≥ 7 Tage alt) behebt GHSA-6q48-6c7w-9gw2
+# (kritisch, kompromittierte emSign-Zwischenzertifikate). Nur Dev: certifi kommt allein über httpx
+# in der dev-Gruppe, ist nicht ausgeliefert. Stichtag wie in mcp-server/ und import/; hält das
+# jüngere certifi 2026.10.23 heraus. Retest: nachweise/tests/test_lock_retests.py.
+exclude-newer-package = { pyasn1 = "2026-10-28T00:00:00Z", certifi = "2026-10-21T00:00:00Z" }
 # no-build = true (Vorgabe) blockiert unter der installierten uv 0.11.3 auch den Bau des
 # eigenen, lokalen Pakets (kein Wheel vorhanden) — empirisch: "Distribution scanview-server
 # ... can't be installed because it is marked as --no-build but has no binary distribution".

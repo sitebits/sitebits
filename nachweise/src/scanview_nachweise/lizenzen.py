@@ -9,7 +9,11 @@ Zwei Regeln je ausgeliefertem SBOM, beide fail-closed:
    Eine Komponente ohne erklärte Lizenz, ein unbekannter Freitext oder ein unlesbarer Ausdruck
    ist ein Fehler — außer für genau diese Version liegt eine **belegte Lizenzfeststellung** vor
    (`[feststellungen]`: Ausdruck, Beleg, SHA-256 des Lizenztexts im Paket). Sie gilt nur, solange
-   die Komponente selbst nichts erklärt, und nur für Name **und** Version. Die Liste steht
+   die Komponente selbst nichts erklärt, und nur für Name **und** Version. Dritter Weg, eng
+   begrenzt: die **Ausnahme „nur externer Prozess“** (`[externer_prozess]`, ADR 2026-10-22) für
+   genau benannte Pakete der PDAL-Umgebung des Imports — sie gilt nur, wenn Umgebung, SHA-256
+   des Locks, Name, Version, Build, Lizenzausdruck und SHA-256 des Pakets alle übereinstimmen;
+   jede Abweichung (neues Paket, neues Lock) ist wieder ein Verstoß. Die Liste steht
    maschinenlesbar in `nachweise/lizenzen.toml` (Kategorien: permissive Lizenzen auch außerhalb
    der wörtlichen Liste, LGPL, BlueOak-1.0.0/Python-2.0, sowie MPL-2.0 unverändert weitergegeben).
 2. **Nennung:** jede Komponente steht mit Name **und** Version in einer Tabellenzeile von
@@ -35,11 +39,24 @@ _MAX_MELDUNGEN = 40
 
 
 @dataclass(frozen=True)
+class ExternerProzess:
+    """Ausnahme „nur externer Prozess“ für ein Paket einer gelockten Werkzeugumgebung."""
+
+    build: str
+    lizenz: str
+    sha256: str
+
+
+@dataclass(frozen=True)
 class Lizenzregeln:
     erlaubt: frozenset[str]
     klassifikatoren: dict[str, str]
     # (Name, Version) → SPDX-Ausdruck, festgestellt aus dem mitgelieferten Lizenztext
     feststellungen: dict[tuple[str, str], str] = field(default_factory=dict)
+    # Ausnahme „nur externer Prozess“: Umgebung, SHA-256 des Locks, (Name, Version) → Paket
+    extern_umgebung: str = ""
+    extern_lock_sha256: str = ""
+    extern: dict[tuple[str, str], ExternerProzess] = field(default_factory=dict)
 
 
 # --- SPDX-Ausdrücke ------------------------------------------------------------------------------
@@ -127,7 +144,8 @@ def lade_regeln(pfad: Path) -> Lizenzregeln:
         raise NachweisFehler(_REGEL, f"{pfad}: nicht lesbar ({e.strerror})") from None
     except tomllib.TOMLDecodeError as e:
         raise NachweisFehler(_REGEL, f"{pfad}: kein gültiges TOML ({e})") from None
-    unbekannt = sorted(set(daten) - {"erlaubt", "klassifikatoren", "feststellungen"})
+    unbekannt = sorted(set(daten) - {"erlaubt", "klassifikatoren", "feststellungen",
+                                     "externer_prozess"})
     if unbekannt:
         raise NachweisFehler(_REGEL, f"{pfad}: unbekannte Schlüssel {', '.join(unbekannt)}")
     erlaubt = daten.get("erlaubt")
@@ -158,7 +176,41 @@ def lade_regeln(pfad: Path) -> Lizenzregeln:
             raise NachweisFehler(_REGEL, f"{pfad}: Feststellung „{schluessel}“: "
                                          f"{eintrag['ausdruck']} nicht erlaubt")
         regeln.feststellungen[(normalisiere(name), version)] = eintrag["ausdruck"]
+    if "externer_prozess" in daten:
+        regeln = _lade_extern(pfad, daten["externer_prozess"], regeln)
     return regeln
+
+
+def _lade_extern(pfad: Path, roh: object, regeln: Lizenzregeln) -> Lizenzregeln:
+    """`[externer_prozess]`: adr, umgebung, lock_sha256 und `[externer_prozess.pakete]` mit
+    "name@version" = {build, lizenz, sha256}. Die Lizenz ist bewusst **nicht** erlaubt — sonst
+    bräuchte es keine Ausnahme."""
+    def kaputt(text: str) -> NachweisFehler:
+        return NachweisFehler(_REGEL, f"{pfad}: externer_prozess: {text}")
+
+    if not isinstance(roh, dict) or set(roh) != {"adr", "umgebung", "lock_sha256", "pakete"}:
+        raise kaputt("braucht genau adr, umgebung, lock_sha256 und pakete")
+    if not all(isinstance(roh[k], str) and roh[k].strip()
+               for k in ("adr", "umgebung", "lock_sha256")) \
+            or not re.fullmatch(r"[0-9a-f]{64}", roh["lock_sha256"]):
+        raise kaputt("adr, umgebung und lock_sha256 (64 Hex-Zeichen) nötig")
+    pakete = roh["pakete"]
+    if not isinstance(pakete, dict) or not pakete:
+        raise kaputt("pakete darf nicht leer sein")
+    extern: dict[tuple[str, str], ExternerProzess] = {}
+    for schluessel, e in pakete.items():
+        name, at, version = schluessel.rpartition("@")
+        if not (at and name and version) or not isinstance(e, dict) \
+                or set(e) != {"build", "lizenz", "sha256"} \
+                or not all(isinstance(v, str) and v.strip() for v in e.values()) \
+                or not re.fullmatch(r"[0-9a-f]{64}", e["sha256"]):
+            raise kaputt(f"„{schluessel}“ braucht name@version mit build, lizenz und sha256")
+        if ausdruck_erlaubt(e["lizenz"], regeln.erlaubt):
+            raise kaputt(f"„{schluessel}“: {e['lizenz']} ist schon erlaubt — keine Ausnahme nötig")
+        extern[(normalisiere(name), version)] = ExternerProzess(e["build"], e["lizenz"],
+                                                                e["sha256"])
+    return Lizenzregeln(regeln.erlaubt, regeln.klassifikatoren, regeln.feststellungen,
+                        roh["umgebung"], roh["lock_sha256"], extern)
 
 
 # --- THIRD_PARTY.md ------------------------------------------------------------------------------
@@ -241,6 +293,25 @@ def _angabe(eintrag: dict[str, Any]) -> tuple[str, str | None]:
     return repr(eintrag), None
 
 
+def _eigenschaft(k: dict[str, Any], name: str) -> str | None:
+    werte = [p.get("value") for p in k.get("properties", [])
+             if isinstance(p, dict) and p.get("name") == name]
+    return werte[0] if len(werte) == 1 and isinstance(werte[0], str) else None
+
+
+def extern_gedeckt(k: dict[str, Any], ausdruck: str, regeln: Lizenzregeln) -> bool:
+    """Deckt die Ausnahme „nur externer Prozess“ diese Komponente mit genau diesem Ausdruck?"""
+    e = regeln.extern.get((_name(k), str(k.get("version", ""))))
+    if e is None or not regeln.extern_umgebung:
+        return False
+    sha = [h.get("content") for h in k.get("hashes", [])
+           if isinstance(h, dict) and h.get("alg") == "SHA-256"]
+    return (_eigenschaft(k, "scanview:umgebung") == regeln.extern_umgebung
+            and _eigenschaft(k, "scanview:lock-sha256") == regeln.extern_lock_sha256
+            and _eigenschaft(k, "scanview:conda-build") == e.build
+            and ausdruck == e.lizenz and sha == [e.sha256])
+
+
 def probleme(bom: dict[str, Any], regeln: Lizenzregeln,
              genannt: set[tuple[str, str]]) -> list[str]:
     """Alle Verstöße eines SBOMs als Zeilen (leer = bestanden). Hauptkomponente ausgenommen
@@ -271,7 +342,7 @@ def probleme(bom: dict[str, Any], regeln: Lizenzregeln,
             except NachweisFehler as fehler:
                 ergebnis.append(f"{ref}: {fehler.text}")
                 continue
-            if not ok:
+            if not ok and not extern_gedeckt(k, ausdruck, regeln):
                 ergebnis.append(f"{ref}: Lizenz {anzeige} nicht erlaubt")
         if (name, version) not in genannt:
             ergebnis.append(f"{name} {version} nicht in docs/THIRD_PARTY.md genannt")

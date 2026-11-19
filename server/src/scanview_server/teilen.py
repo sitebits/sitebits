@@ -1,4 +1,4 @@
-"""Nur-Lese-Links (F28, ADR 0016): Gäste sehen Wolke und Meshes
+"""Nur-Lese-Links (F28, ADR 0016): Gäste sehen Wolke, Meshes und Sichtschicht (Splats)
 eines Projekts ohne Konto.
 
 Ablauf: Die Projektleitung legt einen Link an (`/teilen#t=<Token>`, Token im Fragment, nur sein
@@ -9,8 +9,13 @@ Ablauf, Widerruf und den Projekt-Schalter neu (sofort wirksam).
 Ein Gast ist keine Rolle: `zugriff.projekt()` kennt ihn nicht (alle /api/v1-Wege bleiben 401),
 `/api/authz` lässt ihn nur an die Dateien der Positivliste (`gast_paket`) und nur im Projekt des
 Links. Die Positivliste entsteht exakt aus `pointcloud`, `mesh` und `mesh-tiles` (glTF-Verweise
-rekursiv aufgelöst) plus der Draufsicht der Wolke — keine Präfixe. Ein Verweis, der das Paket
-verlässt oder kodiert ist, nimmt die ganze Mesh-Ebene aus der Gast-Ansicht (fail closed).
+rekursiv aufgelöst), `splats` (spz/ply: die eine Datei; rad: Kopfdatei plus die `.radc`-Chunks, die
+ihr Kopf nennt) plus der Draufsicht — keine Präfixe, keine Verzeichnislisten. Eine Wolke ist nicht
+nötig: Ein reines Mesh- oder Splat-Paket hat eine Gast-Ansicht; ohne jede zulässige Ebene gibt es
+keine (`gast_paket` → None). Ein Verweis, der das Paket verlässt oder kodiert ist, und ein kaputter
+RAD-Kopf nehmen die ganze Ebene aus der Gast-Ansicht (fail closed). Von jeder Ebene und von der
+Draufsicht gehen nur die Felder nach außen, die der Viewer liest (`GAST_FELDER`, `GAST_DRAUFSICHT`);
+Quelldateinamen, Prüfsummen, Importoptionen und Prüfberichte nicht.
 """
 
 from __future__ import annotations
@@ -26,7 +31,7 @@ import time
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, get_args
 
 from . import freigabe, protokoll
 from .db import transaktion
@@ -50,12 +55,28 @@ _GLB_JSON_MAX = 16 * 1024 * 1024
 _TILESET_TIEFE_MAX = 32
 _TILESET_KNOTEN_MAX = 4096
 _TILESET_INHALTE_MAX = 8192
+# RAD-Kopfdatei der Sichtschicht (Spark-Format `RAD0`, siehe import splat_rad.py): Kopf und
+# JSON-Metadaten zusammen höchstens 1 MB, wie beim Import; Chunks nur flach im selben Ordner.
+_RAD_KOPF_MAX = 1_000_000
+# Höchstens so viele Chunks je RAD-Ebene (je Chunk bis 65536 Gaussians, reicht für 268 Mio.);
+# begrenzt die Dateiprüfungen, die ein 1-MB-Kopf auslösen kann.
+_RAD_CHUNKS_MAX = 4096
+_RADC_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.radc$")
+_SPLAT_ENDUNG = {"spz": ".spz", "ply": ".ply", "rad": ".rad"}
 # Abrufe je Link und Minute über /api/authz (jede Range-Anfrage der Wolke zählt). Der Viewer holt
 # beim schnellen Bewegen einige hundert COPC-Knoten je Minute; die Grenze bremst nur Massenabzug.
 ABRUFE_PRO_MINUTE = 3000
 # Austausch Token → Gast-Sitzung: je IP und global (gegen Durchprobieren und Flut).
 AUSTAUSCH_JE_IP_PRO_MINUTE = 20
 AUSTAUSCH_GLOBAL_PRO_MINUTE = 300
+
+# Ansichtsprofile (P08-S6): Oberfläche, mit der ein Gast den Link öffnet. Reihenfolge = Umfang;
+# ein Gast kann im Viewer nur auf ein kleineres Profil gehen (`?zeigen=1` → ansehen), nie auf ein
+# größeres. Das Profil reduziert nur die Oberfläche, es ist keine Rechtegrenze: Welche Dateien ein
+# Gast bekommt, entscheidet allein die Positivliste (`gast_paket`), für jedes Profil gleich.
+Profil = Literal["ansehen", "messen", "arbeiten"]
+PROFILE: tuple[str, ...] = get_args(Profil)
+PROFIL_STANDARD: Profil = "ansehen"
 
 UNGUELTIG = "Dieser Link ist ungültig, abgelaufen oder wurde zurückgezogen."
 AUSGESCHALTET = "Nur-Lese-Links sind für dieses Projekt ausgeschaltet."
@@ -76,18 +97,21 @@ class Link:
     abrufe: int
     letzter_abruf: int | None
     mit_passwort: bool
+    profil: str = PROFIL_STANDARD
 
     def als_json(self) -> dict[str, Any]:
         return {"id": self.id, "name": self.name, "erstellt": self.erstellt_am,
                 "ablauf": self.ablauf, "widerrufen": self.widerrufen_am, "abrufe": self.abrufe,
-                "letzterAbruf": self.letzter_abruf, "passwort": self.mit_passwort}
+                "letzterAbruf": self.letzter_abruf, "passwort": self.mit_passwort,
+                "profil": self.profil}
 
 
 def _link(r: sqlite3.Row) -> Link:
     return Link(id=int(r["id"]), project_id=str(r["project_id"]), name=str(r["name"]),
                 erstellt_am=int(r["erstellt_am"]), ablauf=int(r["ablauf"]),
                 widerrufen_am=r["widerrufen_am"], abrufe=int(r["abrufe"]),
-                letzter_abruf=r["letzter_abruf"], mit_passwort=r["passwort_hash"] is not None)
+                letzter_abruf=r["letzter_abruf"], mit_passwort=r["passwort_hash"] is not None,
+                profil=str(r["profil"]))
 
 
 def liste(conn: sqlite3.Connection, pid: str) -> list[Link]:
@@ -96,22 +120,27 @@ def liste(conn: sqlite3.Connection, pid: str) -> list[Link]:
 
 
 def anlegen(conn: sqlite3.Connection, pid: str, *, name: str, tage: int,
-            passwort_hash: str | None, von: int, now: int | None = None) -> tuple[Link, str]:
-    """Legt einen Link an und gibt ihn mit dem Klartext-Token zurück (nur dieses eine Mal)."""
+            passwort_hash: str | None, von: int, profil: str = PROFIL_STANDARD,
+            now: int | None = None) -> tuple[Link, str]:
+    """Legt einen Link an und gibt ihn mit dem Klartext-Token zurück (nur dieses eine Mal). Das
+    Profil steckt fest am Link; ein späterer Wechsel des Projektstandards ändert es nicht."""
     if not 1 <= tage <= TAGE_MAX:
         raise ValueError(tage)
+    if profil not in PROFILE:
+        raise ValueError(profil)
     n = _jetzt(now)
     token = new_token()
     with transaktion(conn):
         cur = conn.execute(
             "INSERT INTO teilen_links (project_id, name, token_hash, passwort_hash, erstellt_von,"
-            " erstellt_am, ablauf) VALUES (?,?,?,?,?,?,?)",
-            (pid, name, hash_token(token), passwort_hash, von, n, n + tage * 86400))
+            " erstellt_am, ablauf, profil) VALUES (?,?,?,?,?,?,?,?)",
+            (pid, name, hash_token(token), passwort_hash, von, n, n + tage * 86400, profil))
         lid = int(cur.lastrowid or 0)
         protokoll.ereignis(conn, kanal="web", nutzer_id=von, project_id=pid,
                            art="teilen.angelegt", objekt_id=str(lid),
                            nachher={"name": name, "ablauf": n + tage * 86400,
-                                    "passwort": passwort_hash is not None}, now=n)
+                                    "passwort": passwort_hash is not None,
+                                    "profil": profil}, now=n)
     r = conn.execute("SELECT * FROM teilen_links WHERE id=?", (lid,)).fetchone()
     return _link(r), token
 
@@ -189,6 +218,7 @@ class Gast:
     project_id: str
     name: str
     ablauf: int
+    profil: str = PROFIL_STANDARD
 
 
 def gast(conn: sqlite3.Connection, token: str | None, now: int | None = None) -> Gast | None:
@@ -199,14 +229,14 @@ def gast(conn: sqlite3.Connection, token: str | None, now: int | None = None) ->
         return None
     r = conn.execute(
         "SELECT g.ablauf AS g_ablauf, l.id, l.project_id, l.name, l.ablauf, l.widerrufen_am,"
-        " p.nur_lese_links FROM gast_sitzungen g JOIN teilen_links l ON l.id = g.link_id"
+        " l.profil, p.nur_lese_links FROM gast_sitzungen g JOIN teilen_links l ON l.id = g.link_id"
         " JOIN projekte p ON p.project_id = l.project_id WHERE g.token_hash=?", (h,)).fetchone()
     n = _jetzt(now)
     if (r is None or r["widerrufen_am"] is not None or not r["nur_lese_links"]
             or r["ablauf"] <= n or r["g_ablauf"] <= n):
         return None
     return Gast(link_id=int(r["id"]), project_id=str(r["project_id"]), name=str(r["name"]),
-                ablauf=int(r["ablauf"]))
+                ablauf=int(r["ablauf"]), profil=str(r["profil"]))
 
 
 def aufraeumen(conn: sqlite3.Connection, now: int | None = None) -> int:
@@ -297,7 +327,6 @@ class GastPaket:
     dateien: frozenset[str]
 
 
-_GAST_EBENEN = ("pointcloud", "mesh", "mesh-tiles")
 # Kopfteile des Manifests, die der Viewer braucht und die keine anderen Ebenen beschreiben.
 _GAST_KOPF = ("schemaVersion", "projectId", "revision", "title", "frame", "initialView")
 
@@ -414,6 +443,167 @@ def _mesh_dateien(paket: Path, ebene: dict[str, Any]) -> set[str]:
     return teile
 
 
+def _rad_chunks(datei: Path) -> list[str] | None:
+    """Chunk-Namen aus dem Kopf einer `.rad`-Datei (`RAD0`, u32-Länge, JSON `version` 1 mit
+    nichtleerer `chunks`-Liste); None bei jedem Formfehler. Liest höchstens 1 MB."""
+    try:
+        with datei.open("rb") as f:
+            roh = f.read(_RAD_KOPF_MAX + 1)
+    except OSError:
+        return None
+    if len(roh) > _RAD_KOPF_MAX or len(roh) < 8 or roh[:4] != b"RAD0":
+        return None
+    (laenge,) = struct.unpack_from("<I", roh, 4)
+    if laenge > _RAD_KOPF_MAX or 8 + laenge > len(roh):
+        return None
+    try:
+        meta = json.loads(roh[8 : 8 + laenge].decode("utf-8"))
+    except (ValueError, RecursionError):
+        return None
+    chunks = meta.get("chunks") if isinstance(meta, dict) and meta.get("version") == 1 else None
+    if not isinstance(chunks, list) or not 0 < len(chunks) <= _RAD_CHUNKS_MAX:
+        return None
+    namen = [c.get("filename") if isinstance(c, dict) else None for c in chunks]
+    if not all(isinstance(n, str) and _RADC_RE.fullmatch(n) for n in namen):
+        return None
+    return [str(n) for n in namen]
+
+
+def _rad_dateien(paket: Path, pfad: str) -> set[str] | None:
+    """Kopfdatei plus jeder genannte Chunk: flach im selben Ordner, reguläre Datei, kein Symlink."""
+    namen = _rad_chunks(paket / pfad)
+    if namen is None:
+        return None
+    teile = {pfad}
+    for name in namen:
+        chunk = _paketpfad(pfad, name)
+        if (chunk is None or posixpath.dirname(chunk) != posixpath.dirname(pfad)
+                or not _ohne_symlink(paket, chunk)):
+            return None
+        teile.add(chunk)
+    return teile
+
+
+Bau = tuple[dict[str, Any] | None, set[str]]
+
+
+def _wolke(paket: Path, ebene: dict[str, Any]) -> Bau:
+    ziel = _paketpfad("project.json", str(ebene.get("url", "")))
+    if ziel is None or not _ohne_symlink(paket, ziel):
+        log.warning("Gast-Ansicht %s: Punktwolke %s ausgelassen", paket.name, ebene.get("id"))
+        return None, set()
+    return ebene, {ziel}
+
+
+def _kacheln(paket: Path, ebene: dict[str, Any]) -> Bau:
+    kacheln = _tileset_dateien(paket, ebene)
+    if kacheln is None:
+        log.warning("Gast-Ansicht %s: Mesh-Kacheln %s ausgelassen "
+                    "(Tileset oder Verweis unzulässig oder fehlt)", paket.name, ebene.get("id"))
+        return None, set()
+    return ebene, kacheln
+
+
+def _mesh(paket: Path, ebene: dict[str, Any]) -> Bau:
+    if ebene.get("format") != "gltf":
+        return None, set()
+    teile = _mesh_dateien(paket, ebene)
+    if not teile:
+        log.warning("Gast-Ansicht %s: Mesh %s ausgelassen (Verweis unzulässig oder fehlt)",
+                    paket.name, ebene.get("id"))
+        return None, set()
+    return _mobilstufe(paket, ebene, teile), teile
+
+
+def _splats(paket: Path, ebene: dict[str, Any]) -> Bau:
+    """Sichtschicht: spz/ply genau die Datei aus `url`, rad die Kopfdatei mit ihren Chunks. Ohne
+    erklärtes Format (Platzhalter) zeigt der Viewer die Ebene nicht — dann auch nicht für Gäste."""
+    fmt = ebene.get("format")
+    endung = _SPLAT_ENDUNG.get(fmt) if isinstance(fmt, str) else None
+    ziel = _paketpfad("project.json", str(ebene.get("url", "")))
+    teile: set[str] | None = None
+    if (endung is not None and ziel is not None and ziel.endswith(endung)
+            and _ohne_symlink(paket, ziel)):
+        teile = _rad_dateien(paket, ziel) if fmt == "rad" else {ziel}
+    if teile is None:
+        log.warning("Gast-Ansicht %s: Sichtschicht %s ausgelassen "
+                    "(Format, Verweis oder RAD-Kopf unzulässig oder Datei fehlt)",
+                    paket.name, ebene.get("id"))
+        return None, set()
+    return ebene, teile
+
+
+# Ebenenarten, die Gäste sehen, je mit dem Bau ihrer Positivliste. Alles andere (Panoramen, Fotos,
+# unbekannte Arten) fällt weg.
+_BAUER = {"pointcloud": _wolke, "mesh": _mesh, "mesh-tiles": _kacheln, "splats": _splats}
+
+# Felder je Ebenenart, die nach außen gehen: genau die, die der Viewer liest (web/src/manifest.ts,
+# parseLayerV2, dazu startVisible). Quelldateiname, Prüfsummen, Importoptionen, Ausrichtung und
+# Prüfberichte (source, sourceOptions, alignment, buildLod, verify, readerPointCount, …) bleiben
+# beim Betreiber. `provenance` geht ganz mit: der Viewer zeigt den Genauigkeitsnachweis daraus.
+# Gegenprobe: web/tests/gastManifest.test.ts (Viewer liest gekürzt und voll dasselbe).
+_GEMEINSAM = ("id", "kind", "title", "startVisible")
+GAST_FELDER: dict[str, tuple[str, ...]] = {
+    "pointcloud": (*_GEMEINSAM, "url", "pointCount", "boundsWorld", "attributes", "scale", "offset",
+                   "pointSourceIsScan", "classes", "provenance"),
+    "mesh": (*_GEMEINSAM, "format", "url", "previewUrl", "previewColor", "triangleCount",
+             "boundsWorld", "positionStepM", "provenance", "mobileUrl", "mobileSizeBytes",
+             "mobileTriangleCount"),
+    "mesh-tiles": (*_GEMEINSAM, "format", "url", "triangleCount", "boundsWorld", "positionStepM",
+                   "crs", "heightSystem", "provenance"),
+    "splats": (*_GEMEINSAM, "format", "url", "splatCount", "sizeBytes", "boundsWorld", "shDegree",
+               "chunkCount", "lodMethod", "frameCheck"),
+}
+_FRAMECHECK_FELDER = ("ok", "samples", "p50M", "p95M")
+
+
+def gast_felder(ebene: dict[str, Any]) -> dict[str, Any]:
+    """Kopie der Ebene mit nur den Feldern aus `GAST_FELDER` (frameCheck ebenso gekürzt)."""
+    aus = {k: ebene[k] for k in GAST_FELDER[str(ebene["kind"])] if k in ebene}
+    fc = aus.get("frameCheck")
+    if isinstance(fc, dict):
+        aus["frameCheck"] = {k: fc[k] for k in _FRAMECHECK_FELDER if k in fc}
+    return aus
+
+
+def _gast_startansicht(iv: Any, ebenen: list[dict[str, Any]]) -> Any:
+    """`initialView.layers` auf die Ebenen kürzen, die der Gast bekommt — sonst lehnt der Viewer
+    das Manifest ab, weil die Startansicht auf eine fehlende Ebene verweist. Bleibt durch das
+    Kürzen keine übrig, fällt der Schlüssel weg (Viewer nimmt dann die Voreinstellung). Eine schon
+    im Paket leere Liste („alles aus“, `start-sichtbar … aus`) bleibt leer. Arbeitet auf einer
+    Kopie."""
+    if not isinstance(iv, dict) or not isinstance(iv.get("layers"), list):
+        return iv
+    ids = {e.get("id") for e in ebenen if isinstance(e.get("id"), str)}
+    rest = [i for i in iv["layers"] if isinstance(i, str) and i in ids]
+    kopie = {k: v for k, v in iv.items() if k != "layers"}
+    if rest or not iv["layers"]:
+        kopie["layers"] = rest
+    return kopie
+
+
+# Felder der Draufsicht, die der Viewer liest (web/src/manifest.ts parseTopview); `colorFrom` und
+# `image` (Herkunft des Rasters) bleiben beim Betreiber.
+GAST_DRAUFSICHT = ("url", "widthPx", "heightPx", "pixelSizeM", "upperLeftWorld", "pixelAnchor",
+                   "zMaxWorld")
+
+
+def gast_draufsicht(tv: dict[str, Any]) -> dict[str, Any]:
+    """Kopie der Draufsicht mit nur den Feldern aus `GAST_DRAUFSICHT`."""
+    return {k: tv[k] for k in GAST_DRAUFSICHT if k in tv}
+
+
+def _draufsicht(paket: Path, m: dict[str, Any]) -> tuple[dict[str, Any] | None, str | None]:
+    """Gekürzte Draufsicht und ihre Datei, wenn sie im Paket liegt und kein Symlink ist."""
+    tv = m.get("topview")
+    if not isinstance(tv, dict):
+        return None, None
+    ziel = _paketpfad("project.json", str(tv.get("url", "")))
+    if ziel is None or not _ohne_symlink(paket, ziel):
+        return None, None
+    return gast_draufsicht(tv), ziel
+
+
 def _bauen(paket: Path) -> GastPaket | None:
     try:
         m = json.loads((paket / "project.json").read_text(encoding="utf-8"))
@@ -423,45 +613,26 @@ def _bauen(paket: Path) -> GastPaket | None:
         return None
     dateien: set[str] = set()
     ebenen: list[dict[str, Any]] = []
-    for ebene in m["layers"]:
-        if not isinstance(ebene, dict) or ebene.get("kind") not in _GAST_EBENEN:
+    for roh in m["layers"]:
+        art = roh.get("kind") if isinstance(roh, dict) else None
+        bauer = _BAUER.get(art) if isinstance(art, str) else None
+        if bauer is None:
             continue
-        if ebene["kind"] == "pointcloud":
-            ziel = _paketpfad("project.json", str(ebene.get("url", "")))
-            if ziel is None or not (paket / ziel).is_file():
-                log.warning("Gast-Ansicht %s: Punktwolke %s ausgelassen", paket.name,
-                            ebene.get("id"))
-                continue
-            dateien.add(ziel)
-        elif ebene["kind"] == "mesh-tiles":
-            kacheln = _tileset_dateien(paket, ebene)
-            if kacheln is None:
-                log.warning("Gast-Ansicht %s: Mesh-Kacheln %s ausgelassen "
-                            "(Tileset oder Verweis unzulässig oder fehlt)",
-                            paket.name, ebene.get("id"))
-                continue
-            dateien |= kacheln
-        else:
-            if ebene.get("format") != "gltf":
-                continue
-            teile = _mesh_dateien(paket, ebene)
-            if not teile:
-                log.warning("Gast-Ansicht %s: Mesh %s ausgelassen (Verweis unzulässig oder fehlt)",
-                            paket.name, ebene.get("id"))
-                continue
-            ebene = _mobilstufe(paket, ebene, teile)
+        ebene, teile = bauer(paket, roh)
+        if ebene is not None:
+            ebenen.append(gast_felder(ebene))
             dateien |= teile
-        ebenen.append(ebene)
-    if not any(e.get("kind") == "pointcloud" for e in ebenen):
+    # Mindestens eine zeigbare Ebene; reine Mesh- oder Splat-Pakete (ohne Wolke) sind zulässig.
+    if not ebenen:
         return None
     manifest = {k: m[k] for k in _GAST_KOPF if k in m}
+    if "initialView" in manifest:
+        manifest["initialView"] = _gast_startansicht(manifest["initialView"], ebenen)
     manifest["layers"] = ebenen
-    tv = m.get("topview")
-    if isinstance(tv, dict):
-        ziel = _paketpfad("project.json", str(tv.get("url", "")))
-        if ziel is not None and (paket / ziel).is_file():
-            manifest["topview"] = tv
-            dateien.add(ziel)
+    tv, ziel = _draufsicht(paket, m)
+    if tv is not None and ziel is not None:
+        manifest["topview"] = tv
+        dateien.add(ziel)
     return GastPaket(manifest=manifest, dateien=frozenset(dateien))
 
 

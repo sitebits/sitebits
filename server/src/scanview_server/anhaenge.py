@@ -20,7 +20,7 @@ import re
 import secrets
 import shutil
 import stat
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -28,6 +28,9 @@ from typing import Any
 MAX_BYTES = 20 * 1024 * 1024
 BILD_MAX = 32 * 1024 * 1024
 RESERVE_ANTEIL = 0.10
+#: Messung der Platte (austauschbar: die Tests setzen eine vorgetäuschte Platte ein, damit die
+#: Prüfung nicht vom freien Platz der Maschine abhängt, auf der sie laufen).
+platte: Callable[[Path], Any] = shutil.disk_usage
 ID_RE = re.compile(r"[0-9a-f]{32}")
 SHA_RE = re.compile(r"[0-9a-f]{64}")
 _AUFNAHME_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
@@ -98,7 +101,8 @@ def ordner(wurzel: Path, teil: str) -> Path:
 
 
 def platz_pruefen(wurzel: Path) -> None:
-    u = shutil.disk_usage(wurzel)
+    """507, wenn nach einem größtmöglichen Anhang weniger als RESERVE_ANTEIL frei bliebe."""
+    u = platte(wurzel)
     if u.free < u.total * RESERVE_ANTEIL + MAX_BYTES:
         raise AnhangFehler(PLATZ, 507)
 

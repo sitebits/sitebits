@@ -66,6 +66,13 @@ export function draufsichtUrl(id: string): string {
   return `/data/${id}/topview.png`;
 }
 
+/** Bild der Projektkarte: Vorschaubild, sonst Draufsicht, sonst keins. */
+export function kartenBild(p: { id: string; titel: string; vorschau?: boolean; draufsicht: boolean }): { src: string; alt: string } | null {
+  if (p.vorschau) return { src: `/data/${p.id}/vorschau.webp`, alt: `Ansicht: ${p.titel}` };
+  if (p.draufsicht) return { src: draufsichtUrl(p.id), alt: `Draufsicht: ${p.titel}` };
+  return null;
+}
+
 // Quelltext-Link (EUPL-1.2, Art. 5): Die Adresse ist eine Instanz-Einstellung des Servers
 // (SCANVIEW_QUELLTEXT_URL, geliefert über /api/sitzung). Nur https-Adressen werden übernommen —
 // eine javascript:-Adresse darf nie zum Link werden; ohne Adresse gibt es keinen Link.

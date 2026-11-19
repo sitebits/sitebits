@@ -110,6 +110,8 @@ def test_echte_nur_import_befunde_markiert():
     assert sast_import == {"B-SAST-SEMGREP-F418401D449114A3",
                            "B-SAST-SEMGREP-F92C9932AB14305C",
                            "B-SAST-BANDIT-14789B265EC81EA8",
+                           # KTX-tmpfs (B108), neuer Fingerabdruck seit Start über Image-ID
+                           "B-SAST-BANDIT-9B1210876F47AF88",
                            # Splat-Import (0.10): Kamera-XML und build-lod-Aufruf
                            "B-SAST-SEMGREP-FDA42991C858C489", "B-SAST-SEMGREP-FF5E75374A3F0D89",
                            "B-SAST-SEMGREP-BE6EE389B33C057A", "B-SAST-BANDIT-3849E6199464A0A6",
@@ -118,24 +120,36 @@ def test_echte_nur_import_befunde_markiert():
                            # PDF-Druck über Chromium (mit 88685ed aus sonne/bericht.py nach
                            # berichtsatz.py gezogen, Vorgänger BF8CE0C5… gelöscht),
                            # PDAL-tmpfs (B108)
-                           "B-SAST-SEMGREP-DB7E0B252DC33A74", "B-SAST-BANDIT-723722FF08CF2C61"}
+                           "B-SAST-SEMGREP-DB7E0B252DC33A74", "B-SAST-BANDIT-723722FF08CF2C61",
+                           # PDAL ohne Docker (U2b): Prozessstart aus der gelockten Umgebung
+                           "B-SAST-SEMGREP-250CB1200E920AEC"}
     assert {b.id for b in befunde.values() if b.artefakte} == {
         "B-SCAN-IMG-PDAL", "B-SCAN-IMG-UNTWINE", "B-LK-IMPORT", "B-LK-UNTWINE", "B-SBOM-IMAGES",
         "B-BF-V1", "B-BD-R8-I1", *sast_import,
         "B-SAST-BANDIT-5686B4B81278B8ED", "B-SAST-BANDIT-8B67B85AA135B6D6",
         "B-SAST-BANDIT-56F8E6847EEB3AB3", "B-RL-N1", "B-LK-EMBREEX", "B-SCAN-IMPORT-LOCK",
-        "B-LK-ZSTD"}
+        "B-LK-ZSTD",
+        # U2b: PDAL-Umgebung (nur im Import-Archiv, nur mit SCANVIEW_IMPORT=1 auf dem Host)
+        "B-LK-PDAL-UMGEBUNG", "B-SCAN-PDAL-UMGEBUNG", "B-SCAN-PDAL-UMGEBUNG-BLIND",
+        # P05-B: Kurzscan des Textur-Images und dessen Bau (nur beim Datenaufbereiter)
+        "B-SCAN-IMG-MESHTOOLS", "B-LK-KTX-CHECKSUM",
+        # P05-B Review: Pakete nur im Image (python u. a.), kein Scanner, niedrig offen
+        "B-SCAN-IMG-PYTHON"}
     for bid in ("B-LK-IMPORT", "B-SBOM-IMAGES", "B-LK-EMBREEX", "B-SCAN-IMPORT-LOCK",
+                "B-LK-PDAL-UMGEBUNG", "B-SCAN-PDAL-UMGEBUNG", "B-SCAN-PDAL-UMGEBUNG-BLIND",
                 *sast_import):
         assert befunde[bid].artefakte == ("import",), bid
         assert len(befunde[bid].artefakte_begruendung or "") >= 20, bid
     # Neubewertung für Manifest-Schema /3: der Image-Inhalt steht im nicht ausgelieferten
-    # Nachweis-SBOM importbilder (B-SBOM-IMAGES behoben); die Image-Befunde bleiben offen und
-    # gehören zu diesem SBOM, mit Begründung.
+    # Nachweis-SBOM importbilder (B-SBOM-IMAGES behoben); die Image-Befunde gehören zu diesem
+    # SBOM, mit Begründung. Seit P05-B (Image scanview-pdal) sind die drei alten behoben, ebenso
+    # der Kurzscan des Textur-Images und dessen ungeprüfter Paket-Hash (Umbau auf distroless).
     assert befunde["B-SBOM-IMAGES"].status == "behoben"
-    for bid in ("B-SCAN-IMG-PDAL", "B-SCAN-IMG-UNTWINE", "B-LK-UNTWINE"):
+    for bid, status in (("B-SCAN-IMG-PDAL", "behoben"), ("B-SCAN-IMG-UNTWINE", "behoben"),
+                        ("B-LK-UNTWINE", "behoben"), ("B-SCAN-IMG-MESHTOOLS", "behoben"),
+                        ("B-LK-KTX-CHECKSUM", "behoben")):
         assert befunde[bid].artefakte == ("importbilder",), bid
-        assert befunde[bid].status == "offen", bid
+        assert befunde[bid].status == status, bid
         assert "importbilder" in (befunde[bid].artefakte_begruendung or ""), bid
     # Barrierefreiheit des Viewers: nur das Web-Bundle ist betroffen.
     assert befunde["B-BF-V1"].artefakte == ("web",)
@@ -194,10 +208,24 @@ def test_akzeptiert_braucht_begruendung_frist_und_andres_freigabe(tmp_path, abwe
     ("akzeptanz_begruendung", "Begründung mit ausreichend Länge"),
     ("frist", date(2026, 12, 31)),
     ("freigabe", "Andre"),
+    ("akzeptanz_bindung", "a" * 64),
 ])
 def test_akzeptanzfelder_nur_bei_akzeptiert(tmp_path, feld, wert):
     with pytest.raises(NachweisFehler, match=feld):
         lade_befunde(_datei(tmp_path, _befund(status="offen", **{feld: wert})))
+
+
+def test_akzeptanz_bindung_optional_und_gelesen(tmp_path):
+    """Die Bindung ist ein SHA-256 (64 hex, klein); ohne sie bleibt eine Akzeptanz gültig."""
+    assert lade_befunde(_datei(tmp_path, _befund(**AKZEPTIERT)))[0].akzeptanz_bindung is None
+    b = lade_befunde(_datei(tmp_path, _befund(**AKZEPTIERT, akzeptanz_bindung="0f" * 32)))[0]
+    assert b.akzeptanz_bindung == "0f" * 32
+
+
+@pytest.mark.parametrize("wert", ["A" * 64, "a" * 63, "sha256:" + "a" * 64, ""])
+def test_akzeptanz_bindung_nur_sha256(tmp_path, wert):
+    with pytest.raises(NachweisFehler, match="akzeptanz_bindung"):
+        lade_befunde(_datei(tmp_path, _befund(**AKZEPTIERT, akzeptanz_bindung=wert)))
 
 
 def test_offen_darf_fix_commit_ohne_retest_tragen(tmp_path):
@@ -360,8 +388,8 @@ _echt = pytest.mark.skipif(
 
 NT_KATEGORIEN = ["NT-RECHTE", "NT-TRENNUNG", "NT-PROJEKTLEITUNG", "NT-TOKEN", "NT-EINLADUNG",
                  "NT-PFADE", "NT-FORWARD-AUTH", "NT-DROSSEL", "NT-HEADER", "NT-FREISCHALTEN",
-                 "NT-EINRICHTEN", "NT-LESEPROTOKOLL", "NT-FADEN", "NT-KI-VORSCHLAG",
-                 "NT-FREIGABE", "NT-POST", "NT-ANHANG", "NT-GAST-KACHELN"]
+                 "NT-EINRICHTEN", "NT-SCAN-BLIND", "NT-LESEPROTOKOLL", "NT-FADEN",
+                 "NT-KI-VORSCHLAG", "NT-FREIGABE", "NT-POST", "NT-ANHANG", "NT-GAST-KACHELN"]
 
 
 @_echt

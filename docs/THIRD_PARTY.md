@@ -13,9 +13,9 @@
 | certifi | 2026.10.19 | MPL-2.0 | transitive Abhängigkeit von pyproj und requests, unverändert |
 | GCG2016 (`de_bkg_gcg2016.tif`, aus PROJ-data) | 2016, sha256 `598f1832…f7ac` | CC-BY-4.0, © Bundesamt für Kartographie und Geodäsie | Datendatei in `import/src/scanview_import/gitter/`, Quasigeoid für ellipsoidisch ↔ DHHN2016 |
 | pyquaternion | 0.9.9 | MIT | Python-Import, transitive Abhängigkeit von pye57 |
-| PDAL | 2.10.2 (Docker `pdal/pdal:2.10.2@sha256:8e0eb32d…2883`, per Digest gepinnt in `pdal_runner.IMAGE`) | BSD | **externer Prozess**, nicht gelinkt |
-| untwine | 1.5.1 (conda-forge, im Image `scanview-untwine`) | GPL-3.0 | **externer Prozess** (Docker), nicht gelinkt; nur Modus `staged` (LAZ → COPC) |
-| scanview-untwine (Image) | `condaforge/miniforge3@sha256:3a41fcca…1901` (per Digest gepinnt) + conda-forge `untwine=1.5.1`, gebaut aus `import/docker/untwine.Dockerfile` | Basis BSD-3-Clause (Miniforge), Inhalt s. untwine | lokal gebautes Werkzeug-Image, **externer Prozess**, wird nicht verteilt |
+| PDAL | 2.10.2 (conda-forge `libpdal-core`/`libpdal-e57`; Arbeitsplatz im Image `scanview-pdal`, Server in der PDAL-Umgebung, s. u.; dieselben Builds) | BSD | **externer Prozess**, nicht gelinkt |
+| untwine | 1.5.1 (conda-forge; Arbeitsplatz im Image `scanview-pdal`, Server in der PDAL-Umgebung) | GPL-3.0 | **externer Prozess** (Docker bzw. Prozess im isolierten Auftrag), nicht gelinkt; nur Modus `staged` (LAZ → COPC) |
+| scanview-pdal (Image) | Tag `pdal_runner.IMAGE` = Hash über `import/docker/pdal.Dockerfile` + `pdal.conda-lock.txt` (@EXPLICIT, je Paket URL + SHA-256). Bau-Stufe `mambaorg/micromamba:2.10.0-debian13-slim@sha256:e1476182…c1198`, Laufzeit-Basis `gcr.io/distroless/base-nossl-debian13@sha256:d710a5c8…89cb` (beide per Digest gepinnt) | Inhalt: conda-forge-Pakete laut Lock (PDAL, untwine wie oben; dazu python 3.12 Python-2.0, tk TCL, libffi MIT, libxcrypt LGPL-2.1-or-later, ld_impl_linux-64 GPL-3.0-only (Linker, Laufzeitabhängigkeit von python, nie aufgerufen)); Basis distroless Apache-2.0 mit Debian-Paketen libc6, ca-certificates, tzdata, base-files, netbase, media-types (Lizenzen laut deren copyright-Dateien im Image); micromamba (BSD-3-Clause) nur in der Bau-Stufe | lokal gebautes Werkzeug-Image, **externe Prozesse**, wird nicht verteilt |
 | pygltflib | 1.16.5 | MIT | **Laufzeitabhängigkeit von `scanview-import`** (`import/pyproject.toml`, direkte `dependencies`, kein Spike-/Dev-Extra) — glb/glTF lesen/schreiben; aktuell genutzt vom Spike-Vertragsprüfer `import/scripts/spike/tiles_contract.py`, der in Teil 5 nach `scanview_import` wechselt |
 | pvlib | 0.16.1 | BSD-3-Clause | Extra `[sonne]` von `scanview-import` (`scanview-sonne`): Sonnenstand, Transposition, Ertragsmodell |
 | meshoptimizer | 0.2.30a0 | MIT (Klassifikator „OSI Approved :: MIT License“; bindet die meshoptimizer-Bibliothek, MIT) | Laufzeitabhängigkeit von `scanview-import` (Mesh-Kompression); nur als Quellpaket auf PyPI, auf dem Host ohne root aus dem per Hash gelockten Quellpaket gebaut (`nachweise/nur-sdist.toml`) |
@@ -77,7 +77,90 @@ verifizierten Lizenzen (`License-Expression: MIT` bzw. `License-Expression: PSF-
   des Import-Werkzeugs samt Umgebung gehören die Lizenztexte aus dem Wheel dazu (gesammelt in
   `scipy-1.18.1.dist-info/LICENSE.txt`, inkl. `libgfortran` mit Runtime-Exception).
 - Kein Paket wird gegen GPL-Code ohne Ausnahme gelinkt; GPL-Werkzeuge (untwine, busybox im
-  nginx-Image) laufen ausschließlich als externe Prozesse in Docker.
+  nginx-Image) laufen ausschließlich als externe Prozesse — in Docker bzw. auf dem Server als
+  Prozess aus der PDAL-Umgebung (Abschnitt `import/pdal-umgebung`).
+
+## import/pdal-umgebung (conda-forge, auf dem Host installiert)
+
+Gelockte conda-forge-Umgebung für PDAL und untwine auf dem Server (Punktwolken-Import ohne Docker,
+`import/pdal-umgebung/pixi.lock`, SHA-256 je Paket). `einrichten.sh` lädt die Pakete beim Betreiber
+unverändert von conda-forge und prüft sie gegen das Lock; siteBits startet `pdal` und `untwine` nur
+als **eigene Prozesse** (kein Linken, kein Import als Bibliothek; Test
+`import/tests/test_keine_gpl_bibliothek.py`). Rezept (conda-forge-Feedstock), Upstream-Quelle und
+Lizenzdateien je Paket: `import/pdal-umgebung/quellen.json` (im Release enthalten); die
+vollständigen Lizenztexte erzeugt `einrichten.sh` auf dem Host aus den installierten Paketen als
+`/opt/scanview/pdal/LIZENZEN.txt` (`scanview-import pdal-lizenzen`). GPL-/MPL-Pakete stehen unter
+der eng begrenzten Ausnahme „nur externer Prozess“ (`nachweise/lizenzen.toml` `[externer_prozess]`,
+Entscheidung vom 22.10.2026); jedes neue Lock verlangt eine Neubewertung.
+
+| Komponente | Version | Lizenz | Einbindung |
+|---|---|---|---|
+| _openmp_mutex | 4.5 | BSD-3-Clause | Bibliothek der Umgebung, Build `20_gnu` |
+| blosc | 1.21.6 | BSD-3-Clause | Bibliothek der Umgebung, Build `he440d0b_1` |
+| bzip2 | 1.0.8 | bzip2-1.0.6 | Bibliothek der Umgebung, Build `hda65f42_10` |
+| c-ares | 1.34.9 | MIT | Bibliothek der Umgebung, Build `hebe6cf0_0` |
+| ca-certificates | 2026.10.23 | ISC | Bibliothek der Umgebung, Build `hbd8a1cb_0` |
+| freexl | 2.0.0 | MPL-1.1 | Bibliothek der Umgebung, Build `h1f12c17_3`; **Ausnahme „nur externer Prozess“** |
+| geos | 3.14.1 | LGPL-2.1-only | Bibliothek der Umgebung, Build `h55b0958_0` |
+| geotiff | 1.7.4 | MIT | Bibliothek der Umgebung, Build `h0e19ed7_7` |
+| giflib | 6.1.3 | MIT | Bibliothek der Umgebung, Build `hebe6cf0_2` |
+| icu | 78.3 | MIT | Bibliothek der Umgebung, Build `py310h44b86e0_2` |
+| json-c | 0.18 | MIT | Bibliothek der Umgebung, Build `hebe6cf0_2` |
+| keyutils | 1.6.3 | LGPL-2.1-or-later | Bibliothek der Umgebung, Build `h7cc23a3_1` |
+| krb5 | 1.22.2 | MIT | Bibliothek der Umgebung, Build `hbc21106_2` |
+| lerc | 4.2.0 | Apache-2.0 | Bibliothek der Umgebung, Build `hdb68285_0` |
+| libarchive | 3.8.9 | BSD-2-Clause | Bibliothek der Umgebung, Build `lgpl_hee3b6c9_1` |
+| libbrotlicommon | 1.2.1 | MIT | Bibliothek der Umgebung, Build `h39a168f_0` |
+| libbrotlidec | 1.2.1 | MIT | Bibliothek der Umgebung, Build `ha411449_0` |
+| libbrotlienc | 1.2.1 | MIT | Bibliothek der Umgebung, Build `h018ffa1_0` |
+| libcurl | 8.23.0 | curl | Bibliothek der Umgebung, Build `ha042cf0_0` |
+| libdeflate | 1.25 | MIT | Bibliothek der Umgebung, Build `hd45a770_1` |
+| libedit | 3.1.20260512 | BSD-2-Clause | Bibliothek der Umgebung, Build `pl5321h373387f_0` |
+| libev | 4.33 | BSD-2-Clause OR GPL-2.0-or-later | Bibliothek der Umgebung, Build `h280c20c_3` |
+| libexpat | 2.9.0 | MIT | Bibliothek der Umgebung, Build `hd2095e1_0` |
+| libgcc | 16.2.0 | GPL-3.0-only WITH GCC-exception-3.1 | Bibliothek der Umgebung, Build `ha9f2e26_7` |
+| libgcc-ng | 16.2.0 | GPL-3.0-only WITH GCC-exception-3.1 | Bibliothek der Umgebung, Build `h69a702a_7` |
+| libgdal-core | 3.13.3 | MIT | Bibliothek der Umgebung, Build `h7fa801c_4` |
+| libgomp | 16.2.0 | GPL-3.0-only WITH GCC-exception-3.1 | Bibliothek der Umgebung, Build `he0feb66_7` |
+| libhwy | 1.4.0 | Apache-2.0 OR BSD-3-Clause | Bibliothek der Umgebung, Build `h57c4cff_2` |
+| libiconv | 1.18 | LGPL-2.1-only | Bibliothek der Umgebung, Build `h0cb94f2_3` |
+| libjpeg-turbo | 3.2.1 | IJG AND BSD-3-Clause AND Zlib | Bibliothek der Umgebung, Build `h7cc23a3_0` |
+| libjxl | 0.12.0 | BSD-3-Clause | Bibliothek der Umgebung, Build `heb2dce7_4` |
+| libkml | 1.3.0 | BSD-3-Clause | Bibliothek der Umgebung, Build `haa4a5bd_1023` |
+| liblzma | 5.8.3 | 0BSD | Bibliothek der Umgebung, Build `hb03c661_1` |
+| libnghttp2 | 1.70.0 | MIT | Bibliothek der Umgebung, Build `hc5e5977_0` |
+| libnsl | 2.0.1 | LGPL-2.1-only | Bibliothek der Umgebung, Build `hb9d3cd8_1` |
+| libpdal-core | 2.10.2 | BSD-3-Clause | PDAL (Programm `pdal`, Kernbibliothek), Build `he6b862a_5` |
+| libpdal-e57 | 2.10.2 | BSD-3-Clause | PDAL-Plugin readers.e57, Build `h7f38c2f_5` |
+| libpng | 1.6.59 | zlib-acknowledgement | Bibliothek der Umgebung, Build `h922cc85_0` |
+| libpsl | 0.23.1 | MIT | Bibliothek der Umgebung, Build `hd9e3e90_1` |
+| librttopo | 1.1.0 | GPL-2.0-or-later | Bibliothek der Umgebung, Build `h55b0958_21`; **Ausnahme „nur externer Prozess“** |
+| libspatialite | 5.1.0 | MPL-1.1 | Bibliothek der Umgebung, Build `gpl_h2988700_122`; **Ausnahme „nur externer Prozess“** |
+| libsqlite | 3.54.1 | blessing | Bibliothek der Umgebung, Build `h13e7031_0` |
+| libssh2 | 1.11.1 | BSD-3-Clause | Bibliothek der Umgebung, Build `h6154650_1` |
+| libstdcxx | 16.2.0 | GPL-3.0-only WITH GCC-exception-3.1 | Bibliothek der Umgebung, Build `h934c35e_7` |
+| libstdcxx-ng | 16.2.0 | GPL-3.0-only WITH GCC-exception-3.1 | Bibliothek der Umgebung, Build `hdf11a46_7` |
+| libtiff | 4.7.2 | HPND | Bibliothek der Umgebung, Build `hcc2c06a_1` |
+| libwebp-base | 1.6.0 | BSD-3-Clause | Bibliothek der Umgebung, Build `hd42ef1d_1` |
+| libxml2 | 2.15.4 | MIT | Bibliothek der Umgebung, Build `h7df9aa5_1` |
+| libxml2-16 | 2.15.4 | MIT | Bibliothek der Umgebung, Build `hf3af7cc_1` |
+| libxml2-devel | 2.15.4 | MIT | Bibliothek der Umgebung, Build `h7df9aa5_1` |
+| libzlib | 1.3.2 | Zlib | Bibliothek der Umgebung, Build `h25fd6f3_3` |
+| lz4-c | 1.10.0 | BSD-2-Clause | Bibliothek der Umgebung, Build `hee9eb32_2` |
+| minizip | 4.2.2 | Zlib | Bibliothek der Umgebung, Build `haac24f3_1` |
+| muparser | 2.3.5 | MIT | Bibliothek der Umgebung, Build `hee9eb32_1` |
+| ncurses | 6.6 | X11 AND BSD-3-Clause | Bibliothek der Umgebung, Build `hdb14827_1` |
+| openssl | 3.6.5 | Apache-2.0 | Bibliothek der Umgebung, Build `h781a0a9_0` |
+| pcre2 | 10.47 | BSD-3-Clause | Bibliothek der Umgebung, Build `h8b3dc9c_1` |
+| proj | 9.9.0 | MIT | Bibliothek der Umgebung, Build `h3767062_0` |
+| readline | 8.3 | GPL-3.0-only | Bibliothek der Umgebung, Build `hd6e31c0_1`; **Ausnahme „nur externer Prozess“** |
+| snappy | 1.2.2 | BSD-3-Clause | Bibliothek der Umgebung, Build `h34e00bb_2` |
+| sqlite | 3.54.1 | blessing | Bibliothek der Umgebung, Build `h9ffa6c4_0` |
+| untwine | 1.5.1 | GPL-3.0-or-later | Programm `untwine` (COPC-Bau), Build `h419fb5e_0`; **Ausnahme „nur externer Prozess“** |
+| uriparser | 0.9.8 | BSD-3-Clause | Bibliothek der Umgebung, Build `hac33072_0` |
+| xerces-c | 3.3.0 | Apache-2.0 | Bibliothek der Umgebung, Build `h78fed68_2` |
+| zlib | 1.3.2 | Zlib | Bibliothek der Umgebung, Build `h25fd6f3_3` |
+| zstd | 1.5.7 | BSD-3-Clause | Bibliothek der Umgebung, Build `hb78ec9c_7` |
 
 ## web/ (Browser)
 
@@ -263,7 +346,7 @@ cryptography, h11, idna, pycparser, pydantic, starlette, typing-*, uvicorn) steh
 | webauthn | 3.0.0 | BSD-3-Clause | Python-Import, direkte Abhängigkeit (Passkeys) |
 | cbor2 | 6.1.4 | MIT | transitiv (webauthn) |
 | pyOpenSSL | 26.4.0 | Apache-2.0 (Trove-Klassifikator) | transitiv (webauthn) |
-| pyasn1 | 0.6.4 | BSD-2-Clause | transitiv (webauthn) |
+| pyasn1 | 0.6.5 | BSD-2-Clause | transitiv (webauthn) |
 | pyasn1_modules | 0.4.2 | BSD (Trove-Klassifikator „BSD License“) | transitiv (webauthn) |
 
 ## deploy/
@@ -302,7 +385,7 @@ Lokaler MCP-Server (`scanview-mcp`, stdio), läuft beim Nutzer. Laufzeit-Abhäng
 | typing-inspection | 0.4.4 | MIT | transitiv |
 | jsonschema / jsonschema-specifications | 4.26.0 / 2025.9.1 | MIT | transitiv (mcp) |
 | referencing / rpds-py / attrs | 0.37.0 / 2026.6.3 / 26.1.0 | MIT | transitiv (jsonschema) |
-| opentelemetry-api | 1.44.0 | Apache-2.0 | transitiv (mcp) |
+| opentelemetry-api | 1.45.1 | Apache-2.0 | transitiv (mcp) |
 | pyjwt (Extra `crypto`) | 2.15.0 | MIT | transitiv (mcp) |
 | cryptography | 50.0.1 | Apache-2.0 OR BSD-3-Clause (Wheel bündelt OpenSSL, Apache-2.0) | transitiv (pyjwt) |
 | cffi / pycparser | 2.1.1 / 3.0 | MIT-0 / BSD-3-Clause | transitiv (cryptography) |
@@ -435,13 +518,21 @@ Zusammenfassung der Messläufe und der Entscheidung: `docs/entscheidungen/0003-e
   Debian-Asset SHA-256 `ca635ed489d8bf54fac8d7687056c651193de0740830a7738cc034adc63e3027`.
   Upstream `LICENSE.md` nennt zusätzlich `lib/etcdec.cxx` unter Ericsson-Lizenz;
   der Import verwendet Basis-Transcoding (`ktx extract`) und die UASTC/ETC1S-Encoder.
-  Lizenzdateien bleiben im unveränderten Release-Paket enthalten.
-- Basis: `python:3.12-slim@sha256:e41613d42d4891e4930f79523f93f81bbc7632584ec65e36ab055f41a800b41e`.
-  Dockerfile `import/docker/meshtools.Dockerfile` prüft das Release-Asset.
-  Lokales Laufzeit-Image per Inhalt gepinnt:
-  `sha256:36a148dcd76049e9cf0a199324d144a9284f2444e6c7229a9745a0f2273ad3e2`.
-  Ein Neubau muss bewusst geprüft und dessen neue Image-ID übernommen werden;
-  kein automatischer Fallback auf einen beweglichen Tag.
+  Der Inhalt des Release-Pakets liegt unverändert unter `/opt/ktx` im Image.
+- Image `scanview-meshtools` (seit P05-B): Bau-Stufe
+  `mambaorg/micromamba:2.10.0-debian13-slim@sha256:e1476182cd40eb1f7c0cfae4adec9bfd78f3d7f05c61368306abfdc8939c1198`,
+  Laufzeit-Basis
+  `gcr.io/distroless/base-nossl-debian13@sha256:d710a5c8bfe4cf7e726d7e1afd73e363a9fb02c2a11ad893d2d6185c1b9a89cb`
+  (dieselben wie scanview-pdal, Lizenzen dort). Dazu aus `import/docker/meshtools.conda-lock.txt`
+  fünf conda-forge-Pakete, jede Zeile wörtlich aus `pdal.conda-lock.txt`: python 3.12
+  (Python-2.0, für den Messwrapper) sowie libstdcxx, libgcc, libgomp (GPL-3.0-only WITH
+  GCC-exception-3.1) und _openmp_mutex (BSD-3-Clause) als C++-Laufzeit von KTX.
+  Dockerfile `import/docker/meshtools.Dockerfile` prüft das Release-Asset per SHA-256.
+  Lokales Laufzeit-Image unter einem Inhalts-Tag wie scanview-pdal
+  (`mesh_textures.KTX_IMAGE` = `scanview-meshtools:` + erste 12 Hex der SHA-256 über
+  Dockerfile und Lock, Drift-Test), gebaut bei Bedarf; gestartet wird die geprüfte Image-ID,
+  sie steht als `imageDigest` in den Texturangaben (vorher fest gepinnte Image-ID auf
+  `python:3.12-slim`: `sha256:482f02c03925c6211ce4945cd68273e93b94058a1432e87b7d87024760531cf3`).
 
 ## Gaussian-Sichtschicht
 

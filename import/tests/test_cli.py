@@ -234,6 +234,12 @@ def test_max_points_without_mode_defaults_to_staged(monkeypatch, tmp_path):
         return {}
 
     monkeypatch.setattr(cli_mod, "convert", fake_convert)
+    # convert schreibt die Draufsicht mit; hier geht es nur um die Moduswahl.
+    monkeypatch.setattr(
+        cli_mod,
+        "build_overview",
+        lambda *a, **kw: {"topview": {"widthPx": 1, "heightPx": 1}, "groundZ": {}},
+    )
     rc = main(["convert", "a.e57", str(tmp_path), "--max-points", "500"])
     assert rc == 0
     assert captured["max_points"] == 500
@@ -250,6 +256,12 @@ def test_max_points_with_explicit_mode_is_not_overridden(monkeypatch, tmp_path):
         return {}
 
     monkeypatch.setattr(cli_mod, "convert", fake_convert)
+    # convert schreibt die Draufsicht mit; hier geht es nur um die Moduswahl.
+    monkeypatch.setattr(
+        cli_mod,
+        "build_overview",
+        lambda *a, **kw: {"topview": {"widthPx": 1, "heightPx": 1}, "groundZ": {}},
+    )
     main(["convert", "a.e57", str(tmp_path), "--max-points", "500", "--mode", "direct"])
     assert captured["mode"] == "direct"
     assert captured["max_points"] == 500
@@ -265,6 +277,12 @@ def test_mode_defaults_to_auto_without_max_points(monkeypatch, tmp_path):
         return {}
 
     monkeypatch.setattr(cli_mod, "convert", fake_convert)
+    # convert schreibt die Draufsicht mit; hier geht es nur um die Moduswahl.
+    monkeypatch.setattr(
+        cli_mod,
+        "build_overview",
+        lambda *a, **kw: {"topview": {"widthPx": 1, "heightPx": 1}, "groundZ": {}},
+    )
     main(["convert", "a.e57", str(tmp_path)])
     assert captured["mode"] == "auto"
     assert captured["max_points"] is None

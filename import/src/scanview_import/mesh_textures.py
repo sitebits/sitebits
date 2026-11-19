@@ -14,10 +14,19 @@ from typing import Any, cast
 import numpy as np
 from PIL import Image
 
-from .pdal_runner import docker_grenzen
+from .pdal_runner import DOCKER_DIR, docker_grenzen, ensure_gebaut, inhalt_tag
 
-KTX_IMAGE = "sha256:36a148dcd76049e9cf0a199324d144a9284f2444e6c7229a9745a0f2273ad3e2"
+# KTX-Werkzeug-Image wie scanview-pdal: Tag = erste 12 Hex der SHA-256 über Dockerfile und Lock
+# (`ktx_image_tag()`), gebaut bei Bedarf (`ensure_ktx_image()`). Bleibt ein String-Literal, weil
+# die SBOM-Stufe es aus dem Quelltext liest; ein Drift-Test prüft Literal = `ktx_image_tag()`.
+KTX_IMAGE = "scanview-meshtools:906fc0141a21"
+KTX_DOCKERFILE = DOCKER_DIR / "meshtools.Dockerfile"
+KTX_LOCKFILE = DOCKER_DIR / "meshtools.conda-lock.txt"
 KTX_MAGIC = b"\xabKTX 20\xbb\r\n\x1a\n"
+# Fotogrammetrie-Atlanten (z. B. RealityScan) haben bis 16384 Pixel je Achse, das liegt über
+# Pillows Standardgrenze (~179 Mpx). Eigene Grenze wie kacheln/texturen.py, unabhängig vom
+# globalen Wert.
+MAX_TEXTUR_SEITE = 16384
 
 
 def ktx_info(data: bytes) -> dict[str, Any]:
@@ -40,6 +49,16 @@ def ktx_info(data: bytes) -> dict[str, Any]:
     }
 
 
+def ktx_image_tag() -> str:
+    """Soll-Tag von ``KTX_IMAGE`` aus Dockerfile und Lock."""
+    return inhalt_tag("scanview-meshtools", KTX_DOCKERFILE, KTX_LOCKFILE)
+
+
+def ensure_ktx_image() -> str:
+    """Baut ``KTX_IMAGE``, falls es lokal fehlt, und liefert seine Image-ID."""
+    return ensure_gebaut(KTX_IMAGE, KTX_DOCKERFILE, KTX_LOCKFILE)
+
+
 def _run(command: list[str], work: Path) -> dict[str, Any]:
     # Python-Wrapper misst den Kindprozess im Container, wie beim PDAL-Lauf.
     wrapper = (
@@ -48,13 +67,16 @@ def _run(command: list[str], work: Path) -> dict[str, Any]:
         "open('/work/peak','w').write(str(resource.getrusage(resource.RUSAGE_CHILDREN)"
         ".ru_maxrss)); sys.exit(rc)"
     )
+    grenzen = docker_grenzen()  # ungültige Grenzen brechen vor jedem docker-Aufruf ab
+    # Gestartet wird die geprüfte Image-ID, nicht der Tag (kein Wechsel zwischen Prüfung und Start).
+    bild_id = ensure_ktx_image()
     args = [
         "docker",
         "run",
         "--rm",
         "--network",
         "none",
-        *docker_grenzen(),
+        *grenzen,
         "--user",
         f"{os.getuid()}:{os.getgid()}",
         "--cap-drop",
@@ -66,7 +88,7 @@ def _run(command: list[str], work: Path) -> dict[str, Any]:
         "/tmp:rw,nosuid,nodev,size=2g",
         "-v",
         f"{work.resolve()}:/work:rw",
-        KTX_IMAGE,
+        bild_id,
         "python",
         "-c",
         wrapper,
@@ -79,7 +101,7 @@ def _run(command: list[str], work: Path) -> dict[str, Any]:
     return {
         "seconds": time.monotonic() - t0,
         "peakRssMb": float((work / "peak").read_text()) / 1024,
-        "imageDigest": KTX_IMAGE,
+        "imageDigest": bild_id,
     }
 
 
@@ -93,8 +115,21 @@ def decode_texture(texture: Path | bytes) -> Image.Image:
                 ["ktx", "extract", "--transcode", "rgba8", "/work/input.ktx2", "/work/decoded.png"],
                 work,
             )
-            return Image.open(work / "decoded.png").convert("RGBA")
-    return Image.open(io.BytesIO(data)).convert("RGBA")
+            return _oeffnen(work / "decoded.png").convert("RGBA")
+    return _oeffnen(io.BytesIO(data)).convert("RGBA")
+
+
+def _oeffnen(fp: Path | io.BytesIO) -> Image.Image:
+    previous = Image.MAX_IMAGE_PIXELS
+    try:
+        Image.MAX_IMAGE_PIXELS = MAX_TEXTUR_SEITE**2
+        image = Image.open(fp)
+    finally:
+        Image.MAX_IMAGE_PIXELS = previous
+    if max(image.size) > MAX_TEXTUR_SEITE:
+        image.close()
+        raise ValueError(f"Textur größer als {MAX_TEXTUR_SEITE} Pixel je Achse: {image.size}")
+    return image
 
 
 def encode_texture(

@@ -206,6 +206,7 @@ def test_utm_zone_lehnt_fremde_ab(crs: str) -> None:
         ("ellipsoidisch", None, ("ellipsoidal-etrs89", "dhhn2016")),
         ("DHHN2016", None, ("dhhn2016", "dhhn2016")),
         ("ellipsoidisch", "ellipsoidisch", ("ellipsoidal-etrs89", "ellipsoidal-etrs89")),
+        ("dhhn92", "dhhn92", ("dhhn92", "dhhn92")),
     ],
 )
 def test_festlegen(
@@ -214,10 +215,29 @@ def test_festlegen(
     assert hoehen.festlegen(quelle, ziel) == erwartet
 
 
-@pytest.mark.parametrize(("quelle", "ziel"), [(None, "dhhn2016"), ("NN", None), ("dhhn2016", "x")])
+@pytest.mark.parametrize(
+    ("quelle", "ziel"),
+    [
+        (None, "dhhn2016"),
+        ("NN", None),
+        ("dhhn2016", "x"),
+        ("dhhn92", None),
+        ("dhhn2016", "dhhn92"),
+        ("ellipsoidisch", "dhhn92"),
+    ],
+)
 def test_festlegen_fehler(quelle: str | None, ziel: str | None) -> None:
     with pytest.raises(hoehen.HoehenFehler):
         hoehen.festlegen(quelle, ziel)
+
+
+def test_festlegen_dhhn92_nennt_ausweg() -> None:
+    """DHHN92 ohne passendes Ziel scheitert sofort und nennt den Weg ohne Umrechnung."""
+    with pytest.raises(hoehen.HoehenFehler, match="--ziel-hoehensystem dhhn92"):
+        hoehen.festlegen("dhhn92", None)
+    with pytest.raises(hoehen.HoehenFehler, match="nicht unterstützt") as fehler:
+        hoehen.festlegen("dhhn2016", "dhhn92")
+    assert "--ziel-hoehensystem" not in str(fehler.value)
 
 
 def test_las_umrechnen_aendert_nur_z(tmp_path: Path) -> None:

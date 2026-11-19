@@ -40,7 +40,9 @@ class Mesh:
 def resolve_mesh_source(
     path: Path, crs: str | None = None, unit: str | None = None, up: str | None = None
 ) -> PointSource:
-    path = path.resolve()
+    # absolute() statt resolve(): Material und Texturen liegen neben dem angegebenen Pfad, auch wenn
+    # das Mesh nur verlinkt ist (Arbeitskopie mit eigenen Texturen).
+    path = path.absolute()
     fmt = path.suffix.lower().lstrip(".")
     if fmt not in ("obj", "ply", "stl", "gltf", "glb"):
         raise ValueError(f"Nicht unterstütztes Meshformat: {fmt}")

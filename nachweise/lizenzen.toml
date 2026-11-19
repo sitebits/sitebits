@@ -2,7 +2,8 @@
 #
 # Maschinenlesbare Fassung der Lizenzentscheidungen, Kategorien wie unten markiert: P10
 # permissiv (auch außerhalb der wörtlichen Liste), P12 LGPL, P14 BlueOak-1.0.0/Python-2.0,
-# F10 MPL-2.0 unverändert weitergegeben (GPL/AGPL nie eingebunden, nur als externer Prozess).
+# F10 MPL-2.0 unverändert weitergegeben (GPL/AGPL nie eingebunden, nur als externer Prozess;
+# für die PDAL-Umgebung als eng begrenzte Ausnahme unten, ADR 2026-10-22).
 # Komponenten-Nennung siehe docs/THIRD_PARTY.md.
 # Geprüft werden die SBOMs der ausgelieferten Artefakte: jede erklärte Lizenz jeder Komponente
 # muss hier stehen bzw. als SPDX-Ausdruck erfüllbar sein. Eine neue Lizenz braucht eine
@@ -32,6 +33,16 @@ erlaubt = [
     "LGPL-2.1-or-later",
     "LGPL-3.0-only",
     "LGPL-3.0-or-later",
+    # Permissiv, aus der PDAL-Umgebung des Imports (ADR 2026-10-22, P10): libcurl, SQLite
+    # (gemeinfrei), bzip2, libjpeg-turbo, ncurses, libpng; dazu die GCC-Laufzeitausnahme
+    # (libgcc, libstdcxx, libgomp — erlaubt Weitergabe gelinkter Programme ohne Copyleft).
+    "curl",
+    "blessing",
+    "bzip2-1.0.6",
+    "IJG",
+    "X11",
+    "zlib-acknowledgement",
+    "GPL-3.0-only WITH GCC-exception-3.1",
 ]
 
 # Freitext bzw. Trove-Klassifikatoren (PyPI-Metadaten ohne SPDX-Feld) → SPDX-Ausdruck. „BSD
@@ -48,3 +59,28 @@ erlaubt = [
 # genau diese Version. Beleg = Lizenztext im veröffentlichten Paket (SHA-256 des Textes).
 [feststellungen]
 "embreex@4.4.0" = { ausdruck = "BSD-2-Clause AND Apache-2.0", beleg = "Wheel embreex 4.4.0: dist-info/licenses/LICENSE ist BSD-2-Clause (Copyright (c) 2015, Anthony Scopatz); METADATA „License:“ enthält nur die Copyright-Zeile. Das Wheel bündelt Embree 4 und oneTBB, beide Apache-2.0 (deren Lizenztexte fehlen im Wheel und stehen in docs/THIRD_PARTY.md)", sha256 = "ff1b98027d39113f6c3fcd9c3b0ebcc60b145b9a2b82f5670f444be3028a900e" }
+
+# Ausnahme „nur externer Prozess“ (ADR 2026-10-22 „scanview: GPL-/MPL-Komponenten in der PDAL-Umgebung
+# auf dem Host“, security/decisions/2026-10-22-scanview-pdal-umgebung-lizenzen.md): PDAL und untwine
+# laufen als eigene Prozesse aus der gelockten conda-forge-Umgebung import/pdal-umgebung (pdal_runner,
+# Ausführungsart „lokal“); siteBits linkt und importiert nichts davon (Test
+# import/tests/test_keine_gpl_bibliothek.py). Die Ausnahme gilt NUR für genau diese Pakete in dieser
+# Umgebung: Umgebung, SHA-256 des Locks und je Paket Name, Version, Build, Lizenz und SHA-256 müssen
+# im SBOM übereinstimmen. Neues Lock oder neues Paket → Lizenzstufe rot, Neubewertung nötig.
+# Pflichten (Lizenztexte, Quellbezug je Paket) erfüllen import/pdal-umgebung/quellen.json
+# (scanview-nachweise pdal-umgebung pruefen) und /opt/scanview/pdal/LIZENZEN.txt, die einrichten.sh
+# auf dem Host erzeugt (scanview-import pdal-lizenzen, Nachtrag Weg 3). Begründung je Paket:
+# untwine — COPC-Bau (Programm selbst); librttopo, libspatialite, freexl — hängen fest an
+# libgdal-core ← libpdal-core (kein Build ohne); readline — nur von der sqlite-Kommandozeile gelinkt
+# (proj/libspatialite verlangen das Paket), von pdal/untwine nie geladen.
+[externer_prozess]
+adr = "security/decisions/2026-10-22-scanview-pdal-umgebung-lizenzen.md"
+umgebung = "pdal"
+lock_sha256 = "8a303273e89ffc40693a3f00c47ac45d6534eeb9d7294170d719784407431a3c"
+
+[externer_prozess.pakete]
+"untwine@1.5.1" = { build = "h419fb5e_0", lizenz = "GPL-3.0-or-later", sha256 = "52cb345770103ed4998f2d3aff0a4c4a798f8624e6a7e72ea3bc64ff2a0d18e3" }
+"librttopo@1.1.0" = { build = "h55b0958_21", lizenz = "GPL-2.0-or-later", sha256 = "1a3c7f637bfac44e7afee097f08b5ae0c367194f9608daea314ab616dc7757e0" }
+"readline@8.3" = { build = "hd6e31c0_1", lizenz = "GPL-3.0-only", sha256 = "01b3fe073a66e321970d09e04b388708f8cbdca5cdfbfcb7c9eeb470ad10383d" }
+"libspatialite@5.1.0" = { build = "gpl_h2988700_122", lizenz = "MPL-1.1", sha256 = "d4e6bb1a10f4f97d60ce534a3313d268f50ba1fd7772d35121043dc166596305" }
+"freexl@2.0.0" = { build = "h1f12c17_3", lizenz = "MPL-1.1", sha256 = "2be93e21acabadd6f32a830f328d23e4c6369898df0f69396c2c37be6ef0d15e" }

@@ -1,0 +1,255 @@
+# Blinde Restpakete der PDAL-Umgebung (pdal_scan.ScanBlind): Pakete, für die kein Scanner der
+# Kette Schwachstellendaten führt — trivy nicht (pkg:conda), OSV nicht (Repo dort unbekannt, kein
+# Repo in den Paketangaben oder Gegenprobe nicht auf beiden Wegen; Erhebung 22.10. und 05.11.2026).
+# Sie fallen nur dann aus der Pflicht-Abdeckung des Scans, wenn sie hier genau stehen (Name,
+# Version, Build, SHA-256 aus pixi.lock, Lock-SHA) UND der Befund unten im Register „akzeptiert“
+# ist; eine abgelaufene Frist blockiert über das Befund-Gate. Neues Lock → Liste neu, Befund neu
+# vorlegen. Pakete in osv.toml stehen hier nie.
+lock_sha256 = "8a303273e89ffc40693a3f00c47ac45d6534eeb9d7294170d719784407431a3c"
+befund = "B-SCAN-PDAL-UMGEBUNG-BLIND"
+
+[[paket]]
+name = "_openmp_mutex"
+version = "4.5"
+build = "20_gnu"
+sha256 = "1dd3fffd892081df9726d7eb7e0dea6198962ba775bd88842135a4ddb4deb3c9"
+
+[[paket]]
+name = "blosc"
+version = "1.21.6"
+build = "he440d0b_1"
+sha256 = "e7af5d1183b06a206192ff440e08db1c4e8b2ca1f8376ee45fb2f3a85d4ee45d"
+
+[[paket]]
+name = "bzip2"
+version = "1.0.8"
+build = "hda65f42_10"
+sha256 = "1a0d382c515ebf55f8ee1f38c8b81bc95af5c2acc42ad53b66bc5df932032f96"
+
+[[paket]]
+name = "freexl"
+version = "2.0.0"
+build = "h1f12c17_3"
+sha256 = "2be93e21acabadd6f32a830f328d23e4c6369898df0f69396c2c37be6ef0d15e"
+
+[[paket]]
+name = "geos"
+version = "3.14.1"
+build = "h55b0958_0"
+sha256 = "dc9f03bef913c8b3c94e93a61318b7437bd5e4f7136ef841e68df8de082405d5"
+
+[[paket]]
+name = "geotiff"
+version = "1.7.4"
+build = "h0e19ed7_7"
+sha256 = "67e33018f957e76bf76a4a2b028d9fc95c23fe0bac826d99fabfcccb32d21a06"
+
+[[paket]]
+name = "giflib"
+version = "6.1.3"
+build = "hebe6cf0_2"
+sha256 = "917c3a622c3870f822d25a882f1856e757d91e31a3dd52a499849a392ca865d2"
+
+[[paket]]
+name = "json-c"
+version = "0.18"
+build = "hebe6cf0_2"
+sha256 = "78ec5a672acc8a6bf9c74268b88a72230809517aebe75a11acf959d3f9a63fe0"
+
+[[paket]]
+name = "keyutils"
+version = "1.6.3"
+build = "h7cc23a3_1"
+sha256 = "dd053c96dcb0dcfd59422aefea9d2fe937a190167f34fba7893ec1e10a7e8963"
+
+[[paket]]
+name = "lerc"
+version = "4.2.0"
+build = "hdb68285_0"
+sha256 = "bf9fdebf55d8bc99d83531cdffda00703f4dc5f93a1a956768c147362c72feda"
+
+[[paket]]
+name = "libdeflate"
+version = "1.25"
+build = "hd45a770_1"
+sha256 = "82e134c8a08b1eed9a2ed8ab578b89aa1730dcde3dea8dd87645ed0637878e54"
+
+[[paket]]
+name = "libedit"
+version = "3.1.20260512"
+build = "pl5321h373387f_0"
+sha256 = "45301f14f4eb66da57cfaf2d265f3eeee73f8b07e99614ee3afc5b26eea91126"
+
+[[paket]]
+name = "libev"
+version = "4.33"
+build = "h280c20c_3"
+sha256 = "e4418f68d01a6307c4431b585c71b584f40189877364e542ee87deb777f5e85b"
+
+[[paket]]
+name = "libgcc"
+version = "16.2.0"
+build = "ha9f2e26_7"
+sha256 = "e031634c3a928f9594eba868bc46ef5230d6571a364a0c63215b06c4563bfcea"
+
+[[paket]]
+name = "libgcc-ng"
+version = "16.2.0"
+build = "h69a702a_7"
+sha256 = "03b54d7008de080a17cc2174b0e4acd6d06e1c981b2eb19846f46d8f59966034"
+
+[[paket]]
+name = "libgdal-core"
+version = "3.13.3"
+build = "h7fa801c_4"
+sha256 = "03caa0d547a9a193390c4ca67b1738a290c02fdeaf9b4623f2c469fb35b767a2"
+
+[[paket]]
+name = "libgomp"
+version = "16.2.0"
+build = "he0feb66_7"
+sha256 = "92a0bb350c7be6a4eedcb4e111c60aefd176018e6b1c009a6e025dbe9bbcd758"
+
+[[paket]]
+name = "libhwy"
+version = "1.4.0"
+build = "h57c4cff_2"
+sha256 = "06ab9eb5db305b29f0f671dced4a43eca4b0c1990351bad963d25341057f74d4"
+
+[[paket]]
+name = "libiconv"
+version = "1.18"
+build = "h0cb94f2_3"
+sha256 = "f943117edb9cd4d9c61cc972eee5a34291dc55ea7a6e9e38da104995841cbcb6"
+
+[[paket]]
+name = "libkml"
+version = "1.3.0"
+build = "haa4a5bd_1023"
+sha256 = "f6348ac9cebbc03f765ea6d2da88d57d19531585c8f3a963b98635b208e8bef1"
+
+[[paket]]
+name = "libnsl"
+version = "2.0.1"
+build = "hb9d3cd8_1"
+sha256 = "927fe72b054277cde6cb82597d0fcf6baf127dcbce2e0a9d8925a68f1265eef5"
+
+[[paket]]
+name = "libpdal-core"
+version = "2.10.2"
+build = "he6b862a_5"
+sha256 = "8b31fb486e70cd6a24557f3c6203dd5898acbd87710a97758e4580ac7480165b"
+
+[[paket]]
+name = "libpdal-e57"
+version = "2.10.2"
+build = "h7f38c2f_5"
+sha256 = "b2acb14d62c739f9ca10f62c757fb9860dc075bd84bd663fb0ba72ac08bd09aa"
+
+[[paket]]
+name = "libpng"
+version = "1.6.59"
+build = "h922cc85_0"
+sha256 = "c7381be8ef713501f6cd2f5ad473e401f2edeaec3c46788296b8dbf0de165e15"
+
+[[paket]]
+name = "libpsl"
+version = "0.23.1"
+build = "hd9e3e90_1"
+sha256 = "09e8effdc89bc5d021349318d32b85594f5b8d8e3ab8f90a85b81f8fe695a566"
+
+[[paket]]
+name = "librttopo"
+version = "1.1.0"
+build = "h55b0958_21"
+sha256 = "1a3c7f637bfac44e7afee097f08b5ae0c367194f9608daea314ab616dc7757e0"
+
+[[paket]]
+name = "libspatialite"
+version = "5.1.0"
+build = "gpl_h2988700_122"
+sha256 = "d4e6bb1a10f4f97d60ce534a3313d268f50ba1fd7772d35121043dc166596305"
+
+[[paket]]
+name = "libsqlite"
+version = "3.54.1"
+build = "h13e7031_0"
+sha256 = "07b3c98282022f05781122d073f84e944bfb4299946e8457ece3ce6c384ff78e"
+
+[[paket]]
+name = "libstdcxx"
+version = "16.2.0"
+build = "h934c35e_7"
+sha256 = "fa7018298629fc429971fffd6ecba3d27a7b02e4e890d6a93ea01ffebe8cb745"
+
+[[paket]]
+name = "libstdcxx-ng"
+version = "16.2.0"
+build = "hdf11a46_7"
+sha256 = "337f481db36cc357884f05f404ccd1b3a7e0fc1ee48ec5c884e4281d213bc863"
+
+[[paket]]
+name = "libtiff"
+version = "4.7.2"
+build = "hcc2c06a_1"
+sha256 = "10e125da82ca93e09191e66e5a94d566b2cf8d4024e2a0db3a9114297447e0d9"
+
+[[paket]]
+name = "libwebp-base"
+version = "1.6.0"
+build = "hd42ef1d_1"
+sha256 = "8415001414f488c85b72b9d8cc2071dfb3981a47bc3c8eb56ef91a57d12eae7f"
+
+[[paket]]
+name = "minizip"
+version = "4.2.2"
+build = "haac24f3_1"
+sha256 = "75384c7e6ea3cd72969c0163ec52ddaed08590bb292e959d1afd2a6ffcc237a6"
+
+[[paket]]
+name = "ncurses"
+version = "6.6"
+build = "hdb14827_1"
+sha256 = "5d46557214ed184381dafe835b7c94a474a1c3b307a08a250b1ea4779b44ffb3"
+
+[[paket]]
+name = "proj"
+version = "9.9.0"
+build = "h3767062_0"
+sha256 = "ac7ee6aa0c5b8c4b6ef23840f511b660ec878b7c61469c4f84eb9587afad95dd"
+
+[[paket]]
+name = "readline"
+version = "8.3"
+build = "hd6e31c0_1"
+sha256 = "01b3fe073a66e321970d09e04b388708f8cbdca5cdfbfcb7c9eeb470ad10383d"
+
+[[paket]]
+name = "sqlite"
+version = "3.54.1"
+build = "h9ffa6c4_0"
+sha256 = "75d479f5eef99880e81f4502376ace68b6920c02b28212e318f1b5c017c71f1a"
+
+[[paket]]
+name = "untwine"
+version = "1.5.1"
+build = "h419fb5e_0"
+sha256 = "52cb345770103ed4998f2d3aff0a4c4a798f8624e6a7e72ea3bc64ff2a0d18e3"
+
+[[paket]]
+name = "xerces-c"
+version = "3.3.0"
+build = "h78fed68_2"
+sha256 = "1acbd62b33b6efc985f70e0b9f0013ca18fcef2df5a18edb1c81a6b63ad20dc0"
+
+[[paket]]
+name = "zstd"
+version = "1.5.7"
+build = "hb78ec9c_7"
+sha256 = "47d682b9f6d6ec9eb1a6e6c3e75ea6273e899e78fb7fc59f81d39745009fbc60"
+
+[[paket]]
+name = "ca-certificates"
+version = "2026.10.23"
+build = "hbd8a1cb_0"
+sha256 = "95619b9c1184be7175392eeb0ee7eeb5ccf25d280951f4225f2d62e725790be3"

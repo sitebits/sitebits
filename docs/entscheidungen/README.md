@@ -23,3 +23,4 @@ verweist auf ihre Nachfolgerin.
 | 0015 | [Höhensystem: NHN als Standard, Umrechnung im Import](0015-hoehensystem.md) | angenommen |
 | 0016 | [Nur-Lese-Links für Gäste](0016-nur-lese-links.md) | angenommen, ergänzt 0005 |
 | 0017 | [Ausgehende E-Mail-Benachrichtigung über einen eigenen Postdienst](0017-ausgehende-mail.md) | angenommen, ergänzt 0006 |
+| 0018 | [Agenten-Schnittstelle aus einer Quelle](0018-agenten-schnittstelle-eine-quelle.md) | angenommen, ergänzt 0008 |

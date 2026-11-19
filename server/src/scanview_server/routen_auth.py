@@ -29,6 +29,7 @@ router = APIRouter()
 
 EINLADUNG_UNGUELTIG = "Einladung ungültig, abgelaufen oder bereits eingelöst."
 FALSCH = "E-Mail oder Passwort falsch."
+PASSKEY_FEHLGESCHLAGEN = "Anmeldung mit Passkey fehlgeschlagen."
 GESPERRT = "Zu viele Fehlversuche – bitte in 15 Minuten erneut versuchen."  # noqa: RUF001
 NICHT_ANGEMELDET = "nicht angemeldet"
 # „Weiteres Gerät hinzufügen“ nur mit frischer Sitzung (web.frisch_angemeldet, FRISCH_S): ein
@@ -234,7 +235,7 @@ def passkey_anmelden(
     try:
         uid = passkey.anmeldung_pruefen(conn, s, body.challengeId, body.credential)
     except passkey.PasskeyFehler:
-        return fehler(401, "Anmeldung mit Passkey fehlgeschlagen.")
+        return fehler(401, PASSKEY_FEHLGESCHLAGEN)
     r = JSONResponse({"ok": True})
     neue_sitzung(r, request, conn, uid)
     return r

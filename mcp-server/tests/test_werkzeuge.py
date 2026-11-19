@@ -680,8 +680,11 @@ def test_auswertung_status_datensparsam_pseudonymisiert_startende_person() -> No
 
 @pytest.mark.parametrize(("upload", "typ", "optionen"), [
     ("x" * 32, "neu_mesh", {"projekt": "neu"}),
-    (UID, "neu_wolke", {"projekt": "neu"}),
+    (UID, "neu_ergaenzen", {"projekt": "neu"}),
     (UID, "auswerten_pruefen", {"projekt": "neu"}),
+    (UID, "neu_mesh", {"projekt": "neu", "rgb8bit": "ja"}),
+    (UID, "neu_wolke", {"projekt": "neu", "rgb8bit": "true"}),
+    (UID, "neu_wolke", {"projekt": "neu", "modus": "direct"}),
     (UID, "neu_mesh", {}),
     (UID, "neu_mesh", {"projekt": "../x"}),
     (UID, "neu_mesh", {"projekt": "neu", "datei": "/etc/passwd"}),
@@ -701,6 +704,13 @@ def test_import_status_filtert_nach_projekt() -> None:
     assert werkzeuge.import_status(c, "neu") == {"importe": [{"id": AID, "projekt": "neu"}],
                                                  "worker": "aktiv"}
     assert werkzeuge.import_status(c) == liste
+
+
+def test_import_starten_punktwolke_mit_farboption() -> None:
+    c, auf = client_mit(standard_antwort)
+    werkzeuge.import_starten(c, UID, "neu_wolke", {"projekt": "neu", "rgb8bit": "ja",
+                                                   "crs": "EPSG:25833"})
+    assert len(auf.anfragen) == 1
 
 
 def test_anhang_hochladen_roh_mit_typ_aus_dem_inhalt(tmp_path: Path) -> None:

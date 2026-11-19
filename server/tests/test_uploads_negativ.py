@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from conftest import csrf
 from fastapi.testclient import TestClient
-from uploadwelt import GLB, SPZ, Welt, welt, welt_aus  # noqa: F401
+from uploadwelt import E57, GLB, LAZ, SPZ, Welt, welt, welt_aus  # noqa: F401
 
 from scanview_server import auftraege
 from scanview_server import uploads as U
@@ -188,6 +188,10 @@ def test_import_einreihen_lesen_abbrechen(welt: Welt) -> None:  # noqa: F811
     ("neu_mesh", {"crs": "EPSG:25833; rm"}, 422),
     ("neu_mesh", {"quellHoehe": "dhhn2016"}, 422),   # Höhe ohne CRS
     ("neu_mesh", {"crs": "EPSG:25833", "quellHoehe": "nn"}, 422),
+    ("neu_mesh", {"crs": "EPSG:25833", "quellHoehe": "dhhn92"}, 422),  # Ziel DHHN2016
+    ("neu_mesh", {"crs": "EPSG:25833", "quellHoehe": "dhhn92", "zielHoehe": "dhhn2016"}, 422),
+    ("neu_mesh", {"crs": "EPSG:25833", "quellHoehe": "dhhn2016", "zielHoehe": "dhhn92"}, 422),
+    ("neu_mesh", {"crs": "EPSG:25833", "zielHoehe": "dhhn2016"}, 422),  # Ziel ohne Quelle
     ("neu_mesh", {"titel": "a\nb"}, 422),
     ("neu_mesh", {"titel": "x" * 121}, 422),
     ("neu_mesh", {"datei": "../a.glb"}, 422),
@@ -209,6 +213,44 @@ def test_import_optionen_abgelehnt(welt: Welt, typ: str, optionen: dict[str, str
         jc.close()
 
 
+@pytest.mark.parametrize(("optionen", "gespeichert"), [
+    ({"quellHoehe": "dhhn92", "zielHoehe": "dhhn92"},
+     {"quellHoehe": "dhhn92", "zielHoehe": "dhhn92"}),
+    ({"quellHoehe": "ellipsoidal-etrs89"}, {"quellHoehe": "ellipsoidal-etrs89"}),
+    ({"quellHoehe": "dhhn2016", "zielHoehe": "ellipsoidal-etrs89"},
+     {"quellHoehe": "dhhn2016", "zielHoehe": "ellipsoidal-etrs89"}),
+])
+def test_import_hoehen_angenommen(welt: Welt, optionen: dict[str, str],  # noqa: F811
+                                  gespeichert: dict[str, str]) -> None:
+    c = welt.c["admin"]
+    u = welt.hochladen(c, {"modell.glb": GLB})
+    r = c.post("/api/v1/importe", json={"upload": u["id"], "typ": "neu_mesh", "optionen": {
+        "projekt": "neu", "crs": "EPSG:25833", **optionen}}, headers=csrf())
+    assert r.status_code == 202, r.text
+    jc = welt.jobs()
+    try:
+        [a] = auftraege.importe(jc)
+    finally:
+        jc.close()
+    assert {k: v for k, v in a.optionen.items() if k.endswith("Hoehe")} == gespeichert
+
+
+@pytest.mark.parametrize(("name", "daten", "typ", "optionen"), [
+    ("modell.glb", GLB, "neu_mesh", {"crs": "EPSG:25833", "quellHoehe": "dhhn92"}),
+    ("scan.laz", LAZ, "neu_wolke", {"quellHoehe": "dhhn92"}),       # ohne CRS: aus der Datei
+    ("scan.laz", LAZ, "neu_wolke", {"crs": "EPSG:25833", "quellHoehe": "dhhn92",
+                                    "zielHoehe": "dhhn2016"}),
+])
+def test_dhhn92_ablehnung_nennt_den_ausweg(welt: Welt, name: str, daten: bytes,  # noqa: F811
+                                           typ: str, optionen: dict[str, str]) -> None:
+    c = welt.c["admin"]
+    u = welt.hochladen(c, {name: daten})
+    r = c.post("/api/v1/importe", json={"upload": u["id"], "typ": typ, "optionen": {
+        "projekt": "neu", **optionen}}, headers=csrf())
+    assert r.status_code == 422
+    assert "ebenfalls dhhn92" in r.text
+
+
 def test_import_braucht_abgeschlossenen_upload_mit_einer_datei(welt: Welt) -> None:  # noqa: F811
     c = welt.c["admin"]
     offen = welt.anlegen(c, {"a.glb": GLB}).json()["id"]
@@ -226,3 +268,52 @@ def test_auswertungen_nehmen_keine_importtypen(welt: Welt) -> None:  # noqa: F81
         auftraege.pruefe("neu_mesh", {"upload": "0" * 32, "projekt": "x"})
     with pytest.raises(auftraege.AuftragUngueltig):
         auftraege.pruefe("auswerten_pruefen", {}, erlaubt=auftraege.IMPORTE)
+
+
+# --- Punktwolke (neu_wolke) -------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(("name", "daten", "optionen", "status"), [
+    ("scan.laz", LAZ, {"crs": "EPSG:25833"}, 202),
+    ("scan.las", LAZ, {}, 202),                                     # CRS aus der Datei
+    ("scan.e57", E57, {"crs": "EPSG:25833"}, 202),
+    ("scan.laz", LAZ, {"quellHoehe": "ellipsoidal-etrs89"}, 202),  # Höhe ohne CRS: aus Datei
+    ("scan.laz", LAZ, {"rgb8bit": True}, 202),
+    ("scan.laz", LAZ, {"rgb8bit": False}, 202),
+    ("scan.laz", LAZ, {"rgb8bit": "true"}, 422),
+    ("scan.laz", LAZ, {"rgb8bit": 1}, 422),
+    ("scan.e57", E57, {"rgb8bit": True}, 422),                      # nur LAS/LAZ
+    ("scan.e57", E57, {"quellHoehe": "ellipsoidal-etrs89"}, 422),   # Ziel DHHN2016 = Umrechnen
+    ("scan.e57", E57, {"quellHoehe": "dhhn2016", "zielHoehe": "ellipsoidal-etrs89"}, 422),
+    ("scan.e57", E57, {"quellHoehe": "dhhn2016"}, 202),             # nur deklarieren
+    ("scan.laz", LAZ, {"quellHoehe": "dhhn92", "zielHoehe": "dhhn92"}, 202),  # DHHN92 deklariert
+    ("scan.laz", LAZ, {"quellHoehe": "dhhn2016", "zielHoehe": "dhhn92"}, 422),
+    ("scan.e57", E57, {"quellHoehe": "dhhn92", "zielHoehe": "dhhn92"}, 202),
+    ("scan.laz", LAZ, {"quellHoehe": "nn"}, 422),
+    ("scan.laz", LAZ, {"modus": "direct"}, 422),                    # Modus ist fest
+    ("modell.glb", GLB, {}, 422),                                   # keine Punktwolke
+])
+def test_wolke_optionen(welt: Welt, name: str, daten: bytes,  # noqa: F811
+                        optionen: dict[str, object], status: int) -> None:
+    c = welt.c["admin"]
+    u = welt.hochladen(c, {name: daten})
+    r = c.post("/api/v1/importe", json={"upload": u["id"], "typ": "neu_wolke",
+                                          "optionen": {"projekt": "wolke", **optionen}},
+               headers=csrf())
+    assert r.status_code == status, r.text
+
+
+def test_rgb8bit_nur_fuer_punktwolken(welt: Welt) -> None:  # noqa: F811
+    c = welt.c["admin"]
+    u = welt.hochladen(c, {"m.glb": GLB})
+    r = c.post("/api/v1/importe", json={"upload": u["id"], "typ": "neu_mesh",
+                                          "optionen": {"projekt": "m", "rgb8bit": True}},
+               headers=csrf())
+    assert r.status_code == 422
+
+
+def test_gespeicherte_wolkenoptionen_bestehen_die_zweite_pruefung() -> None:
+    erst = auftraege.pruefe("neu_wolke", {"upload": "0" * 32, "projekt": "w", "datei": "a.laz",
+                                          "rgb8bit": True}, erlaubt=auftraege.IMPORTE)
+    assert erst["rgb8bit"] == "ja"
+    assert auftraege.pruefe("neu_wolke", erst, erlaubt=auftraege.IMPORTE) == erst

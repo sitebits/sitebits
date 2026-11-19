@@ -27,10 +27,11 @@ ZSTD_REPO = "https://github.com/facebook/zstd"
 
 def _osv_attrappe(*, kontrolle_commit: bool = True, kontrolle_tag: bool = True,
                   seiten: bool = False) -> tuple[list[dict[str, Any]], osv.Holen]:
-    """OSV nach dem am 07.10.2026 gemessenen Muster: CVE-2019-11922 für zstd v1.3.7 per Commit
-    und Tag, nichts für basis_universal. Der zstd-Fund kommt nur per Tag — so meldete OSV damals
-    OSV-2022-15 für v1.4.9. Heute ist zstd 1.5.7 eingebaut und ohne Fund; die Attrappe meldet
-    dafür die erfundene Kennung OSV-2098-15, damit der Pfad „nur per Tag“ getestet bleibt."""
+    """OSV nach dem am 03.11.2026 gemessenen Muster: CVE-2019-11922 für zstd v1.3.7 nur per
+    Commit, OSV-2022-15 für zstd v1.4.9 per Tag, nichts für basis_universal. Der zstd-Fund
+    kommt nur per Tag — so meldete OSV damals OSV-2022-15 für v1.4.9. Heute ist zstd 1.5.7
+    eingebaut und ohne Fund; die Attrappe meldet dafür die erfundene Kennung OSV-2098-15, damit
+    der Pfad „nur per Tag“ getestet bleibt."""
     anfragen: list[dict[str, Any]] = []
 
     def holen(nutzlast: dict[str, Any]) -> dict[str, Any]:
@@ -40,7 +41,7 @@ def _osv_attrappe(*, kontrolle_commit: bool = True, kontrolle_tag: bool = True,
                     if kontrolle_commit else []}
         paket = nutzlast.get("package", {})
         if paket.get("name") == ZSTD_REPO and nutzlast.get("version") == osv.KONTROLLE_TAG:
-            return {"vulns": [{"id": osv.KONTROLLE_ERWARTET}] if kontrolle_tag else []}
+            return {"vulns": [{"id": osv.KONTROLLE_TAG_ERWARTET}] if kontrolle_tag else []}
         if paket.get("name") == ZSTD_REPO and nutzlast.get("version") == "v1.5.7":
             if seiten and "page_token" not in nutzlast:
                 return {"vulns": [{"id": "OSV-2098-15", "modified": "2022-01-20"}],
@@ -113,6 +114,7 @@ def test_aktualisieren_fragt_commit_und_tag_und_vereinigt(tmp_path):
     assert {"package": {"name": ZSTD_REPO, "ecosystem": "GIT"}, "version": "v1.5.7"} in anfragen
     gespeichert = json.loads((tmp_path / osv.OSV_STAND).read_text(encoding="utf-8"))
     assert gespeichert["kontrolle"]["gefunden"] == ["CVE-2019-11922", "OSV-2020-1"]
+    assert gespeichert["kontrolle"]["tag_gefunden"] == ["OSV-2022-15"]
     assert osv.lade_stand(tmp_path, JETZT + timedelta(hours=1)).funde == stand.funde
 
 
@@ -351,9 +353,10 @@ def test_abdeckung_prueft_purl_je_komponente(tmp_path):
 
 def test_gegenprobe_nur_ueber_alias_ergibt_gueltigen_stand(tmp_path):
     def holen(nutzlast: dict[str, Any]) -> dict[str, Any]:
-        if nutzlast.get("commit") == osv.KONTROLLE_COMMIT or \
-                nutzlast.get("version") == osv.KONTROLLE_TAG:
+        if nutzlast.get("commit") == osv.KONTROLLE_COMMIT:
             return {"vulns": [{"id": "OSV-2020-1", "aliases": [osv.KONTROLLE_ERWARTET]}]}
+        if nutzlast.get("version") == osv.KONTROLLE_TAG:
+            return {"vulns": [{"id": "OSV-2099-7", "aliases": [osv.KONTROLLE_TAG_ERWARTET]}]}
         return {}
 
     osv.aktualisieren(_abfragen(), tmp_path, holen=holen, uhr=lambda: JETZT,
@@ -401,3 +404,32 @@ def test_repo_eigenbau_zstd_ab_1_5_2_und_wie_im_bauskript():
     skript = (WURZEL / e.bau).read_text(encoding="utf-8")
     treffer = re.search(r"^ZSTD_COMMIT=([0-9a-f]{40})\b", skript, re.MULTILINE)
     assert treffer is not None and treffer.group(1) == z.commit
+
+
+def test_tagweg_mit_nur_commit_kennung_ist_blind(tmp_path):
+    """Muster seit 30.10.2026: Der Tag-Weg kennt CVE-2019-11922 nicht mehr. Die Commit-Kennung
+    darf den Tag-Weg nicht bestätigen — jeder Weg braucht seinen eigenen Treffer."""
+    def holen(nutzlast: dict[str, Any]) -> dict[str, Any]:
+        if nutzlast.get("commit") == osv.KONTROLLE_COMMIT or \
+                nutzlast.get("version") == osv.KONTROLLE_TAG:
+            return {"vulns": [{"id": osv.KONTROLLE_ERWARTET}]}
+        return {}
+
+    with pytest.raises(NachweisFehler, match="per Tag kein OSV-2022-15"):
+        osv.aktualisieren(_abfragen(), tmp_path, holen=holen, uhr=lambda: JETZT,
+                          tag_commit=_tag_commit)
+    assert not (tmp_path / osv.OSV_STAND).exists()
+
+
+@pytest.mark.parametrize("feld,wert", [("tag_gefunden", ["CVE-2019-11922"]),
+                                       ("tag_gefunden", "OSV-2022-15"),
+                                       ("tag_erwartet", "CVE-2019-11922"),
+                                       ("tag", "v1.3.7")])
+def test_tag_gegenprobe_im_stand_streng_geprueft(tmp_path, feld, wert):
+    _stand(tmp_path)
+    pfad = tmp_path / osv.OSV_STAND
+    daten = json.loads(pfad.read_text(encoding="utf-8"))
+    daten["kontrolle"][feld] = wert
+    pfad.write_text(json.dumps(daten), encoding="utf-8")
+    with pytest.raises(NachweisFehler, match="Gegenprobe"):
+        osv.lade_stand(tmp_path, JETZT)

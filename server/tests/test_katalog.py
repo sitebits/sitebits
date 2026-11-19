@@ -20,7 +20,16 @@ def test_karte_aus_schema2(tmp_path: Path) -> None:
     assert karte.crs == "lokal"
     assert karte.scandatum is None
     assert karte.draufsicht is True
+    assert karte.vorschau is False
     assert karte.groesse_bytes >= 1000
+
+
+def test_vorschau_nur_mit_datei(tmp_path: Path) -> None:
+    lege_paket(tmp_path, "tempel")
+    (tmp_path / "tempel" / "vorschau.webp").write_bytes(b"RIFF0000WEBP")
+    k = Katalog(tmp_path)
+    k.laden()
+    assert k.get("tempel").vorschau is True  # type: ignore[union-attr]
 
 
 def test_crs_name_aus_wkt(tmp_path: Path) -> None:

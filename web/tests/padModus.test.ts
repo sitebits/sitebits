@@ -1,8 +1,11 @@
 // Eingabeschicht Stufe 3: Belegung je Ansicht, Symbole je Controllertyp, Kontextleiste.
 import { describe, expect, it } from 'vitest';
 import { PAD_VORGABE } from '../src/gamepad';
-import { belegungsTabelle, kontextLeiste, symbol } from '../src/padModus';
+import type { KeyAction } from '../src/keymap';
+import { belegungsTabelle, hilfeModi, kontextLeiste, symbol } from '../src/padModus';
 import type { PadKontext } from '../src/padModus';
+import { aktionErlaubt } from '../src/profil';
+import type { Profil } from '../src/profil';
 
 const k = (over: Partial<PadKontext> = {}): PadKontext => ({ modus: 'uebersicht', werkzeug: false, zeichnung: false, rueckfrage: false, ...over });
 const wirkung = (t: { eingabe: string; wirkung: string }[], eingabe: string): string | undefined => t.find((z) => z.eingabe === eingabe)?.wirkung;
@@ -59,6 +62,39 @@ describe('Ein Schema für alle Ansichten', () => {
     const t = belegungsTabelle('begehen', 'xbox', { ...PAD_VORGABE, kontext: 2, zielen: -1 });
     expect(wirkung(t, 'X')).toBe('Befund setzen');
     expect(t.some((z) => z.wirkung.startsWith('Zielen'))).toBe(false);
+  });
+});
+
+describe('Ansichtsprofile: Hilfe nennt nur Knöpfe, die wirken', () => {
+  const tab = (p: Profil, m: PadKontext['modus']) =>
+    belegungsTabelle(m, 'playstation', PAD_VORGABE, (a) => aktionErlaubt(p, a)).map((z) => z.wirkung);
+  it('„ansehen“: kein Begehen, keine Standpunkte, kein Fang, kein Befund', () => {
+    expect(hilfeModi((a) => aktionErlaubt('ansehen', a))).toEqual(['uebersicht', 'panorama', 'menue']);
+    const ue = tab('ansehen', 'uebersicht');
+    for (const w of ['Begehen starten', 'Standpunkt wechseln', 'Fang ein/aus']) expect(ue, w).not.toContain(w);
+    for (const w of ['Werkzeug wechseln', 'Zeichnung abbrechen', 'Alles zeigen', 'Menü']) expect(ue, w).toContain(w);
+    const pa = tab('ansehen', 'panorama');
+    for (const w of ['Befund setzen (mit Werkzeug)', 'Standpunkt wechseln', 'Fang ein/aus']) expect(pa, w).not.toContain(w);
+    expect(pa).toContain('Panorama verlassen');
+    expect(tab('ansehen', 'menue')).toEqual(tab('arbeiten', 'menue'));
+  });
+  it('„messen“: dazu der Fang', () => {
+    expect(tab('messen', 'uebersicht')).toContain('Fang ein/aus');
+    expect(tab('messen', 'uebersicht')).not.toContain('Begehen starten');
+    expect(hilfeModi((a) => aktionErlaubt('messen', a))).not.toContain('begehen');
+  });
+  it('„arbeiten“ und ohne Profil: vollständig wie bisher', () => {
+    for (const m of ['uebersicht', 'begehen', 'panorama', 'menue'] as const) {
+      expect(tab('arbeiten', m), m).toEqual(belegungsTabelle(m, 'playstation', PAD_VORGABE).map((z) => z.wirkung));
+    }
+    expect(hilfeModi((a) => aktionErlaubt('arbeiten', a))).toEqual(['uebersicht', 'begehen', 'panorama', 'menue']);
+    expect(hilfeModi()).toEqual(['uebersicht', 'begehen', 'panorama', 'menue']);
+  });
+  it('Kontextleiste in „ansehen“ ohne Begehen und ohne Befund', () => {
+    const erlaubt = (a: KeyAction): boolean => aktionErlaubt('ansehen', a);
+    expect(kontextLeiste(k(), 'playstation', PAD_VORGABE, erlaubt).map((e) => e.text)).toEqual(['Alles zeigen', 'Belegung']);
+    expect(kontextLeiste(k({ modus: 'panorama', werkzeug: true }), 'playstation', PAD_VORGABE, erlaubt).map((e) => e.text))
+      .toEqual(['Punkt setzen', 'Panorama verlassen', 'Belegung']);
   });
 });
 

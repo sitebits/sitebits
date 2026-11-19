@@ -471,6 +471,16 @@
       "Einstellungen": {
         "additionalProperties": false,
         "properties": {
+          "ansichtsprofil": {
+            "description": "Standardprofil neuer Nur-Lese-Links (ansehen, messen, arbeiten)",
+            "enum": [
+              "ansehen",
+              "messen",
+              "arbeiten"
+            ],
+            "title": "Ansichtsprofil",
+            "type": "string"
+          },
           "befundFaeden": {
             "title": "Befundfaeden",
             "type": "boolean"
@@ -515,7 +525,8 @@
           "befundFaeden",
           "nurLeseLinks",
           "panoramenNurFreigegeben",
-          "benachrichtigung"
+          "benachrichtigung",
+          "ansichtsprofil"
         ],
         "title": "Einstellungen",
         "type": "object"
@@ -688,24 +699,80 @@
       },
       "Fehler": {
         "additionalProperties": false,
-        "description": "Jede Fehlerantwort (4xx): Dienstkennung und ein Satz für Menschen.",
+        "description": "Jede Fehlerantwort (4xx): Dienstkennung, ein Satz für Menschen, ein fester Code und,\nwo vorhanden, ein Hinweis, was stattdessen ginge.",
         "properties": {
           "aktuell": {
             "description": "Nur bei 409 nach Bearbeitungskonflikt: der aktuelle Stand des Objekts.",
             "title": "Aktuell"
+          },
+          "code": {
+            "description": "Fester Fehlercode, auf den ein Programm verzweigen kann. Codes werden nur ergänzt, nie umbenannt; Liste: docs/public/fehlercodes.md.",
+            "enum": [
+              "anfrage_ungueltig",
+              "anmeldung_fehlgeschlagen",
+              "befund_ist_vorschlag",
+              "bereich_ungueltig",
+              "csrf_fehlt",
+              "eingabe_ungueltig",
+              "fehler",
+              "gesperrt",
+              "id_vergeben",
+              "keine_berechtigung",
+              "konflikt",
+              "link_ungueltig",
+              "mensch_prueft",
+              "methode_nicht_erlaubt",
+              "neu_anmelden",
+              "nicht_angemeldet",
+              "nicht_bereit",
+              "nicht_gefunden",
+              "nicht_verfuegbar",
+              "nur_im_browser",
+              "nur_lesen",
+              "nur_vorschlag",
+              "passwort_falsch",
+              "passwort_noetig",
+              "schon_entschieden",
+              "serverfehler",
+              "statuswechsel_unmoeglich",
+              "typ_nicht_erlaubt",
+              "ueberlastet",
+              "version_fehlt",
+              "vorschlag_offen",
+              "zu_gross",
+              "zu_viele_anfragen",
+              "zu_viele_auftraege",
+              "zustand"
+            ],
+            "title": "Code",
+            "type": "string"
           },
           "dienst": {
             "title": "Dienst",
             "type": "string"
           },
           "fehler": {
+            "description": "Satz für Menschen; der Wortlaut kann sich ändern.",
             "title": "Fehler",
             "type": "string"
+          },
+          "hinweis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Was stattdessen ginge.",
+            "title": "Hinweis"
           }
         },
         "required": [
           "dienst",
-          "fehler"
+          "fehler",
+          "code"
         ],
         "title": "Fehler",
         "type": "object"
@@ -863,6 +930,24 @@
               }
             ],
             "title": "Geaendertvonname"
+          },
+          "grundlage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Worauf die Koordinaten beruhen: gemessen (von einem Menschen im Viewer in einer Ebene des Pakets gewählt, Maßstab geprüft), ungeprueft (wie gemessen, Maßstab einer Quell-Ebene nicht geprüft), angegeben (ohne Punktquelle oder über ein Token gesetzt), unbekannt (Quell-Ebene nicht mehr im Paket).",
+            "enum": [
+              "gemessen",
+              "ungeprueft",
+              "angegeben",
+              "unbekannt"
+            ],
+            "title": "Grundlage"
           },
           "herkunft": {
             "description": "mensch oder ki",
@@ -1062,6 +1147,24 @@
               }
             ],
             "title": "Geaendertvonname"
+          },
+          "grundlage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Worauf die Koordinaten beruhen: gemessen (von einem Menschen im Viewer in einer Ebene des Pakets gewählt, Maßstab geprüft), ungeprueft (wie gemessen, Maßstab einer Quell-Ebene nicht geprüft), angegeben (ohne Punktquelle oder über ein Token gesetzt), unbekannt (Quell-Ebene nicht mehr im Paket).",
+            "enum": [
+              "gemessen",
+              "ungeprueft",
+              "angegeben",
+              "unbekannt"
+            ],
+            "title": "Grundlage"
           },
           "herkunft": {
             "description": "mensch oder ki",
@@ -1320,6 +1423,11 @@
             "description": "Version der Metadaten (für PATCH)",
             "title": "Version",
             "type": "integer"
+          },
+          "vorschau": {
+            "description": "Vorschaubild vorschau.webp im Paket (sonst Draufsicht)",
+            "title": "Vorschau",
+            "type": "boolean"
           }
         },
         "required": [
@@ -1334,6 +1442,7 @@
           "groesseBytes",
           "einheit",
           "draufsicht",
+          "vorschau",
           "rolle",
           "genauigkeit",
           "version",
@@ -1449,6 +1558,11 @@
             "description": "Version der Metadaten (für PATCH)",
             "title": "Version",
             "type": "integer"
+          },
+          "vorschau": {
+            "description": "Vorschaubild vorschau.webp im Paket (sonst Draufsicht)",
+            "title": "Vorschau",
+            "type": "boolean"
           }
         },
         "required": [
@@ -1463,6 +1577,7 @@
           "groesseBytes",
           "einheit",
           "draufsicht",
+          "vorschau",
           "rolle",
           "genauigkeit",
           "version",
@@ -1581,6 +1696,11 @@
             "description": "Version der Metadaten (für PATCH)",
             "title": "Version",
             "type": "integer"
+          },
+          "vorschau": {
+            "description": "Vorschaubild vorschau.webp im Paket (sonst Draufsicht)",
+            "title": "Vorschau",
+            "type": "boolean"
           }
         },
         "required": [
@@ -1595,6 +1715,7 @@
           "groesseBytes",
           "einheit",
           "draufsicht",
+          "vorschau",
           "rolle",
           "genauigkeit",
           "version",
@@ -1941,7 +2062,7 @@
             "description": "Fehler"
           }
         },
-        "summary": "Neues Projekt aus einem abgeschlossenen Upload (Admin; neu_mesh, neu_splats)"
+        "summary": "Neues Projekt aus einem abgeschlossenen Upload (Admin; neu_wolke, neu_mesh, neu_splats)"
       }
     },
     "/api/v1/importe/{aid}": {
@@ -2709,7 +2830,7 @@
             "description": "Fehler"
           }
         },
-        "summary": "Stand der Freigaben (Panoramen, Fotos): Anonymisierung im Paket, aktive Freigabe; mit pruefen=true zusätzlich abweichende Dateien (hasht alle, Sekunden je GB) (Bearbeiter+)"
+        "summary": "Stand der Freigaben (Panoramen, Fotos): Anonymisierung im Paket, aktive Freigabe mit letztem Prüfstand (zuletztGeprueftAm, zuletztAbweichend); mit pruefen=true zusätzlich abweichende Dateien (hasht alle, Sekunden je GB) und speichert den Prüfstand (Bearbeiter+)"
       }
     },
     "/api/v1/projekte/{pid}/gewerke": {

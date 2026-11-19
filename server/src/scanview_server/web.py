@@ -27,6 +27,7 @@ from .katalog import PROJECT_ID_RE, Katalog
 
 DIENST = "scanview"
 COOKIE = "__Host-scanview"
+CSRF_FEHLT = "CSRF"
 UEBERLASTET = "Gerade zu viele Anmeldeversuche – bitte kurz warten."  # noqa: RUF001
 KONFLIKT = "Inzwischen von jemand anderem geändert – aktueller Stand anbei."  # noqa: RUF001
 # Dieselben Texte wie zugriff.NICHT_GEFUNDEN / routen_export.NUR_VERLAUF — hier
@@ -100,8 +101,23 @@ class Ungueltig(Exception):
     keine Geheimnisse."""
 
 
-def fehler(status: int, text: str, headers: Mapping[str, str] | None = None) -> JSONResponse:
-    return JSONResponse({"dienst": DIENST, "fehler": text}, status_code=status, headers=headers)
+def fehlerkoerper(status: int, text: str, **zusatz: Any) -> dict[str, Any]:
+    """Körper jeder Fehlerantwort: Satz für Menschen, fester `code` und, wo vorhanden, `hinweis`
+    (was stattdessen ginge). Siehe `fehlercodes`."""
+    from . import fehlercodes
+
+    code = fehlercodes.bestimme(status, text)
+    koerper: dict[str, Any] = {"dienst": DIENST, "fehler": text, "code": code.name}
+    if code.hinweis is not None:
+        koerper["hinweis"] = code.hinweis
+    koerper.update(zusatz)
+    return koerper
+
+
+def fehler(status: int, text: str, headers: Mapping[str, str] | None = None,
+           **zusatz: Any) -> JSONResponse:
+    return JSONResponse(fehlerkoerper(status, text, **zusatz), status_code=status,
+                        headers=headers)
 
 
 def db(request: Request) -> Iterator[sqlite3.Connection]:
@@ -256,7 +272,7 @@ async def csrf(request: Request) -> None:
         return
     s: Settings = request.app.state.settings
     if request.headers.get("origin") != s.origin or request.headers.get("x-scanview") != "1":
-        raise StarletteHTTPException(status_code=403, detail="CSRF")
+        raise StarletteHTTPException(status_code=403, detail=CSRF_FEHLT)
 
 
 # Paketdateien liegen bis zu einer Stunde privat im Browser-Cache (Caddy: /data, max-age=3600).
@@ -507,9 +523,7 @@ def create_app(settings: Settings, katalog: Katalog | None = None) -> FastAPI:
 
     @app.exception_handler(Konflikt)
     async def _konflikt(_r: Request, e: Konflikt) -> JSONResponse:
-        return JSONResponse(
-            {"dienst": DIENST, "fehler": e.text, "aktuell": e.aktuell}, status_code=409,
-        )
+        return fehler(409, e.text, aktuell=e.aktuell)
 
     @app.exception_handler(Ungueltig)
     async def _ungueltig(_r: Request, e: Ungueltig) -> JSONResponse:

@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StrictBool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import konten, lesezugriff, projektverwaltung, verwaltung
+from . import konten, lesezugriff, projektverwaltung, teilen, verwaltung
 from .tokens import hash_token
 from .web import SQLITE_GANZZAHL_MAX, Ungueltig, api_token, csrf, db
 from .zugriff import NICHT_GEFUNDEN, leitung, projekt
@@ -228,6 +228,8 @@ class EinstellungenIn(BaseModel):
     panoramen_nur_freigegeben: StrictBool | None = Field(default=None,
                                                          alias="panoramenNurFreigegeben")
     benachrichtigung: StrictBool | None = None
+    # P08-S6: Standardprofil neuer Nur-Lese-Links (Vorbelegung im Formular).
+    ansichtsprofil: teilen.Profil | None = None
 
 
 class KategorieIn(BaseModel):
@@ -258,12 +260,13 @@ def einstellungen_aendern(pid: str, body: EinstellungenIn, request: Request,
     z = leitung(request, conn, pid)
     if not body.model_fields_set:
         raise Ungueltig("Rückmeldungen, Export, Befund-Fäden, Nur-Lese-Links, "
-                        "Panoramen nur freigegeben oder Benachrichtigung angeben.")
+                        "Panoramen nur freigegeben, Benachrichtigung oder Ansichtsprofil angeben.")
     e = projektverwaltung.einstellungen_aendern(
         conn, pid, rueckmeldungen=body.rueckmeldungen, export_bearbeiter=body.export_bearbeiter,
         befund_faeden=body.befund_faeden, nur_lese_links=body.nur_lese_links,
         panoramen_nur_freigegeben=body.panoramen_nur_freigegeben,
-        benachrichtigung=body.benachrichtigung, von=z.nutzer.id)
+        benachrichtigung=body.benachrichtigung, ansichtsprofil=body.ansichtsprofil,
+        von=z.nutzer.id)
     return JSONResponse({"einstellungen": e.als_json()})
 
 

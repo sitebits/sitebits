@@ -26,9 +26,14 @@ from .werkzeuge import Werkzeug, gefilterte_umgebung
 #: Schema neuer Manifeste. Jede Änderung einer Pflichtliste hebt das Schema; gelesen werden alle
 #: Schemata aus `PFLICHT_JE_SCHEMA`, jedes gegen seine eigenen Listen (archivierte Manifeste
 #: bleiben prüfbar, ein Host mit älterem Prüfer lehnt ein neueres Schema ab).
-SCHEMA = "scanview-release-manifest/3"
 SCHEMA_1 = "scanview-release-manifest/1"
 SCHEMA_2 = "scanview-release-manifest/2"
+SCHEMA_3 = "scanview-release-manifest/3"
+#: /4 (Stufe `upgrade`, Kontrolle K-UPGRADE-PFAD): Prüfer und Leser kennen es, bevor die Kette es
+#: erzeugt — auf dem Zielhost prüft beim Aktualisieren die Kopie des **vorigen** Releases
+#: (docs/public/betrieb.md).
+SCHEMA_4 = "scanview-release-manifest/4"
+SCHEMA = SCHEMA_3
 NAMESPACE = "scanview-release"
 KENNUNG = "release@scanview"
 MANIFEST_DATEI = "manifest.json"
@@ -43,7 +48,8 @@ PRUEFUNG_WERTE = frozenset({"bestanden", "nicht-anwendbar"})
 AUSGELIEFERT_JE_SCHEMA: dict[str, frozenset[str]] = {
     SCHEMA_1: frozenset({"web", "server", "mcp"}),
     SCHEMA_2: frozenset({"web", "server", "mcp"}),
-    SCHEMA: frozenset({"web", "server", "mcp", "import"}),
+    SCHEMA_3: frozenset({"web", "server", "mcp", "import"}),
+    SCHEMA_4: frozenset({"web", "server", "mcp", "import"}),
 }
 #: Auslieferungsmenge neuer Manifeste.
 AUSGELIEFERT = AUSGELIEFERT_JE_SCHEMA[SCHEMA]
@@ -64,31 +70,44 @@ _WERKZEUGE_1 = ("trivy", "syft", "cyclonedx-npm", "cyclonedx-py", "cyclonedx-py-
                 "cyclonedx-cli", "sbomqs", "gitleaks", "shellcheck", "deploy-probe")
 _PRUEFUNGEN_1 = ("register", "befunde", "negativtests", "retests", "qualitaetstor", "sbom",
                  "scan", "negativkontrollen", "lizenzen", "export")
-#: Pflichtlisten des aktuellen Schemas (/2): bei den Berichten die Stufenberichte `stufe-sast`,
+#: Pflichtlisten von /2 und /3 (eingefroren): bei den Berichten die Stufenberichte `stufe-sast`,
 #: `stufe-fuzzing` und `stufe-egress` (an ihrer Stelle in release.STUFEN), der eigene
 #: npm-Signaturbericht der Bau-Stufe, die Rohberichte von Semgrep und Bandit, die JUnit-Berichte
 #: des Fuzzings je Identität und die beiden Berichte des Egress-Tests; bei den Werkzeugen die
 #: Prüfwerkzeuge für SAST, Fuzzing, DAST und den Egress-Test (Reihenfolge wie werkzeuge.json);
 #: bei den Prüfungen die Commit-Signatur (Stufe `einfrieren`), die npm-Signaturprüfung (Stufe
 #: `sbom`), `sast`, `fuzzing` und `egress`.
-PFLICHT_BERICHTE = ("stufe-einfrieren", "stufe-register", "stufe-qualitaetstor", "stufe-sast",
-                    "stufe-sbom", "stufe-fuzzing", "stufe-egress", "stufe-scan",
-                    "stufe-negativkontrollen", "stufe-lizenzen", "stufe-matrix", "stufe-export",
-                    "scan-ergebnis", "werkzeugbefunde", "exportmanifest", "npm-signaturen",
-                    "sast-semgrep", "sast-bandit", "fuzzing-admin", "fuzzing-betrachter",
-                    "egress-statisch", "egress-browser")
-PFLICHT_WERKZEUGE = (*_WERKZEUGE_1, "semgrep", "bandit", "schemathesis", "zap", "caddy-test",
-                     "playwright")
-PFLICHT_PRUEFUNGEN = (*_PRUEFUNGEN_1, "commit-signatur", "npm-signaturen", "sast",
-                      "fuzzing", "egress")
-#: Je Schema genau diese Pflichtlisten (Berichte, Werkzeuge, Prüfungen); /1 ist eingefroren.
-#: /3 unterscheidet sich von /2 nur in der Auslieferungsmenge (`AUSGELIEFERT_JE_SCHEMA`).
-#: Drift-getestet gegen deploy/platform/release_pruefen.py.
+_BERICHTE_2 = ("stufe-einfrieren", "stufe-register", "stufe-qualitaetstor", "stufe-sast",
+               "stufe-sbom", "stufe-fuzzing", "stufe-egress", "stufe-scan",
+               "stufe-negativkontrollen", "stufe-lizenzen", "stufe-matrix", "stufe-export",
+               "scan-ergebnis", "werkzeugbefunde", "exportmanifest", "npm-signaturen",
+               "sast-semgrep", "sast-bandit", "fuzzing-admin", "fuzzing-betrachter",
+               "egress-statisch", "egress-browser")
+_WERKZEUGE_2 = (*_WERKZEUGE_1, "semgrep", "bandit", "schemathesis", "zap", "caddy-test",
+                "playwright")
+_PRUEFUNGEN_2 = (*_PRUEFUNGEN_1, "commit-signatur", "npm-signaturen", "sast", "fuzzing", "egress")
+#: /4: dazu der Stufenbericht `stufe-upgrade` (nach `stufe-egress`, wie in release.STUFEN) und
+#: die Prüfung `upgrade`; die Werkzeuge bleiben (die Stufe braucht weder Caddy noch Docker).
+#: Als Literal eingefroren: ein Prüfer, der /4 schon kennt, liegt auf dem Zielhost, bevor die
+#: Kette /4 erzeugt — jede spätere Abweichung der Kette fiele dort durch.
+_BERICHTE_4 = ("stufe-einfrieren", "stufe-register", "stufe-qualitaetstor", "stufe-sast",
+               "stufe-sbom", "stufe-fuzzing", "stufe-egress", "stufe-upgrade", "stufe-scan",
+               "stufe-negativkontrollen", "stufe-lizenzen", "stufe-matrix", "stufe-export",
+               "scan-ergebnis", "werkzeugbefunde", "exportmanifest", "npm-signaturen",
+               "sast-semgrep", "sast-bandit", "fuzzing-admin", "fuzzing-betrachter",
+               "egress-statisch", "egress-browser")
+_PRUEFUNGEN_4 = (*_PRUEFUNGEN_2, "upgrade")
+#: Je Schema genau diese Pflichtlisten (Berichte, Werkzeuge, Prüfungen); /1 bis /3 sind
+#: eingefroren. /3 unterscheidet sich von /2 nur in der Auslieferungsmenge
+#: (`AUSGELIEFERT_JE_SCHEMA`). Drift-getestet gegen deploy/platform/release_pruefen.py.
 PFLICHT_JE_SCHEMA: dict[str, tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]] = {
     SCHEMA_1: (_BERICHTE_1, _WERKZEUGE_1, _PRUEFUNGEN_1),
-    SCHEMA_2: (PFLICHT_BERICHTE, PFLICHT_WERKZEUGE, PFLICHT_PRUEFUNGEN),
-    SCHEMA: (PFLICHT_BERICHTE, PFLICHT_WERKZEUGE, PFLICHT_PRUEFUNGEN),
+    SCHEMA_2: (_BERICHTE_2, _WERKZEUGE_2, _PRUEFUNGEN_2),
+    SCHEMA_3: (_BERICHTE_2, _WERKZEUGE_2, _PRUEFUNGEN_2),
+    SCHEMA_4: (_BERICHTE_4, _WERKZEUGE_2, _PRUEFUNGEN_4),
 }
+#: Pflichtlisten neuer Manifeste (die des erzeugten Schemas `SCHEMA`).
+PFLICHT_BERICHTE, PFLICHT_WERKZEUGE, PFLICHT_PRUEFUNGEN = PFLICHT_JE_SCHEMA[SCHEMA]
 
 _COMMIT = re.compile(r"[0-9a-f]{40}")
 _SHA256 = re.compile(r"[0-9a-f]{64}")

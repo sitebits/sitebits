@@ -46,3 +46,23 @@ export function schliesstFlaeche(start: { x: number; y: number } | null, x: numb
   if (!start || eckpunkte < 3) return false;
   return Math.hypot(start.x - x, start.y - y) <= (touch ? SCHLIESSEN_PX.touch : SCHLIESSEN_PX.maus);
 }
+
+/** Liegt ein Klick bei (x, y) auf dem zuletzt gesetzten Punkt einer offenen Polylinie (Fang wie beim Schließen
+ *  der Fläche)? Nur der Abstand; über die Mindestzahl entscheidet `klickAusgang`, erst wenn der Klick an der
+ *  Reihe ist. `letzter` = letzter Punkt auf dem Bildschirm (null = hinter der Kamera). */
+export function amLetztenPunkt(letzter: { x: number; y: number } | null, x: number, y: number, touch: boolean): boolean {
+  if (!letzter) return false;
+  return Math.hypot(letzter.x - x, letzter.y - y) <= (touch ? SCHLIESSEN_PX.touch : SCHLIESSEN_PX.maus);
+}
+
+export type KlickAusgang = 'setzen' | 'schliessen' | 'beenden' | 'zu-wenig-flaeche' | 'zu-wenig-linie';
+
+/** Was ein Klick auf einen offenen Eckpunkt bewirkt, entschieden in Klickreihenfolge (nach den Picks davor):
+ *  erster Eckpunkt einer Fläche schließt sie ab drei Punkten, letzter Punkt einer Polylinie beendet sie ab zwei.
+ *  Ist inzwischen ein weiterer Punkt angekommen, ist der angeklickte nicht mehr der letzte: dann Eckpunkt-Fang. */
+export function klickAusgang(kind: string | null, ziel: { openIndex?: number; beenden?: boolean } | null,
+  punkte: number): KlickAusgang {
+  if (ziel?.openIndex === 0 && kind === 'area') return punkte >= 3 ? 'schliessen' : 'zu-wenig-flaeche';
+  if (ziel?.beenden && kind === 'polyline' && ziel.openIndex === punkte - 1) return punkte >= 2 ? 'beenden' : 'zu-wenig-linie';
+  return 'setzen';
+}

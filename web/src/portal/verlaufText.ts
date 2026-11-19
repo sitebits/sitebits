@@ -2,6 +2,7 @@
 // Vorher/Nachher je Feld. Reine Logik (Vitest); die Seite selbst baut verlauf.ts.
 import { artText as eintragArtText, fristText, statusText } from '../fadenModell';
 import { rolleText } from './rechte';
+import { PROFIL_TEXT } from './teilenModell';
 
 export interface Ereignis {
   id: number;
@@ -110,6 +111,8 @@ const FELD: Record<string, string> = {
   nurLeseLinks: 'Nur-Lese-Links',
   panoramenNurFreigegeben: 'Panoramen nur freigegeben',
   benachrichtigung: 'Benachrichtigungen per Mail',
+  ansichtsprofil: 'Standardansicht für Nur-Lese-Links',
+  profil: 'Ansicht für Gäste',
   gewerk_id: 'Gewerk',
   nutzer_id: 'Person',
   art: 'Art',
@@ -137,6 +140,7 @@ export function wertText(feld: string, v: unknown): string {
   if (feld === 'points' && Array.isArray(v)) return `${v.length} Punkte`;
   if (feld === 'kind' && typeof v === 'string') return MESSART[v] ?? v;
   if (feld === 'vorlage' && typeof v === 'string') return VORLAGE[v] ?? v;
+  if ((feld === 'ansichtsprofil' || feld === 'profil') && typeof v === 'string') return (PROFIL_TEXT as Record<string, string>)[v] ?? v;
   if (Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === 'string')) return v.join(', ');
   if (Array.isArray(v) && v.every((x) => typeof x === 'number')) return v.map((x) => zahl(x as number)).join(' / ');
   if (typeof v === 'number') return zahl(v);

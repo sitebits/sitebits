@@ -54,7 +54,7 @@
     "tag": "1.177.0"
   },
   "bandit": {
-    "image": "ghcr.io/astral-sh/uv@sha256:d36847f1e436eab334a1e1bd19972b97d06f5dd6067b5e8f41087d95caa4c395",
+    "image": "ghcr.io/astral-sh/uv@sha256:38290b8c4e339e20e881269df1b9a56470846d8ee226dc0b12fe3e31a2c8190d",
     "version": "1.9.4",
     "werkzeugordner": "werkzeuge/bandit"
   },

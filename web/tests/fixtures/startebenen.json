@@ -1,0 +1,765 @@
+{
+ "_hinweis": "Synthetisch. Welche Ebene darf in initialView.layers stehen? viewer: unterstuetzt (Viewer liest sie), nicht-unterstuetzt (Viewer überspringt sie, als Startebene abgelehnt), ungueltig (Viewer lehnt das Manifest ab). Gemeinsame Fälle: import/tests/test_manifest_io.py (_als_startebene_zeigbar) und web/tests/startebenen.test.ts (parseManifest).",
+ "basis": {
+  "schemaVersion": 2,
+  "projectId": "gast-pruefung",
+  "revision": 3,
+  "title": "Prüfpaket Gast",
+  "frame": {
+   "crs": {
+    "wkt": null,
+    "verticalDatum": null,
+    "declaredBy": "cli"
+   },
+   "unit": "m",
+   "originWorld": [
+    2,
+    2,
+    1
+   ]
+  },
+  "initialView": {
+   "target": [
+    2,
+    2,
+    1
+   ],
+   "distance": 9
+  }
+ },
+ "basisWolke": {
+  "id": "punkte",
+  "kind": "pointcloud",
+  "title": "Punktwolke",
+  "startVisible": false,
+  "url": "cloud.copc.laz",
+  "pointCount": 5000,
+  "boundsWorld": [
+   [
+    0,
+    0,
+    0
+   ],
+   [
+    4,
+    4,
+    2
+   ]
+  ],
+  "attributes": [
+   "rgb",
+   "classification"
+  ],
+  "scale": 0.001,
+  "offset": [
+   1,
+   1,
+   0
+  ],
+  "pointSourceIsScan": true,
+  "classes": {
+   "2": 4000,
+   "6": 1000
+  },
+  "provenance": {
+   "kind": "photogrammetry",
+   "interpolated": false,
+   "scaleVerified": true,
+   "scaleSource": "control-points",
+   "accuracy": {
+    "absolute": {
+     "status": "none"
+    },
+    "scale": {
+     "status": "set",
+     "setFrom": [
+      "a-b"
+     ]
+    },
+    "distances": [],
+    "source": {
+     "software": "pruefwerkzeug",
+     "version": "1"
+    },
+    "report": null
+   }
+  }
+ },
+ "faelle": [
+  {
+   "name": "Punktwolke",
+   "viewer": "unterstuetzt",
+   "ebene": {
+    "id": "punkte",
+    "kind": "pointcloud",
+    "title": "Punktwolke",
+    "startVisible": false,
+    "url": "cloud.copc.laz",
+    "pointCount": 5000,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "attributes": [
+     "rgb",
+     "classification"
+    ],
+    "scale": 0.001,
+    "offset": [
+     1,
+     1,
+     0
+    ],
+    "pointSourceIsScan": true,
+    "classes": {
+     "2": 4000,
+     "6": 1000
+    },
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    }
+   }
+  },
+  {
+   "name": "Panoramen",
+   "viewer": "unterstuetzt",
+   "ebene": {
+    "id": "standpunkte",
+    "kind": "panoramas",
+    "title": "Standpunkte",
+    "url": "stations.json",
+    "count": 2,
+    "pointcloudLayer": "punkte"
+   }
+  },
+  {
+   "name": "Fotos",
+   "viewer": "unterstuetzt",
+   "ebene": {
+    "id": "fotos",
+    "kind": "images",
+    "title": "Fotos",
+    "url": "images.json",
+    "count": 3
+   }
+  },
+  {
+   "name": "Mesh glTF",
+   "viewer": "unterstuetzt",
+   "ebene": {
+    "id": "mesh",
+    "kind": "mesh",
+    "title": "Mesh",
+    "format": "gltf",
+    "url": "layers/mesh/model.glb",
+    "previewUrl": "layers/mesh/preview.glb",
+    "previewColor": "vertex",
+    "triangleCount": 480,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "positionStepM": 0.001,
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    },
+    "mobileUrl": "layers/mesh/mobile.glb",
+    "mobileSizeBytes": 40,
+    "mobileTriangleCount": 120
+   }
+  },
+  {
+   "name": "Mesh ohne format",
+   "viewer": "nicht-unterstuetzt",
+   "ebene": {
+    "id": "mesh",
+    "kind": "mesh",
+    "title": "Mesh",
+    "url": "layers/mesh/model.glb",
+    "previewUrl": "layers/mesh/preview.glb",
+    "previewColor": "vertex",
+    "triangleCount": 480,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "positionStepM": 0.001,
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    },
+    "mobileUrl": "layers/mesh/mobile.glb",
+    "mobileSizeBytes": 40,
+    "mobileTriangleCount": 120
+   }
+  },
+  {
+   "name": "Mesh format null",
+   "viewer": "nicht-unterstuetzt",
+   "ebene": {
+    "id": "mesh",
+    "kind": "mesh",
+    "title": "Mesh",
+    "format": null,
+    "url": "layers/mesh/model.glb",
+    "previewUrl": "layers/mesh/preview.glb",
+    "previewColor": "vertex",
+    "triangleCount": 480,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "positionStepM": 0.001,
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    },
+    "mobileUrl": "layers/mesh/mobile.glb",
+    "mobileSizeBytes": 40,
+    "mobileTriangleCount": 120
+   }
+  },
+  {
+   "name": "Mesh format obj",
+   "viewer": "nicht-unterstuetzt",
+   "ebene": {
+    "id": "mesh",
+    "kind": "mesh",
+    "title": "Mesh",
+    "format": "obj",
+    "url": "layers/mesh/model.glb",
+    "previewUrl": "layers/mesh/preview.glb",
+    "previewColor": "vertex",
+    "triangleCount": 480,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "positionStepM": 0.001,
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    },
+    "mobileUrl": "layers/mesh/mobile.glb",
+    "mobileSizeBytes": 40,
+    "mobileTriangleCount": 120
+   }
+  },
+  {
+   "name": "Kacheln 3dtiles",
+   "viewer": "unterstuetzt",
+   "ebene": {
+    "id": "kacheln",
+    "kind": "mesh-tiles",
+    "title": "Kacheln",
+    "startVisible": false,
+    "format": "3dtiles",
+    "url": "layers/kacheln/tileset.json",
+    "triangleCount": 3,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      1,
+      1
+     ]
+    ],
+    "positionStepM": 0.001,
+    "crs": "EPSG:25833",
+    "heightSystem": "DHHN2016",
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    }
+   }
+  },
+  {
+   "name": "Kacheln ohne format",
+   "viewer": "nicht-unterstuetzt",
+   "ebene": {
+    "id": "kacheln",
+    "kind": "mesh-tiles",
+    "title": "Kacheln",
+    "startVisible": false,
+    "url": "layers/kacheln/tileset.json",
+    "triangleCount": 3,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      1,
+      1
+     ]
+    ],
+    "positionStepM": 0.001,
+    "crs": "EPSG:25833",
+    "heightSystem": "DHHN2016",
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    }
+   }
+  },
+  {
+   "name": "Kacheln format null",
+   "viewer": "ungueltig",
+   "ebene": {
+    "id": "kacheln",
+    "kind": "mesh-tiles",
+    "title": "Kacheln",
+    "startVisible": false,
+    "format": null,
+    "url": "layers/kacheln/tileset.json",
+    "triangleCount": 3,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      1,
+      1
+     ]
+    ],
+    "positionStepM": 0.001,
+    "crs": "EPSG:25833",
+    "heightSystem": "DHHN2016",
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    }
+   }
+  },
+  {
+   "name": "Kacheln format i3s",
+   "viewer": "ungueltig",
+   "ebene": {
+    "id": "kacheln",
+    "kind": "mesh-tiles",
+    "title": "Kacheln",
+    "startVisible": false,
+    "format": "i3s",
+    "url": "layers/kacheln/tileset.json",
+    "triangleCount": 3,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      1,
+      1
+     ]
+    ],
+    "positionStepM": 0.001,
+    "crs": "EPSG:25833",
+    "heightSystem": "DHHN2016",
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    }
+   }
+  },
+  {
+   "name": "Splats rad",
+   "viewer": "unterstuetzt",
+   "ebene": {
+    "id": "splats",
+    "kind": "splats",
+    "title": "Sichtschicht",
+    "format": "rad",
+    "url": "layers/splats/model-lod.rad",
+    "splatCount": 2400,
+    "sizeBytes": 100,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "shDegree": 1,
+    "chunkCount": 2,
+    "lodMethod": "bhatt-lod",
+    "frameCheck": {
+     "ok": true,
+     "samples": 1000,
+     "p50M": 0.002,
+     "p95M": 0.01
+    }
+   }
+  },
+  {
+   "name": "Splats spz",
+   "viewer": "unterstuetzt",
+   "ebene": {
+    "id": "splats",
+    "kind": "splats",
+    "title": "Sichtschicht",
+    "format": "spz",
+    "url": "layers/splats/model.spz",
+    "splatCount": 2400,
+    "sizeBytes": 100,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "shDegree": 1,
+    "frameCheck": {
+     "ok": true,
+     "samples": 1000,
+     "p50M": 0.002,
+     "p95M": 0.01
+    }
+   }
+  },
+  {
+   "name": "Splats ohne format (Platzhalter)",
+   "viewer": "nicht-unterstuetzt",
+   "ebene": {
+    "id": "splats",
+    "kind": "splats",
+    "title": "Sichtschicht",
+    "url": "layers/splats/model-lod.rad",
+    "splatCount": 2400,
+    "sizeBytes": 100,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "shDegree": 1,
+    "chunkCount": 2,
+    "lodMethod": "bhatt-lod",
+    "frameCheck": {
+     "ok": true,
+     "samples": 1000,
+     "p50M": 0.002,
+     "p95M": 0.01
+    }
+   }
+  },
+  {
+   "name": "Splats format null",
+   "viewer": "ungueltig",
+   "ebene": {
+    "id": "splats",
+    "kind": "splats",
+    "title": "Sichtschicht",
+    "format": null,
+    "url": "layers/splats/model-lod.rad",
+    "splatCount": 2400,
+    "sizeBytes": 100,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "shDegree": 1,
+    "chunkCount": 2,
+    "lodMethod": "bhatt-lod",
+    "frameCheck": {
+     "ok": true,
+     "samples": 1000,
+     "p50M": 0.002,
+     "p95M": 0.01
+    }
+   }
+  },
+  {
+   "name": "Splats format ksplat",
+   "viewer": "ungueltig",
+   "ebene": {
+    "id": "splats",
+    "kind": "splats",
+    "title": "Sichtschicht",
+    "format": "ksplat",
+    "url": "layers/splats/model-lod.rad",
+    "splatCount": 2400,
+    "sizeBytes": 100,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "shDegree": 1,
+    "chunkCount": 2,
+    "lodMethod": "bhatt-lod",
+    "frameCheck": {
+     "ok": true,
+     "samples": 1000,
+     "p50M": 0.002,
+     "p95M": 0.01
+    }
+   }
+  },
+  {
+   "name": "unbekannte Art",
+   "viewer": "nicht-unterstuetzt",
+   "ebene": {
+    "id": "punktnetz",
+    "kind": "netz",
+    "title": "Netz"
+   }
+  }
+ ]
+}

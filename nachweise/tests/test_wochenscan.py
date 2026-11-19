@@ -6,8 +6,9 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -16,9 +17,10 @@ from pflicht import auf_schema_2
 from test_archiv import _manifest
 from test_betrieb import _schluessel
 
-from scanview_nachweise import cli, osv, scan, wochenscan
+from scanview_nachweise import cli, osv, pdal_scan, register, scan, wochenscan
 from scanview_nachweise.fehler import NachweisFehler
 from scanview_nachweise.manifest import kanonisch
+from scanview_nachweise.register import Befund
 from scanview_nachweise.scan import DbStand, ScanErgebnis, Treffer
 from scanview_nachweise.werkzeuge import Werkzeug
 
@@ -108,7 +110,8 @@ def welt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Welt:
     w.db()
 
     def scanne_alle(sboms: dict[str, Path], cache: Path, vex: Path, werkzeuge: object,
-                    *, uhr: datetime, osv: object = None) -> ScanErgebnis:
+                    *, uhr: datetime, osv: object = None, pdal: object = None,
+                    blind: object = None) -> ScanErgebnis:
         # Die Attrappe prüft die DB-Frische wie das echte `scanne_alle`.
         if uhr - w.stand.zeit > scan.DB_HOECHSTALTER:
             raise NachweisFehler("db-alter", "trivy-DB zu alt")
@@ -240,6 +243,61 @@ def test_lock_hash_stammt_aus_dem_release_commit(welt):
     assert list(welt.lauf("aus2").blockierend) == ["0.1.0"]
 
 
+# --- Blinde Restpakete der PDAL-Umgebung: Frist über das Befund-Gate ------------------------------
+
+WURZEL = Path(__file__).resolve().parents[2]
+
+
+def _blind_welt(welt: Welt, monkeypatch: pytest.MonkeyPatch, frist: date) -> None:
+    """Repo mit der echten scan-blind.toml; Register mit akzeptiertem, passend gebundenem
+    Blind-Befund (Frist `frist`); die Scan-Attrappe meldet die Blind-Pakete als Restrisiko."""
+    ziel = welt.repo / pdal_scan.SCAN_BLIND
+    ziel.parent.mkdir(parents=True, exist_ok=True)
+    ziel.write_bytes((WURZEL / pdal_scan.SCAN_BLIND).read_bytes())
+    blind = pdal_scan.lade_scan_blind(ziel)
+    befund = Befund(blind.befund, "Test", "Restrisiko blinde Pakete (Test)", "hoch",
+                    "lieferkette", "akzeptiert", (), None, None,
+                    "Begründung für die Annahme (Test)", frist, date(2026, 9, 1), ("import",),
+                    "nur Import", akzeptanz_bindung=pdal_scan.blind_bindung(blind))
+    monkeypatch.setattr(register, "lade_register",
+                        lambda wurzel: SimpleNamespace(befunde=[befund]))
+
+    def scanne_alle(sboms: dict[str, Path], cache: Path, vex: Path, werkzeuge: object,
+                    *, uhr: datetime, osv: object = None, pdal: object = None,
+                    blind: object = None) -> ScanErgebnis:
+        rest = ["umgebung-pdal|pkg:conda/libtiff"] if blind is not None else []
+        return ScanErgebnis(welt.stand, [], {
+            n: {"sbom": p.name, "treffer": {},
+                "abdeckung": {"restrisiko": rest if n == "import" else []}}
+            for n, p in sboms.items()})
+
+    monkeypatch.setattr(scan, "scanne_alle", scanne_alle)
+
+
+def test_blind_frist_abgelaufen_wochenscan_rot(welt, monkeypatch):
+    """Nach Fristablauf nimmt die Blind-Liste die Pakete weiter aus der Pflicht — der
+    Wochenscan meldet das über das Befund-Gate (`gate.befund_gate`) rot, nicht als neue
+    Schwachstelle."""
+    _blind_welt(welt, monkeypatch, frist=date(2026, 9, 30))
+    erg = welt.lauf()
+    assert erg.blockierend == {
+        "0.1.0": ["B-SCAN-PDAL-UMGEBUNG-BLIND: Akzeptanz abgelaufen am 2026-09-30"]}
+    assert erg.neu == []
+
+
+def test_blind_frist_gueltig_wochenscan_gruen(welt, monkeypatch):
+    _blind_welt(welt, monkeypatch, frist=date(2027, 3, 31))
+    assert welt.lauf().blockierend == {}
+
+
+def test_blind_frist_abgelaufen_ohne_restrisiko_blockiert_nicht(welt, monkeypatch):
+    """Eine Version ohne Blind-Pakete im SBOM (z. B. ohne PDAL-Umgebung) hängt nicht an der
+    Akzeptanz."""
+    _blind_welt(welt, monkeypatch, frist=date(2026, 9, 30))
+    welt.release("0.1.0", schema_2=True)
+    assert welt.lauf().blockierend == {}
+
+
 def test_lock_hashes_im_commit_unbekannter_commit(welt):
     with pytest.raises(NachweisFehler) as e:
         wochenscan.lock_hashes_im_commit(welt.repo, "f" * 40)
@@ -336,10 +394,14 @@ def test_cli_db_aktualisieren_vor_dem_scan(welt, cli_args, monkeypatch):
     monkeypatch.setattr(osv, "aktualisieren",
                         lambda a, c: osv_abfragen.append(list(a))
                         or osv.OsvStand(welt.stand.zeit, {}))
+    pdal: list[tuple[Path, Path]] = []
+    monkeypatch.setattr(pdal_scan, "aktualisieren", lambda w, c: pdal.append((w, c)))
     assert cli.main([*cli_args, "--db-aktualisieren"]) == 0
     assert aufrufe == [welt.cache]
-    # Der OSV-Netzschritt läuft mit (die Testwelt hat keine Eigenbauten: leere Abfrage).
+    # Der OSV-Netzschritt läuft mit (die Testwelt hat keine Eigenbauten: leere Abfrage), ebenso
+    # der der PDAL-Umgebung über das Repo (dort steht osv.toml).
     assert osv_abfragen == [[]]
+    assert pdal == [(welt.repo, welt.cache)]
 
 
 def test_main_modul_startet(tmp_path):

@@ -33,6 +33,7 @@ import secrets
 import sqlite3
 import time
 import unicodedata
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -764,9 +765,9 @@ def ueberfaellig_meine(conn: sqlite3.Connection, pid: str, s: Sicht, tag: str) -
 
 
 def befunde(conn: sqlite3.Connection, pid: str, s: Sicht, f: Filter, tag: str,
-            pois: list[Eintrag]) -> dict[str, Any]:
+            pois: list[Eintrag], grundlagen: Mapping[str, str] | None = None) -> dict[str, Any]:
     """Liste „Fällig/überfällig“ über die aktiven POIs: überfällig zuerst, dann nach Frist (ohne
-    Frist zuletzt), dann nach Anlage."""
+    Frist zuletzt), dann nach Anlage. `grundlagen`: POI-ID → Grundlage."""
     if not aktiviert(conn, pid):
         raise StarletteHTTPException(status_code=404, detail=NICHT_GEFUNDEN)
     st_je = staende(conn, pid)
@@ -777,7 +778,9 @@ def befunde(conn: sqlite3.Connection, pid: str, s: Sicht, f: Filter, tag: str,
     treffer.sort(key=lambda x: (not x[2], x[1]["frist"] is None, x[1]["frist"] or "",
                                 x[0].erstellt_am, x[0].id))
     return {
-        "befunde": [{"poi": p.als_json(), "stand": st, "ueberfaellig": ue,
+        "befunde": [{"poi": {**p.als_json(), **({"grundlage": grundlagen[p.id]}
+                                                 if grundlagen and p.id in grundlagen else {})},
+                     "stand": st, "ueberfaellig": ue,
                      "letzter_eintrag_am": letzte.get(p.id)} for p, st, ue in treffer],
         "zaehler": {"ueberfaellig_meine": ueberfaellig_meine(conn, pid, s, tag)},
     }

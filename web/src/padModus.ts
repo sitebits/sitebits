@@ -3,6 +3,7 @@
 // Kontextleiste am Bildrand. Ein Schema für alle Ansichten: dieselbe Taste heißt überall möglichst dasselbe. Rein (Vitest).
 import type { PadAktion, PadTyp } from './gamepad';
 import { PAD_NICHT_BELEGT } from './gamepad';
+import type { KeyAction } from './keymap';
 
 export type PadModus = 'uebersicht' | 'begehen' | 'panorama' | 'menue';
 export interface PadKontext {
@@ -36,12 +37,29 @@ export function symbol(typ: PadTyp, knopf: number): string {
 
 export interface Zeile { eingabe: string; wirkung: string }
 
-/** Belegung je Ansicht, vollständig (auch was nur mit Werkzeug wirkt). Nicht belegte Aktionen fehlen. */
-export function belegungsTabelle(modus: PadModus, typ: PadTyp, b: Record<PadAktion, number>): Zeile[] {
+/** Prüft, ob ein Kürzel im Ansichtsprofil wirkt (main.ts: aktionErlaubt aus profil.ts). */
+export type PadErlaubt = (a: KeyAction) => boolean;
+
+/** Ansichten, die die Hilfe zeigt: ohne erlaubtes „Begehen starten“ ist das Begehen nicht erreichbar. */
+export function hilfeModi(erlaubt?: PadErlaubt): PadModus[] {
+  const alle: PadModus[] = ['uebersicht', 'begehen', 'panorama', 'menue'];
+  return erlaubt && !erlaubt({ type: 'begehen-start' }) ? alle.filter((m) => m !== 'begehen') : alle;
+}
+
+/** Belegung je Ansicht, vollständig (auch was nur mit Werkzeug wirkt). Nicht belegte Aktionen fehlen. Mit `erlaubt`
+ *  (Ansichtsprofile) fehlen auch Zeilen, deren Kürzel das Profil sperrt (padSteuerung.ts → run → aktionErlaubt). */
+export function belegungsTabelle(modus: PadModus, typ: PadTyp, b: Record<PadAktion, number>, erlaubt?: PadErlaubt): Zeile[] {
   const s = (a: PadAktion): string => (b[a] === PAD_NICHT_BELEGT ? '' : symbol(typ, b[a]));
   const paar = (a: PadAktion, c: PadAktion): string => [s(a), s(c)].filter(Boolean).join(' / ');
   const st = STICK_NAMEN[typ];
-  const z = (eingabe: string, wirkung: string): Zeile | null => (eingabe ? { eingabe, wirkung } : null);
+  // `wirkt`: das Kürzel, das der Knopf in dieser Ansicht über den Verteiler auslöst (padSteuerung.ts); ohne Angabe
+  // wirkt er an run vorbei (Sticks, Menü, Setzen mit Werkzeug) und bleibt in jedem Profil stehen.
+  const z = (eingabe: string, wirkung: string, wirkt?: KeyAction): Zeile | null =>
+    (eingabe && !(wirkt && erlaubt && !erlaubt(wirkt)) ? { eingabe, wirkung } : null);
+  const werkzeug: KeyAction = { type: 'werkzeug-wechsel', richtung: 1 };
+  const standpunkt: KeyAction = { type: 'standpunkt', richtung: 1 };
+  const fang: KeyAction = { type: 'toggle-snap' };
+  const befund: KeyAction = { type: 'befund' };
   let zeilen: (Zeile | null)[];
   switch (modus) {
     case 'menue':
@@ -58,12 +76,12 @@ export function belegungsTabelle(modus: PadModus, typ: PadTyp, b: Record<PadAkti
         z(st.links, 'Gehen'),
         z(st.rechts, 'Umschauen'),
         z(paar('runter', 'hoch'), 'Abwärts / aufwärts'),
-        z(paar('werkzeug-voriges', 'werkzeug-naechstes'), 'Werkzeug wechseln'),
+        z(paar('werkzeug-voriges', 'werkzeug-naechstes'), 'Werkzeug wechseln', werkzeug),
         z(s('bestaetigen'), 'Punkt setzen (mit Werkzeug), Rückfrage bestätigen'),
         z(s('zurueck'), 'Zurück: Zeichnung abbrechen, sonst Begehen beenden'),
         z(s('zielen'), 'Zielen (fein, mit Fang)'),
-        z(s('kontext'), 'Befund setzen'),
-        z(paar('standpunkt-voriger', 'standpunkt-naechster'), 'Standpunkt wechseln'),
+        z(s('kontext'), 'Befund setzen', befund),
+        z(paar('standpunkt-voriger', 'standpunkt-naechster'), 'Standpunkt wechseln', standpunkt),
         z(paar('tempo-hoch', 'tempo-runter'), 'Tempo schneller / langsamer'),
         z(s('schnell'), 'Sprinten (bis der Stick ruht)'),
         z(s('ausrichten'), 'Blick waagerecht'),
@@ -75,12 +93,12 @@ export function belegungsTabelle(modus: PadModus, typ: PadTyp, b: Record<PadAkti
       zeilen = [
         z(st.rechts, 'Umsehen'),
         z(paar('runter', 'hoch'), 'Heraus- / hineinzoomen'),
-        z(paar('werkzeug-voriges', 'werkzeug-naechstes'), 'Werkzeug wechseln'),
+        z(paar('werkzeug-voriges', 'werkzeug-naechstes'), 'Werkzeug wechseln', werkzeug),
         z(s('bestaetigen'), 'Punkt setzen (mit Werkzeug)'),
-        z(s('zurueck'), 'Panorama verlassen'),
-        z(s('zielen'), 'Fang ein/aus'),
-        z(s('kontext'), 'Befund setzen (mit Werkzeug)'),
-        z(paar('standpunkt-voriger', 'standpunkt-naechster'), 'Standpunkt wechseln'),
+        z(s('zurueck'), 'Panorama verlassen', { type: 'leave-panorama' }),
+        z(s('zielen'), 'Fang ein/aus', fang),
+        z(s('kontext'), 'Befund setzen (mit Werkzeug)', befund),
+        z(paar('standpunkt-voriger', 'standpunkt-naechster'), 'Standpunkt wechseln', standpunkt),
         z(s('ausrichten'), 'Blick waagerecht'),
         z(s('menue'), 'Menü'),
         z(s('belegung'), 'Belegung ein/aus'),
@@ -91,14 +109,14 @@ export function belegungsTabelle(modus: PadModus, typ: PadTyp, b: Record<PadAkti
         z(st.links, 'Verschieben'),
         z(st.rechts, 'Um den Drehpunkt drehen'),
         z(paar('runter', 'hoch'), 'Heraus- / hineinzoomen'),
-        z(paar('werkzeug-voriges', 'werkzeug-naechstes'), 'Werkzeug wechseln'),
+        z(paar('werkzeug-voriges', 'werkzeug-naechstes'), 'Werkzeug wechseln', werkzeug),
         z(s('bestaetigen'), 'Punkt in Bildmitte setzen (mit Werkzeug)'),
-        z(s('zurueck'), 'Zeichnung abbrechen'),
-        z(s('zielen'), 'Fang ein/aus'),
-        z(s('kontext'), 'Begehen starten'),
-        z(paar('standpunkt-voriger', 'standpunkt-naechster'), 'Standpunkt wechseln'),
+        z(s('zurueck'), 'Zeichnung abbrechen', { type: 'cancel-drawing' }),
+        z(s('zielen'), 'Fang ein/aus', fang),
+        z(s('kontext'), 'Begehen starten', { type: 'begehen-start' }),
+        z(paar('standpunkt-voriger', 'standpunkt-naechster'), 'Standpunkt wechseln', standpunkt),
         z(s('schnell'), 'Schneller verschieben (halten)'),
-        z(s('ausrichten'), 'Alles zeigen'),
+        z(s('ausrichten'), 'Alles zeigen', { type: 'alles-zeigen' }),
         z(s('menue'), 'Menü'),
         z(s('belegung'), 'Belegung ein/aus'),
       ];
@@ -106,10 +124,12 @@ export function belegungsTabelle(modus: PadModus, typ: PadTyp, b: Record<PadAkti
   return zeilen.filter((x): x is Zeile => x !== null);
 }
 
-/** Kurze Leiste am Bildrand wie in Spielen: „✕ Punkt setzen · ○ Abbrechen“. Höchstens fünf Einträge, nur was jetzt wirkt. */
-export function kontextLeiste(k: PadKontext, typ: PadTyp, b: Record<PadAktion, number>): { knopf: string; text: string }[] {
+/** Kurze Leiste am Bildrand wie in Spielen: „✕ Punkt setzen · ○ Abbrechen“. Höchstens fünf Einträge, nur was jetzt wirkt
+ *  (mit `erlaubt` auch nur, was das Ansichtsprofil zulässt, wie belegungsTabelle). */
+export function kontextLeiste(k: PadKontext, typ: PadTyp, b: Record<PadAktion, number>, erlaubt?: PadErlaubt): { knopf: string; text: string }[] {
   const s = (a: PadAktion): string => (b[a] === PAD_NICHT_BELEGT ? '' : symbol(typ, b[a]));
-  const e = (a: PadAktion, text: string): { knopf: string; text: string } => ({ knopf: s(a), text });
+  const e = (a: PadAktion, text: string, wirkt?: KeyAction): { knopf: string; text: string } =>
+    ({ knopf: wirkt && erlaubt && !erlaubt(wirkt) ? '' : s(a), text });
   // Zwei Richtungen des Steuerkreuzes zusammen: „Kreuz ↑↓“ statt „Kreuz ↑ / Kreuz ↓“.
   const hochRunter = (): string => {
     const t = [s('tempo-hoch'), s('tempo-runter')].filter(Boolean);
@@ -130,7 +150,7 @@ export function kontextLeiste(k: PadKontext, typ: PadTyp, b: Record<PadAktion, n
     ];
   } else if (k.modus === 'panorama') {
     liste = [
-      ...(k.werkzeug ? [e('bestaetigen', 'Punkt setzen'), e('kontext', 'Befund')] : [e('werkzeug-naechstes', 'Werkzeug')]),
+      ...(k.werkzeug ? [e('bestaetigen', 'Punkt setzen'), e('kontext', 'Befund', { type: 'befund' })] : [e('werkzeug-naechstes', 'Werkzeug')]),
       e('zurueck', 'Panorama verlassen'),
       e('belegung', 'Belegung'),
     ];
@@ -138,7 +158,7 @@ export function kontextLeiste(k: PadKontext, typ: PadTyp, b: Record<PadAktion, n
     liste = [
       ...(k.werkzeug ? [e('bestaetigen', 'Punkt setzen')] : []),
       ...(k.zeichnung ? [e('zurueck', 'Abbrechen')] : []),
-      e('kontext', 'Begehen'),
+      e('kontext', 'Begehen', { type: 'begehen-start' }),
       e('ausrichten', 'Alles zeigen'),
       e('belegung', 'Belegung'),
     ];

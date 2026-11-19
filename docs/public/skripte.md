@@ -27,8 +27,12 @@ Mensch prüft“.
   passt.
 - **Client `sitebits`** (`clients/sitebits/`): TypeScript ohne Laufzeit-Abhängigkeiten, nur
   `fetch`. Je Operation gibt es eine typisierte Funktion, die Typen sind aus der OpenAPI-Datei
-  erzeugt. Fehler kommen als `SitebitsFehler` mit HTTP-Status und dem Satz der Instanz. Läuft
-  ohne Bauschritt mit Node ≥ 22.18 und mit Deno.
+  erzeugt. Fehler kommen als `SitebitsFehler` mit HTTP-Status, dem Satz der Instanz und dem
+  festen Code samt Hinweis ([Fehlercodes](fehlercodes.md)). Läuft ohne Bauschritt mit
+  Node ≥ 22.18 und mit Deno.
+- **Anleitung für Agenten** ([`agenten-anleitung.md`](agenten-anleitung.md)): die Regeln für
+  Sprachmodelle, wortgleich als MCP-Ressource `sitebits://agenten-anleitung` und als Skill
+  `clients/sitebits/skill/SKILL.md` für Agenten mit eigener Ausführungsumgebung.
 - **Beispiele** (`clients/sitebits/beispiele/`):
   - `rote-zeilen.ts`: startet in allen Projekten, in denen das Konto es darf, die Lieferprüfung
     und gibt nur die Zeilen mit dem Urteil „nicht erfüllt“ aus.

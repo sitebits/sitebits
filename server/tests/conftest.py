@@ -3,10 +3,12 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
 from fastapi.testclient import TestClient
 
+from scanview_server import anhaenge
 from scanview_server.config import Settings
 from scanview_server.web import create_app
 
@@ -51,3 +53,32 @@ def client(settings: Settings) -> Iterator[TestClient]:
 def csrf() -> dict[str, str]:
     """Header, die jede ändernde Anfrage braucht."""
     return {"Origin": ORIGIN, "X-Scanview": "1"}
+
+
+class Nutzung(NamedTuple):
+    """Wie `shutil.disk_usage`."""
+
+    total: int
+    used: int
+    free: int
+
+
+class Platte:
+    """Vorgetäuschte Platte für `anhaenge.platz_pruefen`: 100 GiB, standardmäßig halb frei. Ohne sie
+    hingen die Anhang-Tests vom freien Platz der Testmaschine ab (1,8-TB-Workstation mit < 10 %
+    frei → 507 in 16 bis 21 Tests, Trockenläufe 0.12.1 am 03./04.11.2026)."""
+
+    GESAMT = 100 * 1024**3
+
+    def __init__(self) -> None:
+        self.frei = self.GESAMT // 2
+
+    def __call__(self, _wurzel: Path) -> Nutzung:
+        return Nutzung(self.GESAMT, self.GESAMT - self.frei, self.frei)
+
+
+@pytest.fixture(autouse=True)
+def platte(monkeypatch: pytest.MonkeyPatch) -> Platte:
+    p = Platte()
+    monkeypatch.setattr(anhaenge, "platte", p)
+    return p

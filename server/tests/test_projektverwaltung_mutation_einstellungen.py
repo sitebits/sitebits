@@ -36,7 +36,8 @@ def test_einstellungen_dataclass_und_json() -> None:
         "rueckmeldungen": True,
         "exportBearbeiter": True,
         "befundFaeden": False, "nurLeseLinks": False,
-        "panoramenNurFreigegeben": False, "benachrichtigung": True
+        "panoramenNurFreigegeben": True, "benachrichtigung": True,
+        "ansichtsprofil": "ansehen",
     }
 
     benutzerdefiniert = projektverwaltung.Einstellungen(
@@ -53,13 +54,15 @@ def test_einstellungen_dataclass_und_json() -> None:
         "rueckmeldungen": False,
         "exportBearbeiter": False,
         "befundFaeden": True, "nurLeseLinks": False,
-        "panoramenNurFreigegeben": False, "benachrichtigung": True
+        "panoramenNurFreigegeben": True, "benachrichtigung": True,
+        "ansichtsprofil": "ansehen",
     }
     assert projektverwaltung._schalter(benutzerdefiniert) == {
         "rueckmeldungen": False,
         "exportBearbeiter": False,
         "befundFaeden": True, "nurLeseLinks": False,
-        "panoramenNurFreigegeben": False, "benachrichtigung": True
+        "panoramenNurFreigegeben": True, "benachrichtigung": True,
+        "ansichtsprofil": "ansehen",
     }
 
 
@@ -239,10 +242,12 @@ def test_einstellungen_aendern_initialisiert_nicht_eingerichtetes_projekt(
     nachher_daten = json.loads(ereignis_geaendert["nachher"])
     assert vorher_daten == {"rueckmeldungen": True, "exportBearbeiter": True,
                             "befundFaeden": False, "nurLeseLinks": False,
-                            "panoramenNurFreigegeben": False, "benachrichtigung": True}
+                            "panoramenNurFreigegeben": True, "benachrichtigung": True,
+                            "ansichtsprofil": "ansehen"}
     assert nachher_daten == {"rueckmeldungen": False, "exportBearbeiter": True,
                              "befundFaeden": False, "nurLeseLinks": False,
-                             "panoramenNurFreigegeben": False, "benachrichtigung": True}
+                             "panoramenNurFreigegeben": True, "benachrichtigung": True,
+                             "ansichtsprofil": "ansehen"}
 
 
 def test_einstellungen_aendern_unveraendert_schreibt_kein_ereignis(
@@ -302,13 +307,13 @@ def test_einstellungen_aendern_auf_bestehendem_projekt(conn: sqlite3.Connection)
         "rueckmeldungen": True,
         "exportBearbeiter": True,
         "befundFaeden": True, "nurLeseLinks": False,
-        "panoramenNurFreigegeben": True, "benachrichtigung": True
+        "panoramenNurFreigegeben": True, "benachrichtigung": True, "ansichtsprofil": "ansehen"
     }
     assert json.loads(erster_wechsel["nachher"]) == {
         "rueckmeldungen": True,
         "exportBearbeiter": False,
         "befundFaeden": True, "nurLeseLinks": False,
-        "panoramenNurFreigegeben": True, "benachrichtigung": True
+        "panoramenNurFreigegeben": True, "benachrichtigung": True, "ansichtsprofil": "ansehen"
     }
 
     zweiter_wechsel = ereignisse[1]
@@ -316,13 +321,13 @@ def test_einstellungen_aendern_auf_bestehendem_projekt(conn: sqlite3.Connection)
         "rueckmeldungen": True,
         "exportBearbeiter": False,
         "befundFaeden": True, "nurLeseLinks": False,
-        "panoramenNurFreigegeben": True, "benachrichtigung": True
+        "panoramenNurFreigegeben": True, "benachrichtigung": True, "ansichtsprofil": "ansehen"
     }
     assert json.loads(zweiter_wechsel["nachher"]) == {
         "rueckmeldungen": False,
         "exportBearbeiter": True,
         "befundFaeden": True, "nurLeseLinks": False,
-        "panoramenNurFreigegeben": True, "benachrichtigung": True
+        "panoramenNurFreigegeben": True, "benachrichtigung": True, "ansichtsprofil": "ansehen"
     }
 
 

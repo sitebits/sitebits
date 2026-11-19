@@ -16,6 +16,8 @@ export type Projekt = {
   scandatum: string | null;
   groesseBytes: number;
   draufsicht: boolean;
+  /** Vorschaubild `vorschau.webp` im Paket (beliebige Ansicht); sonst zeigt die Karte die Draufsicht. */
+  vorschau?: boolean;
   rolle: PortalRolle;
   /** Optimistische Sperre der Metadaten: beim PATCH mitschicken, 0 = nie geändert. */
   version: number;

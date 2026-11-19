@@ -23,6 +23,9 @@ _WKT_NAME_RE = re.compile(r'^\s*[A-Z_]+\[\s*"([^"]+)"')
 MAX_PROJECT_JSON = 5 * 1024 * 1024
 
 
+VORSCHAU = "vorschau.webp"
+
+
 @dataclass(frozen=True)
 class Karte:
     id: str
@@ -39,6 +42,9 @@ class Karte:
     einheit: str = "[m]"
     # Genauigkeitsnachweis je Punktwolke/Mesh (genauigkeit.ebenen, F15).
     genauigkeit: tuple[genauigkeit.EbeneGenauigkeit, ...] = ()
+    # Vorschaubild der Projektkarte (`vorschau.webp` neben project.json, beliebige Ansicht); fehlt
+    # es, zeigt das Portal die Draufsicht. Bewusst nicht topview.png: das ist die Minikarte.
+    vorschau: bool = False
 
 
 class PaketFehler(Exception):
@@ -115,6 +121,7 @@ def _karte(d: Path) -> Karte:
         scandatum=scandatum,
         groesse_bytes=_groesse_ohne_links(d),
         draufsicht=bool(topview) and (d / "topview.png").is_file(),
+        vorschau=(d / VORSCHAU).is_file(),
         revision=revision,
         genauigkeit=genauigkeit.ebenen(layers),
     )

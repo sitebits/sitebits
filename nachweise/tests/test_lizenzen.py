@@ -292,3 +292,106 @@ def test_feststellungen_laden(tmp_path):
 def test_repo_feststellung_embreex_passt_zum_lizenztext():
     r = lizenzen.lade_regeln(WURZEL / "nachweise" / "lizenzen.toml")
     assert r.feststellungen[("embreex", "4.4.0")] == "BSD-2-Clause AND Apache-2.0"
+
+
+# --- Ausnahme „nur externer Prozess“ (PDAL-Umgebung, ADR 2026-10-22) ------------------------------
+
+LOCK = "a" * 64
+SHA = "b" * 64
+EXTERN = lizenzen.Lizenzregeln(
+    erlaubt=REGELN.erlaubt, klassifikatoren=REGELN.klassifikatoren,
+    extern_umgebung="pdal", extern_lock_sha256=LOCK,
+    extern={("untwine", "1.5.1"): lizenzen.ExternerProzess("h419fb5e_0", "GPL-3.0-or-later", SHA)})
+GENANNT = {("untwine", "1.5.1"), ("libx", "1.0")}
+
+
+def _conda(name: str = "untwine", version: str = "1.5.1", lizenz: str = "GPL-3.0-or-later", *,
+           umgebung: str = "pdal", lock: str = LOCK, build: str = "h419fb5e_0",
+           sha: str = SHA) -> dict[str, Any]:
+    return {"type": "application", "name": name, "version": version, "bom-ref": f"pdal|{name}",
+            "purl": f"pkg:conda/{name}@{version}?build={build}&channel=conda-forge",
+            "licenses": [{"expression": lizenz}], "hashes": [{"alg": "SHA-256", "content": sha}],
+            "properties": [{"name": "scanview:umgebung", "value": umgebung},
+                           {"name": "scanview:conda-build", "value": build},
+                           {"name": "scanview:lock-sha256", "value": lock}]}
+
+
+def test_extern_gedeckt_nur_bei_voller_bindung():
+    assert lizenzen.probleme(_bom(_conda()), EXTERN, GENANNT) == []
+
+
+@pytest.mark.parametrize("abweichung", [
+    {"lock": "c" * 64},                       # anderes Lock → Neubewertung
+    {"sha": "c" * 64},                        # anderes Paket gleicher Version
+    {"build": "h000000_1"},                   # anderer Build
+    {"umgebung": "andere"},                   # anderes Paket außerhalb der Umgebung
+    {"lizenz": "AGPL-3.0-only"},              # andere Lizenz
+    {"version": "1.5.2"},                     # neue Version
+], ids=["lock", "sha", "build", "umgebung", "lizenz", "version"])
+def test_extern_jede_abweichung_ist_verstoss(abweichung):
+    genannt = GENANNT | {("untwine", "1.5.2")}
+    p = lizenzen.probleme(_bom(_conda(**abweichung)), EXTERN, genannt)
+    assert len(p) == 1 and "nicht erlaubt" in p[0], p
+
+
+def test_extern_neues_paket_ohne_eintrag_ist_verstoss():
+    p = lizenzen.probleme(_bom(_conda("libx", "1.0", "GPL-2.0-or-later")), EXTERN, GENANNT)
+    assert len(p) == 1 and "GPL-2.0-or-later nicht erlaubt" in p[0], p
+
+
+def test_extern_gilt_nicht_ohne_regel():
+    p = lizenzen.probleme(_bom(_conda()), REGELN, GENANNT)
+    assert len(p) == 1 and "nicht erlaubt" in p[0]
+
+
+def test_extern_laden(tmp_path):
+    kopf = 'erlaubt = ["MIT"]\n[externer_prozess]\nadr = "x"\numgebung = "pdal"\n'
+    gut = (kopf + f'lock_sha256 = "{LOCK}"\n[externer_prozess.pakete]\n'
+           f'"untwine@1.5.1" = {{ build = "b", lizenz = "GPL-3.0-or-later", sha256 = "{SHA}" }}\n')
+    (tmp_path / "gut.toml").write_text(gut)
+    r = lizenzen.lade_regeln(tmp_path / "gut.toml")
+    assert r.extern[("untwine", "1.5.1")].lizenz == "GPL-3.0-or-later"
+    assert r.extern_umgebung == "pdal"
+    for kaputt in (
+        gut.replace(f'lock_sha256 = "{LOCK}"', 'lock_sha256 = "kurz"'),
+        gut.replace('adr = "x"\n', ""),
+        gut.replace('lizenz = "GPL-3.0-or-later"', 'lizenz = "MIT"'),  # schon erlaubt
+        gut.replace(f'sha256 = "{SHA}"', 'sha256 = ""'),
+        gut.replace('"untwine@1.5.1"', '"untwine"'),
+        kopf + f'lock_sha256 = "{LOCK}"\n[externer_prozess.pakete]\n',
+    ):
+        (tmp_path / "k.toml").write_text(kaputt)
+        with pytest.raises(NachweisFehler, match="externer_prozess"):
+            lizenzen.lade_regeln(tmp_path / "k.toml")
+
+
+def test_repo_ausnahme_passt_zum_lock_und_ist_eng():
+    """Die Ausnahme im Repo nennt genau die fünf Pakete der ADR, bindet den aktuellen Lock und
+    jede Eintragung stimmt mit dem Lock überein."""
+    from scanview_nachweise import pdal_umgebung as pu
+
+    r = lizenzen.lade_regeln(WURZEL / "nachweise" / "lizenzen.toml")
+    lock = (WURZEL / pu.LOCK).read_text(encoding="utf-8")
+    assert r.extern_umgebung == pu.UMGEBUNG and r.extern_lock_sha256 == pu.lock_sha256(lock)
+    assert {n for n, _v in r.extern} == {"untwine", "librttopo", "readline", "libspatialite",
+                                          "freexl"}
+    pakete = {(p.name, p.version): p for p in pu.lies_lock(lock)}
+    for schluessel, e in r.extern.items():
+        p = pakete[schluessel]
+        assert (p.build, p.lizenz, p.sha256) == (e.build, e.lizenz, e.sha256)
+    for gpl in ("GPL-2.0-or-later", "GPL-3.0-only", "GPL-3.0-or-later", "MPL-1.1"):
+        assert gpl not in r.erlaubt
+
+
+def test_repo_komponenten_der_umgebung_bestehen_die_lizenzpruefung():
+    """Alle Pakete der PDAL-Umgebung (wie im Import-SBOM) bestehen Positivliste + Ausnahme und
+    sind in THIRD_PARTY.md genannt."""
+    from scanview_nachweise import pdal_umgebung as pu
+
+    r = lizenzen.lade_regeln(WURZEL / "nachweise" / "lizenzen.toml")
+    lock = (WURZEL / pu.LOCK).read_text(encoding="utf-8")
+    genannt = lizenzen.genannte_komponenten(
+        (WURZEL / "docs" / "THIRD_PARTY.md").read_text(encoding="utf-8"))
+    bom = {"metadata": {"component": {"name": "scanview-import"}},
+           "components": pu.komponenten(lock)}
+    assert lizenzen.probleme(bom, r, genannt) == []

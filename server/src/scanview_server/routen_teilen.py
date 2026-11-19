@@ -17,7 +17,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from . import db as dbmod
 from . import lesezugriff, passwort, projektverwaltung, teilen
 from .web import (
-    DIENST,
     SQLITE_GANZZAHL_MAX,
     UEBERLASTET,
     Ungueltig,
@@ -42,6 +41,8 @@ class LinkIn(BaseModel):
     tage: int = Field(default=teilen.TAGE_STANDARD, ge=1, le=teilen.TAGE_MAX)
     passwort: str | None = Field(default=None, min_length=teilen.PASSWORT_MIN,
                                  max_length=teilen.PASSWORT_MAX)
+    # Ansichtsprofil des Links (P08-S6); ohne Angabe der Projektstandard. Steckt danach am Link.
+    profil: teilen.Profil | None = None
 
 
 class AustauschIn(BaseModel):
@@ -67,7 +68,8 @@ def link_anlegen(pid: str, body: LinkIn, request: Request,
     z = leitung(request, conn, pid)
     # Ein Link ist ein neues Zugangsmittel — wie Passkey oder API-Token nur mit frischer Sitzung.
     frisch_angemeldet(request, conn, "einen Nur-Lese-Link anzulegen")
-    if not projektverwaltung.einstellungen(conn, pid).nur_lese_links:
+    einst = projektverwaltung.einstellungen(conn, pid)
+    if not einst.nur_lese_links:
         raise StarletteHTTPException(status_code=403, detail=teilen.AUSGESCHALTET)
     name = projektverwaltung.text_pruefen(body.name, "Name", teilen.NAME_MAX)
     pw_hash = None
@@ -77,7 +79,7 @@ def link_anlegen(pid: str, body: LinkIn, request: Request,
             raise Ungueltig("Das Passwort darf keine Leer- oder Steuerzeichen am Rand enthalten.")
         pw_hash = passwort.hash_pw(pw)
     link, token = teilen.anlegen(conn, pid, name=name, tage=body.tage, passwort_hash=pw_hash,
-                                 von=z.nutzer.id)
+                                 von=z.nutzer.id, profil=body.profil or einst.ansichtsprofil)
     # Das Token steht nur in dieser Antwort; das Portal baut daraus <origin>/teilen#t=<token>.
     return JSONResponse({"link": link.als_json(), "token": token}, status_code=201)
 
@@ -115,8 +117,7 @@ def _austausch(body: AustauschIn, request: Request, client_ip: str | None) -> JS
             return fehler(404, teilen.UNGUELTIG)
         if link.passwort_hash is not None:
             if not body.passwort:
-                return JSONResponse({"dienst": DIENST, "fehler": PASSWORT_NOETIG,
-                                     "passwort": True}, status_code=401)
+                return fehler(401, PASSWORT_NOETIG, passwort=True)
             # Hex-Schlüssel wie bei der Konto-Anmeldung: das fail2ban-Muster erwartet [0-9a-f]+.
             key = hashlib.sha256(f"teilen:{link.id}".encode()).hexdigest()
             ergebnis = passwort.anmeldung_pruefen(conn, key, link.passwort_hash, body.passwort)
@@ -124,8 +125,7 @@ def _austausch(body: AustauschIn, request: Request, client_ip: str | None) -> JS
                 return fehler(429, GESPERRT)
             if ergebnis != "ok":
                 passwort.fehlversuch_melden(key, client_ip)
-                return JSONResponse({"dienst": DIENST, "fehler": FALSCHES_PASSWORT,
-                                     "passwort": True}, status_code=401)
+                return fehler(401, FALSCHES_PASSWORT, passwort=True)
         alt = request.cookies.get(teilen.GAST_COOKIE)
         if alt:
             teilen.gast_beenden(conn, alt)
@@ -143,8 +143,8 @@ def _austausch(body: AustauschIn, request: Request, client_ip: str | None) -> JS
 
 @router.get("/api/teilen/manifest", include_in_schema=False)
 def gast_manifest(request: Request, conn: sqlite3.Connection = Depends(db)) -> JSONResponse:
-    """Bereinigtes Manifest (nur Wolke und Meshes) für die Gast-Ansicht; das rohe project.json
-    bleibt für Gäste gesperrt."""
+    """Bereinigtes Manifest (nur Wolke, Meshes und Sichtschicht) für die Gast-Ansicht; das rohe
+    project.json bleibt für Gäste gesperrt."""
     g = teilen.gast(conn, request.cookies.get(teilen.GAST_COOKIE))
     if g is None:
         return fehler(401, teilen.UNGUELTIG)

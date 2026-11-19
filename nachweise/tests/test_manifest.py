@@ -13,7 +13,15 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from pflicht import auf_schema_1, auf_schema_2, berichte_dateien, werkzeuge, werkzeuge_roh
+from pflicht import (
+    auf_schema_1,
+    auf_schema_2,
+    auf_schema_3,
+    auf_schema_4,
+    berichte_dateien,
+    werkzeuge,
+    werkzeuge_roh,
+)
 
 from scanview_nachweise import cli, manifest
 from scanview_nachweise.artefakte import Artefakt, Netzschritt
@@ -446,6 +454,7 @@ def test_ausgeliefert_konstante_r14():
         SCHEMA_1: frozenset({"web", "server", "mcp"}),
         SCHEMA_2: frozenset({"web", "server", "mcp"}),
         SCHEMA_3: frozenset({"web", "server", "mcp", "import"}),
+        SCHEMA_4: frozenset({"web", "server", "mcp", "import"}),
     }
 
 
@@ -650,24 +659,79 @@ WERKZEUGE_2 = (*WERKZEUGE_1, "semgrep", "bandit", "schemathesis", "zap", "caddy-
                "playwright")
 
 
+#: Schema /2: die Stufenberichte von SAST (nach dem Qualitätstor), Fuzzing und Egress (nach dem
+#: Bau) stehen an ihrer Stelle in der Stufenreihenfolge, die Rohberichte der Werkzeuge am Ende.
+BERICHTE_2 = (
+    "stufe-einfrieren", "stufe-register", "stufe-qualitaetstor", "stufe-sast", "stufe-sbom",
+    "stufe-fuzzing", "stufe-egress", "stufe-scan", "stufe-negativkontrollen",
+    "stufe-lizenzen", "stufe-matrix", "stufe-export", "scan-ergebnis", "werkzeugbefunde",
+    "exportmanifest", "npm-signaturen", "sast-semgrep", "sast-bandit", "fuzzing-admin",
+    "fuzzing-betrachter", "egress-statisch", "egress-browser")
+PRUEFUNGEN_2 = (*PRUEFUNGEN_1, "commit-signatur", "npm-signaturen", "sast", "fuzzing", "egress")
+#: Schema /4: Stufenbericht `stufe-upgrade` nach `stufe-egress`, Prüfung `upgrade`;
+#: Werkzeuge wie /2. Eingefroren, sobald ein Release mit /4-fähigem Prüfer ausgeliefert ist.
+SCHEMA_4 = "scanview-release-manifest/4"
+BERICHTE_4 = (
+    "stufe-einfrieren", "stufe-register", "stufe-qualitaetstor", "stufe-sast", "stufe-sbom",
+    "stufe-fuzzing", "stufe-egress", "stufe-upgrade", "stufe-scan", "stufe-negativkontrollen",
+    "stufe-lizenzen", "stufe-matrix", "stufe-export", "scan-ergebnis", "werkzeugbefunde",
+    "exportmanifest", "npm-signaturen", "sast-semgrep", "sast-bandit", "fuzzing-admin",
+    "fuzzing-betrachter", "egress-statisch", "egress-browser")
+PRUEFUNGEN_4 = (*PRUEFUNGEN_2, "upgrade")
+#: Schema, das die Kette erzeugt (Prüfer-Vorlauf: /4 bekannt, erzeugt wird noch /3).
+ERZEUGT = SCHEMA_3
+
+
 def test_pflichtlisten_je_schema():
-    assert manifest.SCHEMA == SCHEMA_3
-    assert set(manifest.PFLICHT_JE_SCHEMA) == {SCHEMA_1, SCHEMA_2, SCHEMA_3}
-    assert manifest.PFLICHT_JE_SCHEMA[SCHEMA_3] == manifest.PFLICHT_JE_SCHEMA[SCHEMA_2]
-    assert manifest.PFLICHT_JE_SCHEMA[SCHEMA_1] == (BERICHTE_1, WERKZEUGE_1, PRUEFUNGEN_1)
-    assert manifest.PFLICHT_JE_SCHEMA[SCHEMA_2] == (
-        manifest.PFLICHT_BERICHTE, manifest.PFLICHT_WERKZEUGE, manifest.PFLICHT_PRUEFUNGEN)
-    assert manifest.PFLICHT_PRUEFUNGEN == (*PRUEFUNGEN_1, "commit-signatur", "npm-signaturen",
-                                           "sast", "fuzzing", "egress")
-    # Schema /2: die Stufenberichte von SAST (nach dem Qualitätstor), Fuzzing und Egress (nach dem
-    # Bau) stehen an ihrer Stelle in der Stufenreihenfolge, die Rohberichte der Werkzeuge am Ende.
-    assert manifest.PFLICHT_BERICHTE == (
-        "stufe-einfrieren", "stufe-register", "stufe-qualitaetstor", "stufe-sast", "stufe-sbom",
-        "stufe-fuzzing", "stufe-egress", "stufe-scan", "stufe-negativkontrollen",
-        "stufe-lizenzen", "stufe-matrix", "stufe-export", "scan-ergebnis", "werkzeugbefunde",
-        "exportmanifest", "npm-signaturen", "sast-semgrep", "sast-bandit", "fuzzing-admin",
-        "fuzzing-betrachter", "egress-statisch", "egress-browser")
-    assert manifest.PFLICHT_WERKZEUGE == WERKZEUGE_2
+    """Jedes Schema hat eingefrorene Listen (Literale, nicht „die aktuellen“): sonst änderte eine
+    neue Stufe still die Listen archivierter Manifeste."""
+    assert manifest.SCHEMA == ERZEUGT
+    assert manifest.PFLICHT_JE_SCHEMA == {
+        SCHEMA_1: (BERICHTE_1, WERKZEUGE_1, PRUEFUNGEN_1),
+        SCHEMA_2: (BERICHTE_2, WERKZEUGE_2, PRUEFUNGEN_2),
+        SCHEMA_3: (BERICHTE_2, WERKZEUGE_2, PRUEFUNGEN_2),
+        SCHEMA_4: (BERICHTE_4, WERKZEUGE_2, PRUEFUNGEN_4),
+    }
+    assert (manifest.PFLICHT_BERICHTE, manifest.PFLICHT_WERKZEUGE,
+            manifest.PFLICHT_PRUEFUNGEN) == manifest.PFLICHT_JE_SCHEMA[ERZEUGT]
+
+
+def test_schema_3_bleibt_gueltig(eingaben, tmp_path):
+    """Archivierte 0.12.x-Manifeste (/3) liest auch der /4-fähige Leser."""
+    m = _bauen(eingaben)
+    auf_schema_3(m)
+    assert lade_manifest(_geschrieben(m, tmp_path / "m.json"))["schema"] == SCHEMA_3
+
+
+def test_schema_4_gueltig(eingaben, tmp_path):
+    m = _bauen(eingaben)
+    auf_schema_4(m)
+    assert lade_manifest(_geschrieben(m, tmp_path / "m.json"))["schema"] == SCHEMA_4
+
+
+@pytest.mark.parametrize("fehlt", ["bericht", "pruefung"])
+def test_schema_4_ohne_upgrade_abgelehnt(eingaben, tmp_path, fehlt):
+    """/4 ohne Stufenbericht `stufe-upgrade` oder ohne bestandene Prüfung `upgrade` ist rot."""
+    m = _bauen(eingaben)
+    auf_schema_4(m)
+    if fehlt == "bericht":
+        del m["berichte"]["stufe-upgrade"]
+        muster = r"nicht vollständig.*stufe-upgrade"
+    else:
+        del m["pruefungen"]["upgrade"]
+        muster = r"Pflichtprüfungen.*upgrade"
+    with pytest.raises(NachweisFehler, match=muster):
+        lade_manifest(_geschrieben(m, tmp_path / "m.json"))
+
+
+def test_schema_3_mit_upgrade_bericht_abgelehnt(eingaben, tmp_path):
+    """/3 ist eingefroren: `stufe-upgrade` ist dort unbekannt."""
+    m = _bauen(eingaben)
+    auf_schema_4(m)
+    m["schema"] = SCHEMA_3
+    del m["pruefungen"]["upgrade"]
+    with pytest.raises(NachweisFehler, match=r"nicht vollständig.*unbekannt.*stufe-upgrade"):
+        lade_manifest(_geschrieben(m, tmp_path / "m.json"))
 
 
 def _geschrieben(m: dict[str, Any], pfad: Path) -> Path:

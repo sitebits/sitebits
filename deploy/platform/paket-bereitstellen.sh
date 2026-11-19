@@ -2,12 +2,15 @@
 # Lädt ein scanview-Paket (Schema 2) auf den Plattform-Host und macht es sichtbar.
 #
 #   deploy/platform/paket-bereitstellen.sh <quellordner> <ssh-host>
+#   deploy/platform/paket-bereitstellen.sh --ersetzen <quellordner> <ssh-host>
 #
 # - Zielname kommt aus project.json (projectId), nicht aus dem Ordnernamen: ein lokaler
 #   `…-schema2`-Ordner landet als /srv/scanview/data/<projectId>/.
 # - Symlinks werden beim Hochladen aufgelöst (rsync -L): ein `-schema2`-Ordner aus Symlinks auf
 #   die Originaldateien plus echter, migrierter project.json reicht, keine lokale Vollkopie.
-# - Ein bestehendes Ziel wird NIE überschrieben — erst von Hand wegräumen.
+# - Ein bestehendes Ziel wird NIE überschrieben. --ersetzen tauscht ein vorhandenes Paket gegen
+#   das neue (Freischalt-Skript `ersetzen`): das alte bleibt auf dem Host als .ersetzt-<projectId>
+#   liegen, bis root es nach Sichtprüfung entfernt. Ohne vorhandenes Ziel bricht --ersetzen ab.
 # - Rechte auf dem Ziel (Befund B-WB-M4): Der Deploy-Nutzer ist Mitglied der Gruppe
 #   scanview-deploy und lädt OHNE sudo nach /srv/scanview/eingang/<projectId>/ hoch. sudo braucht
 #   er nur für /usr/local/sbin/scanview-paket-freischalten (sudoers-Vorlage
@@ -26,7 +29,15 @@ for argument in "$@"; do
 done
 # INSTANZ_DISPATCH_END
 
-[[ $# -eq 2 ]] || fehler "Aufruf: $0 <quellordner> <ssh-host>"
+# Modus des Freischalt-Skripts: neues Paket oder vorhandenes ersetzen (dann eigene Abfrage).
+MODUS=
+PRUEFEN=pruefen
+if [[ ${1:-} == --ersetzen ]]; then
+	shift
+	MODUS=ersetzen
+	PRUEFEN=pruefen-ersetzen
+fi
+[[ $# -eq 2 ]] || fehler "Aufruf: $0 [--ersetzen] <quellordner> <ssh-host>"
 QUELLE=${1%/}
 HOST=$2
 # Ein Ziel mit führendem „-“ nähmen ssh und rsync als Option (z. B. -oProxyCommand=…).
@@ -61,7 +72,7 @@ unverändert):
   for f in <paket>/*; do [ "\$(basename "\$f")" = project.json ] || ln -s "../\$f" <paket>-schema2/; done
   cp <paket>/project.json <paket>-schema2/project.json      # echte Datei, KEIN Symlink
   (cd import && uv run --locked scanview-import migrate ../<paket>-schema2)
-Danach: $0 <paket>-schema2 $HOST
+Danach: $0 ${MODUS:+--ersetzen }<paket>-schema2 $HOST
 EOF
 	exit 1
 fi
@@ -70,7 +81,7 @@ fi
 kaputt=$(find -L "$QUELLE" -type l -print -quit)
 [[ -z $kaputt ]] || fehler "kaputter Symlink in der Quelle: $kaputt"
 
-echo "== Paket $ID (Schema $SCHEMA) aus $QUELLE nach $HOST:$WURZEL/$ID"
+echo "== Paket $ID (Schema $SCHEMA) aus $QUELLE nach $HOST:$WURZEL/$ID${MODUS:+ (ersetzt das vorhandene)}"
 
 # Eine entfernte Abfrage: sudo für das Freischalt-Skript erlaubt? Ziel vorhanden (das weiß nur
 # root: die Datenwurzel ist root:scanview 0750)? Wie viel liegt schon im Eingang (fortgesetzter
@@ -79,7 +90,7 @@ echo "== Paket $ID (Schema $SCHEMA) aus $QUELLE nach $HOST:$WURZEL/$ID"
 set +e
 # shellcheck disable=SC2029 # Absicht: lokal einsetzen; ID ist oben per Regex geprüft, der Rest fest.
 PROBE=$(ssh "$HOST" "if ! sudo -n -l $FREISCHALTEN >/dev/null 2>&1; then echo SUDO; exit 0; fi
-  a=\$(sudo -n $FREISCHALTEN pruefen $ID) || { echo \"PRUEFEN \$a\"; exit 0; }
+  a=\$(sudo -n $FREISCHALTEN $PRUEFEN $ID) || { echo \"PRUEFEN \$a\"; exit 0; }
   if [ \"\$a\" != OK ]; then echo \"\$a\"; exit 0; fi
   if [ ! -w $EINGANG ]; then echo EINGANG_NICHT_BESCHREIBBAR; exit 0; fi
   if [ -d $EINGANG/$ID ]; then v=\$(du -sB1 $EINGANG/$ID | cut -f1); else v=0; fi
@@ -94,10 +105,12 @@ WURZEL) fehler "$HOST:$WURZEL ist ein Symlink oder kein Ordner — Abbruch vor j
 EINGANG_WURZEL) fehler "$HOST:$EINGANG fehlt, ist ein Symlink oder kein Ordner — einrichten.sh auf dem Host laufen lassen." ;;
 EINGANG_NICHT_BESCHREIBBAR) fehler "$HOST:$EINGANG ist für den Deploy-Nutzer nicht beschreibbar — Mitglied der Gruppe scanview-deploy? (neu anmelden nach usermod)." ;;
 DATEISYSTEM) fehler "$HOST:$EINGANG und $WURZEL liegen auf verschiedenen Dateisystemen — Freischalten wäre nicht atomar." ;;
-RESTE) fehler "$HOST:$WURZEL/.freischalten-$ID existiert (abgebrochenes Freischalten) — als root prüfen und entfernen." ;;
+RESTE) fehler "$HOST:$WURZEL/.freischalten-$ID${MODUS:+ bzw. .ersetzt-$ID} existiert (abgebrochenes Freischalten${MODUS:+ oder altes Paket des letzten Ersetzens}) — als root prüfen und entfernen." ;;
 EINGANG_SYMLINK) fehler "$HOST:$EINGANG/$ID ist ein Symlink — Abbruch vor der Übertragung; von Hand prüfen und entfernen." ;;
 EINGANG_KEIN_ORDNER) fehler "$HOST:$EINGANG/$ID existiert, ist aber kein Ordner — Abbruch vor der Übertragung, von Hand prüfen." ;;
-VORHANDEN) fehler "$HOST:$WURZEL/$ID existiert schon — nie überschreiben. Erst von Hand wegräumen." ;;
+VORHANDEN) fehler "$HOST:$WURZEL/$ID existiert schon — nie überschreiben. Austauschen: denselben Aufruf mit --ersetzen wiederholen." ;;
+ZIEL_FEHLT) fehler "$HOST:$WURZEL/$ID fehlt — nichts zu ersetzen. Neues Paket ohne --ersetzen bereitstellen." ;;
+ZIEL_KEIN_ORDNER) fehler "$HOST:$WURZEL/$ID ist ein Symlink oder kein Ordner — nie ersetzen, von Hand prüfen." ;;
 FREI\ *) read -r _ VORHANDEN_EINGANG FREI <<<"$PROBE" ;;
 *) fehler "unerwartete Antwort von $HOST: '$PROBE'" ;;
 esac
@@ -129,7 +142,11 @@ rsync -aL --no-D --delete "${BWLIMIT[@]}" --info=progress2 -- "$QUELLE/" "$HOST:
 echo "== Prüfen und freischalten auf $HOST"
 # Das Freischalt-Skript nimmt den Eingang weg, prüft (nur reguläre Dateien/Ordner, project.json),
 # setzt Eigentümer/Rechte/ACL, macht das Paket sichtbar und lädt den Katalog neu.
-# shellcheck disable=SC2029 # ID ist oben per Regex geprüft.
-ssh "$HOST" "sudo -n $FREISCHALTEN $ID"
+# shellcheck disable=SC2029 # ID ist oben per Regex geprüft, MODUS fest.
+ssh "$HOST" "sudo -n $FREISCHALTEN ${MODUS:+$MODUS }$ID"
 
-echo "Fertig. Rechte vergeben: scanview-server einladen --projekt $ID=betrachter (README.md)."
+if [[ -n $MODUS ]]; then
+	echo "Fertig. Das alte Paket liegt auf $HOST in $WURZEL/.ersetzt-$ID — nach Sichtprüfung als root entfernen."
+else
+	echo "Fertig. Rechte vergeben: scanview-server einladen --projekt $ID=betrachter (README.md)."
+fi

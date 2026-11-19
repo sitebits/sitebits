@@ -327,6 +327,8 @@ ARTEFAKTE = ("web", "server", "mcp", "import", "importbilder")
 #: `fingerabdruck` (16 hex, klein) verbindet den Eintrag mit dem Werkzeugfund.
 _SAST_ID = re.compile(r"B-SAST-(?:SEMGREP|BANDIT)-(?P<fp>[0-9A-F]{16})")
 _FINGERABDRUCK = re.compile(r"[0-9a-f]{16}")
+#: `akzeptanz_bindung`: SHA-256 (64 hex, klein) des Inhalts, dem die Akzeptanz gilt.
+_SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
 @dataclass(frozen=True)
@@ -351,6 +353,10 @@ class Befund:
     artefakte_begruendung: str | None = None
     #: Nur bei SAST-Befunden (`B-SAST-…`), dort Pflicht: Fingerabdruck des Werkzeugfunds.
     fingerabdruck: str | None = None
+    #: Nur bei `akzeptiert`, optional: SHA-256 des Inhalts, dem die Akzeptanz gilt (z. B. die
+    #: Blind-Liste der PDAL-Umgebung, `pdal_scan.blind_bindung`). Wer den Befund auswertet,
+    #: vergleicht ihn mit dem aktuellen Inhalt; ein anderer Wert gibt nichts frei.
+    akzeptanz_bindung: str | None = None
 
 
 def _gueltiger_verweis(verweis: str) -> bool:
@@ -394,7 +400,8 @@ def lade_befunde(pfad: Path) -> list[Befund]:
     """Lädt `befunde.toml` in Dateireihenfolge. Regeln: eindeutige IDs `B-…`, Schwere/Kategorie/
     Status aus den festen Listen, `entdeckt` als TOML-Datum, `staende` nicht leer;
     `behoben` ⇒ `fix_commit` und `retest`; `akzeptiert` ⇒ Begründung (≥ 20 Zeichen), `frist` und
-    `freigabe = "Andre"` — und diese drei Felder nur bei `akzeptiert`; keine unbekannten Felder."""
+    `freigabe = "Andre"` — und diese drei Felder nur bei `akzeptiert`, ebenso das optionale
+    `akzeptanz_bindung` (SHA-256, 64 hex klein); keine unbekannten Felder."""
     regel = "befunde"
     daten = _lies_toml(pfad, regel)
     unbekannt = sorted(set(daten) - {"befund"})
@@ -433,6 +440,7 @@ def lade_befunde(pfad: Path) -> list[Befund]:
             artefakte=_artefakte(p),
             artefakte_begruendung=p.text_optional("artefakte_begruendung"),
             fingerabdruck=p.text_optional("fingerabdruck"),
+            akzeptanz_bindung=p.text_optional("akzeptanz_bindung"),
         )
         _pruefe_fingerabdruck(p, b)
         if b.artefakte and len((b.artefakte_begruendung or "").strip()) < _MIN_BEGRUENDUNG:
@@ -453,8 +461,11 @@ def lade_befunde(pfad: Path) -> list[Befund]:
             for feld, wert in (("fix_commit", b.fix_commit), ("retest", b.retest)):
                 if wert is None:
                     raise p.fehler(f"Status behoben ohne „{feld}“")
+        if b.akzeptanz_bindung is not None and not _SHA256.fullmatch(b.akzeptanz_bindung):
+            raise p.fehler(f"„akzeptanz_bindung“ „{b.akzeptanz_bindung}“ muss ein SHA-256 aus 64 "
+                           "hex-Zeichen (klein) sein")
         akzeptanz = {"akzeptanz_begruendung": b.akzeptanz_begruendung, "frist": b.frist,
-                     "freigabe": freigabe}
+                     "freigabe": freigabe, "akzeptanz_bindung": b.akzeptanz_bindung}
         if b.status == "akzeptiert":
             begruendung = (b.akzeptanz_begruendung or "").strip()
             if len(begruendung) < _MIN_BEGRUENDUNG:

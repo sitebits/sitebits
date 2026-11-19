@@ -7,6 +7,7 @@ import { rolleText } from './rechte';
 import { abschnitt, el, feld, fehlerText, knopf, tabelle, tabelleRegion, zeigeLink, zeile } from './verwaltung';
 import { datumText } from './verwaltungModell';
 import { teilenAbschnitt } from './teilen';
+import { profilWahl } from './teilenModell';
 import { freigabenAbschnitt } from './freigaben';
 import type { FreigabenAntwort } from './freigaben';
 import {
@@ -319,8 +320,8 @@ function schalterAbschnitt(d: Daten, u: Umgebung): HTMLElement {
     schalter('sv-pe-rueckmeldungen', 'Rückmeldungen erlaubt', 'Aus: Rückmelder sehen das Projekt nur noch wie Betrachter.', d.info.einstellungen.rueckmeldungen, 'rueckmeldungen'),
     schalter('sv-pe-export', 'Export für Bearbeiter', 'Aus: nur Projektleitung und Admins exportieren CSV und JSON. Ein Ablaufschalter, keine Datenschutzgrenze: Bearbeiter sehen dieselben Daten weiterhin in der Liste.', d.info.einstellungen.exportBearbeiter, 'exportBearbeiter'),
     schalter('sv-pe-befundfaeden', 'Befund-Fäden', 'An: jeder Befund hat einen Verlauf mit Kommentaren, Status, Zuständigkeit und Frist, dazu die Liste „Fällig/überfällig“. Aus: Befunde wie bisher, Rückmeldungen als eigene Markierung.', d.info.einstellungen.befundFaeden === true, 'befundFaeden'),
-    schalter('sv-pe-nurlese', 'Nur-Lese-Links erlaubt', 'An: die Projektleitung kann Links anlegen, mit denen Gäste ohne Konto Punktwolke und Meshes ansehen. Aus: alle Links wirken sofort nicht mehr.', d.info.einstellungen.nurLeseLinks === true, 'nurLeseLinks'),
-    schalter('sv-pe-panofrei', 'Panoramen nur freigegeben zeigen', 'An: Betrachter und Rückmelder sehen Panoramen erst nach der Freigabe unten. Aus: Panoramen älterer Pakete ohne Anonymisierung sind für alle Beteiligten sichtbar (Übergang). Neu importierte Panoramen sind immer erst nach Freigabe sichtbar.', d.info.einstellungen.panoramenNurFreigegeben === true, 'panoramenNurFreigegeben'),
+    schalter('sv-pe-nurlese', 'Nur-Lese-Links erlaubt', 'An: die Projektleitung kann Links anlegen, mit denen Gäste ohne Konto Punktwolke, Meshes und Sichtschicht ansehen. Aus: alle Links wirken sofort nicht mehr.', d.info.einstellungen.nurLeseLinks === true, 'nurLeseLinks'),
+    schalter('sv-pe-panofrei', 'Panoramen nur freigegeben zeigen', 'An: Betrachter und Rückmelder sehen Panoramen erst nach der Freigabe unten. Aus: bewusste Ausnahme der Projektleitung, wird protokolliert – Panoramen älterer Pakete ohne Anonymisierung sind dann für alle Beteiligten sichtbar. Neu importierte Panoramen sind immer erst nach Freigabe sichtbar.', d.info.einstellungen.panoramenNurFreigegeben === true, 'panoramenNurFreigegeben'),
     schalter('sv-pe-mail', 'Benachrichtigungen per Mail', 'An: Beteiligte, die in ihren Einstellungen eingewilligt haben, bekommen bei Neuem an ihren Befunden eine kurze Mail ohne Projektinhalte. Wirkt nur, wenn die Instanz Mails verschickt.', d.info.einstellungen.benachrichtigung !== false, 'benachrichtigung'),
   );
 }
@@ -402,7 +403,7 @@ export async function zeigeProjektEinstellungen(root: HTMLElement, pid: string):
       ]);
       const d: Daten = { info, beteiligte: b.beteiligte, einladungen: e.einladungen, gewerke: g.gewerke };
       const u: Umgebung = { pfad, neu, melde, status, linkPlatz, anlegenFehler };
-      const teilenS = await teilenAbschnitt(info.einstellungen.nurLeseLinks === true, u);
+      const teilenS = await teilenAbschnitt(info.einstellungen.nurLeseLinks === true, u, profilWahl(info.einstellungen.ansichtsprofil));
       const freigaben = await anfrage<FreigabenAntwort>('GET', `${pfad}/freigaben${mitPruefung ? '?pruefen=true' : ''}`);
       mitPruefung = false;
       inhalt.replaceChildren(

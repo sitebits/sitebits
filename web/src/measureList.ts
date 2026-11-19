@@ -81,7 +81,9 @@ export function attachMeasureList(o: {
   for (const b of [csv, json, clearAll]) b.type = 'button';
   const bar = el('div');
   bar.append(csv, json, clearAll);
-  root.replaceChildren(el('strong', 'Messungen'), empty, table, bar);
+  // Kein eigenes <strong>Messungen</strong> (wie layersPanel.ts): der Rahmen trägt den Titel schon (main.ts
+  // registriert das Panel mit title: 'Messungen', panels.ts zeigt ihn in der Kopfzeile).
+  root.replaceChildren(empty, table, bar);
 
   const changed = (): void => {
     tool.sync();

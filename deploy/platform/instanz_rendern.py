@@ -292,7 +292,8 @@ def einrichten(quelle: Path, instanz: Instanz, release: Path | None, repo: Path 
             return subprocess.run(["/bin/bash", str(skript), *args], check=False).returncode
 
 
-def bereitstellen(quelle: Path, instanz: Instanz, paket: Path, host: str) -> int:
+def bereitstellen(quelle: Path, instanz: Instanz, paket: Path, host: str, *,
+                  ersetzen: bool = False) -> int:
     text = (quelle / "paket-bereitstellen.sh").read_text()
     text = re.sub(r"# INSTANZ_DISPATCH_BEGIN\n.*?# INSTANZ_DISPATCH_END\n", "", text,
                   flags=re.DOTALL)
@@ -300,7 +301,8 @@ def bereitstellen(quelle: Path, instanz: Instanz, paket: Path, host: str) -> int
     with tempfile.TemporaryDirectory(prefix=instanz.nutzer + "-upload-") as tmp:
         skript = Path(tmp) / "paket-bereitstellen.sh"
         skript.write_text(text)
-        return subprocess.run(["/bin/bash", str(skript), str(paket), host],
+        modus = ["--ersetzen"] if ersetzen else []
+        return subprocess.run(["/bin/bash", str(skript), *modus, str(paket), host],
                               check=False).returncode
 
 
@@ -471,20 +473,25 @@ def main() -> None:
     parser.add_argument("repo", nargs="?", type=Path)
     parser.add_argument("ssh_host", nargs="?")
     parser.add_argument("--bereitstellen", action="store_true")
+    parser.add_argument("--ersetzen", action="store_true")
     parser.add_argument("--vorlagen-quelle", type=Path)
     parser.add_argument("--vorlagen-ziel", type=Path)
     args = parser.parse_args()
     try:
         if args.instanz == "":
             raise ValueError("Instanzname darf nicht leer sein.")
+        if args.ersetzen and not args.bereitstellen:
+            parser.error("--ersetzen gilt nur für den Upload (paket-bereitstellen.sh).")
         instanz = Instanz(args.instanz or "", args.port, portpflicht=not args.bereitstellen)
         quelle = Path(__file__).resolve().parent
         if args.bereitstellen:
             if not (instanz.name and args.repo and args.ssh_host) or (
                     args.port or args.render_root or args.release or args.vorlagen_quelle
                     or args.vorlagen_ziel):
-                parser.error("Upload: --instanz <name> <quellordner> <ssh-host> angeben.")
-            raise SystemExit(bereitstellen(quelle, instanz, args.repo, args.ssh_host))
+                parser.error("Upload: --instanz <name> [--ersetzen] <quellordner> <ssh-host> "
+                             "angeben.")
+            raise SystemExit(bereitstellen(quelle, instanz, args.repo, args.ssh_host,
+                                           ersetzen=args.ersetzen))
         if args.ssh_host:
             parser.error("Überzähliges Argument.")
         if args.vorlagen_quelle and args.vorlagen_ziel and instanz.name:

@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import time
 from pathlib import Path
 
 import pytest
@@ -199,34 +200,55 @@ def test_freigeben_nicht_per_token(welt: Welt) -> None:
     assert r.status_code == 403
 
 
-def test_altpaket_ohne_block_sichtbar_bis_schalter(client: TestClient) -> None:
+@pytest.mark.parametrize("rolle", ["betrachter", "rueckmelder"])
+def test_altpaket_gesperrt_bis_freigabe(client: TestClient, rolle: str) -> None:
+    """Altpaket ohne Anonymisierungsblock, Projekt ohne Zeile in `projekte`: fail-closed (0021)."""
     w = Welt(client, anonym=False)
-    c = w.als("betrachter")
-    assert authz(c, w.alle_stufen()[0]) == 200
-    projektverwaltung.einstellungen_aendern(w.conn, "hof", rueckmeldungen=None,
-                                            export_bearbeiter=None,
-                                            panoramen_nur_freigegeben=True,
-                                            von=w.nutzer["projektleitung"].id)
-    assert authz(w.als("betrachter"), w.alle_stufen()[0]) == 404
-    # Original/Sicherung im Altpaket sind mit Schalter ebenfalls zu.
-    assert authz(w.als("betrachter"), SPERRPFADE[1]) == 404
+    assert w.conn.execute("SELECT 1 FROM projekte WHERE project_id='hof'").fetchone() is None
+    assert projektverwaltung.einstellungen(w.conn, "hof").panoramen_nur_freigegeben is True
+    for pfad in w.alle_stufen():
+        assert authz(w.als(rolle), pfad) == 404, pfad
+        assert authz(w.als("projektleitung"), pfad) == 200, pfad
+    # Original/Sicherung im Altpaket sind ebenfalls zu; Standpunkte (keine Pixel) bleiben sichtbar.
+    assert authz(w.als(rolle), SPERRPFADE[1]) == 404
+    assert authz(w.als(rolle), "/data/hof/stations.json") == 200
+    assert _freigeben(w, "personenfrei", rolle="admin") == 201
+    assert authz(w.als(rolle), w.alle_stufen()[-1]) == 200
 
 
-def test_neu_eingerichtet_schalter_an_bestand_aus(client: TestClient) -> None:
+def test_neu_eingerichtet_und_bestand_schalter_an(client: TestClient) -> None:
     w = Welt(client, anonym=False)
-    assert projektverwaltung.einstellungen(w.conn, "hof").panoramen_nur_freigegeben is False
+    assert projektverwaltung.einstellungen(w.conn, "hof").panoramen_nur_freigegeben is True
     projektverwaltung.einrichten(w.conn, "hof", "bauprojekt", von=w.nutzer["admin"].id)
     assert projektverwaltung.einstellungen(w.conn, "hof").panoramen_nur_freigegeben is True
 
 
-def test_nebenbei_angelegte_zeile_laesst_bestand_sichtbar(client: TestClient) -> None:
-    """Erste Kategorienänderung eines Bestandsprojekts legt die Zeile an — ohne Panoramasperre."""
+def test_nebenbei_angelegte_zeile_sperrt_bestand(client: TestClient) -> None:
+    """Erste Kategorienänderung eines Bestandsprojekts legt die Zeile an — mit Panoramasperre."""
     w = Welt(client, anonym=False)
     alle = [(k, True) for k in projektverwaltung.VORLAGEN[projektverwaltung.STANDARD_VORLAGE]]
     projektverwaltung.kategorien_setzen(w.conn, "hof", [*alle, ("Neu", True)],
                                         von=w.nutzer["projektleitung"].id)
-    assert projektverwaltung.einstellungen(w.conn, "hof").panoramen_nur_freigegeben is False
+    r = w.conn.execute("SELECT panoramen_nur_freigegeben FROM projekte WHERE project_id='hof'")
+    assert r.fetchone()[0] == 1
+    assert projektverwaltung.einstellungen(w.conn, "hof").panoramen_nur_freigegeben is True
+    assert authz(w.als("betrachter"), w.alle_stufen()[0]) == 404
+
+
+def test_schalter_bewusst_aus_oeffnet_und_ist_protokolliert(client: TestClient) -> None:
+    w = Welt(client, anonym=False)
+    assert authz(w.als("betrachter"), w.alle_stufen()[0]) == 404
+    projektverwaltung.einstellungen_aendern(w.conn, "hof", rueckmeldungen=None,
+                                            export_bearbeiter=None,
+                                            panoramen_nur_freigegeben=False,
+                                            von=w.nutzer["projektleitung"].id)
     assert authz(w.als("betrachter"), w.alle_stufen()[0]) == 200
+    zeilen = w.conn.execute("SELECT nutzer_id, vorher, nachher FROM ereignisse"
+                            " WHERE art='einstellung.geaendert'").fetchall()
+    assert len(zeilen) == 1
+    assert zeilen[0]["nutzer_id"] == w.nutzer["projektleitung"].id
+    assert json.loads(zeilen[0]["vorher"])["panoramenNurFreigegeben"] is True
+    assert json.loads(zeilen[0]["nachher"])["panoramenNurFreigegeben"] is False
 
 
 def test_paketuebersicht_ohne_panoramen_fuer_betrachter(welt: Welt) -> None:
@@ -286,4 +308,52 @@ def test_stand_ohne_konto_id(welt: Welt) -> None:
     r = welt.als("bearbeiter").get("/api/v1/projekte/hof/freigaben?pruefen=true").json()
     panos = next(e for e in r["ebenen"] if e["ebene"] == "panos")
     assert set(panos["freigabe"]) == {"art", "dateien", "werkzeug", "manifestSha256",
-                                      "freigegebenAm", "abweichend"}
+                                      "freigegebenAm", "abweichend", "zuletztGeprueftAm",
+                                      "zuletztAbweichend"}
+
+
+def _panos_freigabe(welt: Welt, pruefen: bool = False) -> dict[str, object]:
+    r = welt.als("bearbeiter").get("/api/v1/projekte/hof/freigaben"
+                                   + ("?pruefen=true" if pruefen else ""))
+    assert r.status_code == 200
+    panos = next(e for e in r.json()["ebenen"] if e["ebene"] == "panos")
+    frei: dict[str, object] = panos["freigabe"]
+    return frei
+
+
+def test_pruefstand_bleibt_nach_neuladen(welt: Welt) -> None:
+    """Portal-Rückmeldung: Nach „Dateien prüfen“ und Neuladen steht der Prüfstand weiter da."""
+    assert _freigeben(welt) == 201
+    frei = _panos_freigabe(welt)
+    assert (frei["zuletztGeprueftAm"], frei["zuletztAbweichend"]) == (None, None)
+    vorher = int(time.time())
+    frei = _panos_freigabe(welt, pruefen=True)
+    assert frei["abweichend"] == 0 and frei["zuletztAbweichend"] == 0
+    geprueft = frei["zuletztGeprueftAm"]
+    assert isinstance(geprueft, int) and vorher <= geprueft <= int(time.time())
+    frei = _panos_freigabe(welt)
+    assert "abweichend" not in frei
+    assert (frei["zuletztGeprueftAm"], frei["zuletztAbweichend"]) == (geprueft, 0)
+    # Datei nach der Freigabe getauscht: die nächste Prüfung merkt 1 abweichende Datei.
+    ziel = welt.paket / "panos/S001/nz/512.jpg"
+    ziel.write_bytes(ziel.read_bytes() + b"x")
+    assert _panos_freigabe(welt, pruefen=True)["zuletztAbweichend"] == 1
+    assert _panos_freigabe(welt)["zuletztAbweichend"] == 1
+
+
+def test_pruefstand_per_lese_token_und_neue_freigabe_ungeprueft(welt: Welt) -> None:
+    from scanview_server import apitoken
+
+    assert _freigeben(welt) == 201
+    token, _ = apitoken.erzeugen(welt.conn, welt.nutzer["bearbeiter"].id, "t", "lesen", 30)
+    welt.c.cookies.clear()
+    r = welt.c.get("/api/v1/projekte/hof/freigaben?pruefen=true",
+                   headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    assert _panos_freigabe(welt)["zuletztAbweichend"] == 0
+    # Der Prüfstand gehört zur Freigabezeile: zurücknehmen und neu freigeben → wieder ungeprüft.
+    assert welt.als("projektleitung").delete("/api/v1/projekte/hof/freigaben/panos",
+                                             headers=csrf()).status_code == 200
+    assert _freigeben(welt) == 201
+    frei = _panos_freigabe(welt)
+    assert (frei["zuletztGeprueftAm"], frei["zuletztAbweichend"]) == (None, None)

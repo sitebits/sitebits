@@ -45,6 +45,12 @@ def _eigen(z: Zugriff) -> inhalte.Eigentum | None:
     return inhalte.Eigentum(z.nutzer.id) if z.rolle == RUECKMELDER else None
 
 
+def _json(conn: sqlite3.Connection, tabelle: inhalte.Tabelle, pid: str, e: inhalte.Eintrag,
+          z: Zugriff) -> dict[str, Any]:
+    """Ein Eintrag mit `grundlage`."""
+    return inhalte.mit_grundlage(conn, tabelle, pid, [e], z.karte.genauigkeit)[0]
+
+
 def _routen(tabelle: inhalte.Tabelle) -> None:
     # Nur die POI-Routen öffnen sich für Rückmelder; Messungen nie.
     rueckmelder = tabelle == "pois"
@@ -62,7 +68,9 @@ def _routen(tabelle: inhalte.Tabelle) -> None:
         lesezugriff.erfasse_anfrage(request, conn, z, "api", tabelle)
         sicht = inhalte.Vorschlagssicht(
             alle=vorschlaege and konten.mindestens(z.rolle, "bearbeiter"), nutzer_id=z.nutzer.id)
-        eintraege = [e.als_json() for e in inhalte.liste(conn, tabelle, pid, sicht=sicht)]
+        eintraege = inhalte.mit_grundlage(conn, tabelle, pid,
+                                          inhalte.liste(conn, tabelle, pid, sicht=sicht),
+                                          z.karte.genauigkeit)
         if tabelle == "pois" and faden.aktiviert(conn, pid):
             # Befund-Fäden an: je POI zusätzlich der Stand (Status, Zuständig, Frist). Zwei
             # Lesevorgänge: ein dazwischen gelöschter POI fällt weg statt eines KeyError.
@@ -80,7 +88,7 @@ def _routen(tabelle: inhalte.Tabelle) -> None:
                             nutzer_id=z.nutzer.id, revision=z.karte.revision,
                             kanal=kanal(request), token_name=token_name(request),
                             eigen=_eigen(z), ki=ki(request))
-        return JSONResponse(e.als_json(), status_code=201)
+        return JSONResponse(_json(conn, tabelle, pid, e, z), status_code=201)
 
     @router.patch(f"/{tabelle}/{{eid}}", dependencies=[Depends(csrf)],
                   operation_id=f"{tabelle}_aendern",
@@ -92,7 +100,7 @@ def _routen(tabelle: inhalte.Tabelle) -> None:
         e = inhalte.aendern(conn, tabelle, pid, eid, body.daten, body.version,
                             nutzer_id=z.nutzer.id, kanal=kanal(request),
                             token_name=token_name(request), eigen=_eigen(z), ki=ki(request))
-        return JSONResponse(e.als_json())
+        return JSONResponse(_json(conn, tabelle, pid, e, z))
 
     @router.delete(f"/{tabelle}/{{eid}}", status_code=204, dependencies=[Depends(csrf)],
                    operation_id=f"{tabelle}_loeschen",
@@ -107,7 +115,7 @@ def _routen(tabelle: inhalte.Tabelle) -> None:
                              kanal=kanal(request), token_name=token_name(request),
                              eigen=_eigen(z), ki=ki(request))
         if e is not None:
-            return JSONResponse(e.als_json(), status_code=202)
+            return JSONResponse(_json(conn, tabelle, pid, e, z), status_code=202)
         return Response(status_code=204)
 
     def _pruefen(aktion: str, pid: str, eid: str, body: PruefIn, request: Request,
@@ -118,7 +126,9 @@ def _routen(tabelle: inhalte.Tabelle) -> None:
         f = inhalte.annehmen if aktion == "annehmen" else inhalte.verwerfen
         e = f(conn, tabelle, pid, eid, body.version, nutzer_id=z.nutzer.id,
               kanal=kanal(request), token_name=token_name(request), eigen=_eigen(z))
-        return Response(status_code=204) if e is None else JSONResponse(e.als_json())
+        if e is None:
+            return Response(status_code=204)
+        return JSONResponse(_json(conn, tabelle, pid, e, z))
 
     @router.post(f"/{tabelle}/{{eid}}/annehmen", dependencies=[Depends(csrf)],
                  operation_id=f"{tabelle}_annehmen",
@@ -151,7 +161,8 @@ def zu_pruefen(pid: str, request: Request,
     z = projekt(request, conn, pid, mindestens="bearbeiter")
     lesezugriff.erfasse_anfrage(request, conn, z, "api", "zu_pruefen")
     return JSONResponse({
-        **{t: [e.als_json() for e in inhalte.offene_vorschlaege(conn, t, pid)]
+        **{t: inhalte.mit_grundlage(conn, t, pid, inhalte.offene_vorschlaege(conn, t, pid),
+                                    z.karte.genauigkeit)
            for t in inhalte.TABELLEN},
         "faden": faden.offene_vorschlaege(conn, pid),
     })

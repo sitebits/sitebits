@@ -15,15 +15,21 @@ vorhanden** (der Treffer bleibt blockierend) und wird gemeldet:
 - Eigenbauten (bom-ref `eigenbau:…`, Treffer aus OSV): Lockdatei ist `nachweise/eigenbau.toml`
   statt der Paket-Lockdatei des Artefakts — die Aussage verfällt, sobald sich Quelle, Commit oder
   Dateien des Eigenbaus ändern.
+- PDAL-Umgebung (bom-ref `umgebung-pdal|…`, Treffer aus OSV): Lockdatei ist
+  `import/pdal-umgebung/pixi.lock`. Aussagen dazu stehen nur in `import/pdal-umgebung/osv.toml`
+  (`pdal_scan.vex_aussagen`); eine Aussage in `vex.openvex.json`, die diese Lockdatei nennt, ist
+  ein Formfehler, eine mit einer anderen Lockdatei gibt solche Treffer nie frei.
 
 Zusatzfelder stehen im Objekt `scanview` der OpenVEX-Aussage (`lock_hash`, `lockdatei`,
 `pruefer`). trivy 0.74.0 liest Dokumente mit diesem Zusatzobjekt und wendet die Aussage an
 (geprüft am 28.09.2026) — eine Nebendatei ist deshalb nicht nötig.
 
-Komponenten aus den Container-Images des Imports (bom-ref `pdal|…`, `untwine|…`) haben keine
-Lockdatei: Für sie ist keine VEX-Freigabe möglich, Treffer ≥ hoch blockieren immer; Behebung
-über das Image selbst (Befunde B-LK-UNTWINE, B-SBOM-IMAGES und die Sammelbefunde
-B-SCAN-IMG-*). Das Befund-Gate kommt hinzu (`scan_gate`)."""
+Komponenten aus den Container-Images des Imports (bom-ref `pdal|…` für scanview-pdal,
+`meshtools|…` für scanview-meshtools) sind
+nicht per VEX freigebbar: Treffer ≥ hoch blockieren immer; Behebung über das Image selbst
+(explizite conda-Locks unter `import/docker/`, Tag = Lock-Hash; Befunde
+B-LK-UNTWINE, B-SBOM-IMAGES und die Sammelbefunde B-SCAN-IMG-*). Das Befund-Gate kommt hinzu
+(`scan_gate`)."""
 
 from __future__ import annotations
 
@@ -37,6 +43,8 @@ from pathlib import Path
 
 from .fehler import NachweisFehler
 from .gate import befund_gate
+from .pdal_umgebung import LOCK as _PDAL_LOCK
+from .pdal_umgebung import REF_PRAEFIX as _PDAL_PRAEFIX
 from .register import Befund
 from .scan import IMAGE_PRAEFIXE, Treffer, purl_schluessel
 
@@ -58,6 +66,8 @@ LOCKDATEIEN = {"web": "web/package-lock.json", "server": "server/uv.lock",
                "mcp": "mcp-server/uv.lock", "import": "import/uv.lock"}
 #: Lockdatei der Eigenbauten (`sbom.lade_eigenbau`); nur vorhanden, wenn es Eigenbauten gibt.
 EIGENBAU_LOCKDATEI = "nachweise/eigenbau.toml"
+#: Lockdatei der PDAL-Umgebung (`pdal_scan.LOCKDATEI`); VEX dazu nur aus `osv.toml`.
+PDAL_LOCKDATEI = str(_PDAL_LOCK)
 _EIGENBAU_PRAEFIX = "eigenbau:"
 
 _SCHWEREN = ("kritisch", "hoch", "mittel", "niedrig", "info")
@@ -233,6 +243,8 @@ def lockdatei_von(t: Treffer) -> str | None:
         return None
     if t.bom_ref is not None and t.bom_ref.startswith(_EIGENBAU_PRAEFIX):
         return EIGENBAU_LOCKDATEI
+    if t.bom_ref is not None and t.bom_ref.startswith(_PDAL_PRAEFIX):
+        return PDAL_LOCKDATEI
     return LOCKDATEIEN[t.artefakt]
 
 
@@ -369,9 +381,10 @@ def lock_hashes_aus(lesen: Callable[[str], bytes | None]) -> dict[str, str]:
         if inhalt is None:
             raise NachweisFehler("scan-lock", f"{pfad}: nicht lesbar oder nicht vorhanden")
         hashes[pfad] = "sha256:" + hashlib.sha256(inhalt).hexdigest()
-    eigenbau = lesen(EIGENBAU_LOCKDATEI)   # optional: ältere Stände haben keine Eigenbauten
-    if eigenbau is not None:
-        hashes[EIGENBAU_LOCKDATEI] = "sha256:" + hashlib.sha256(eigenbau).hexdigest()
+    for optional in (EIGENBAU_LOCKDATEI, PDAL_LOCKDATEI):  # ältere Stände haben sie nicht
+        inhalt = lesen(optional)
+        if inhalt is not None:
+            hashes[optional] = "sha256:" + hashlib.sha256(inhalt).hexdigest()
     return hashes
 
 

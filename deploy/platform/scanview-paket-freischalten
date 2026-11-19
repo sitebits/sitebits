@@ -2,8 +2,10 @@
 # Schaltet ein hochgeladenes scanview-Paket frei — das einzige, was der Deploy-Nutzer per sudo
 # darf (Befund B-WB-M4: kein `sudo bash`, kein `sudo rsync` mehr).
 #
-#   scanview-paket-freischalten <projectId>           # freischalten
-#   scanview-paket-freischalten pruefen <projectId>   # nur abfragen, ändert nichts
+#   scanview-paket-freischalten <projectId>                    # freischalten (neues Paket)
+#   scanview-paket-freischalten pruefen <projectId>            # nur abfragen, ändert nichts
+#   scanview-paket-freischalten ersetzen <projectId>           # vorhandenes Paket ersetzen
+#   scanview-paket-freischalten pruefen-ersetzen <projectId>   # nur abfragen (Ersetzen)
 #
 # Installiert von einrichten.sh nach /usr/local/sbin (root:root 0755); sudoers erlaubt der
 # Gruppe scanview-deploy nur dieses Skript (Vorlage sudoers.d/scanview-deploy).
@@ -18,10 +20,19 @@
 # Eigentümer root:scanview, u=rwX,g=rX,o=, ACL für caddy, rename an den Zielnamen, Katalog neu
 # laden. Die Kopie braucht einmal die Paketgröße an freiem Platz (plus 10 GiB Reserve).
 #
+# ersetzen: dieselbe Übernahme, aber das Ziel MUSS schon als Paketordner bestehen. Am Ende zwei
+# rename(2) in der root-eigenen Datenwurzel: altes Paket nach .ersetzt-<projectId>, neues an den
+# Zielnamen. Scheitert das zweite, kommt das alte Paket zurück (Rückweg). Das alte Paket bleibt
+# in .ersetzt-<projectId> liegen (für Caddy und Katalog unsichtbar), bis root es nach
+# Sichtprüfung entfernt; bis dahin verweigert ersetzen weitere Läufe für diese projectId.
+#
 # Keine Umgebung, keine Optionen, feste Pfade; die projectId ist die einzige Eingabe und hat
 # dieselbe Form wie im Server (katalog.PROJECT_ID_RE). pruefen antwortet mit genau einem Wort:
 # OK | WURZEL | EINGANG_WURZEL | DATEISYSTEM | RESTE | VORHANDEN | EINGANG_SYMLINK |
-# EINGANG_KEIN_ORDNER. Exit 2 = falscher Aufruf, 1 = Abbruch, 0 = erledigt/beantwortet.
+# EINGANG_KEIN_ORDNER. pruefen-ersetzen prüft in eigener Reihenfolge (erst Wurzeln, Reste und
+# Eingang, danach das Ziel) und antwortet mit OK | WURZEL | EINGANG_WURZEL | DATEISYSTEM | RESTE |
+# EINGANG_SYMLINK | EINGANG_KEIN_ORDNER | ZIEL_FEHLT | ZIEL_KEIN_ORDNER.
+# Exit 2 = falscher Aufruf, 1 = Abbruch, 0 = erledigt/beantwortet.
 set -euo pipefail
 export PATH=/usr/sbin:/usr/bin:/sbin:/bin
 export LC_ALL=C
@@ -40,15 +51,15 @@ fehler() {
 }
 
 aufruf() {
-	echo "$NAME: Aufruf: $NAME <projectId>  |  $NAME pruefen <projectId>" >&2
+	echo "$NAME: Aufruf: $NAME <projectId>  |  $NAME pruefen <projectId>  |  $NAME ersetzen <projectId>  |  $NAME pruefen-ersetzen <projectId>" >&2
 	exit 2
 }
 
-if [[ $# -eq 1 && $1 != pruefen && $1 != -* ]]; then
+if [[ $# -eq 1 && $1 != pruefen && $1 != ersetzen && $1 != pruefen-ersetzen && $1 != -* ]]; then
 	MODUS=freischalten
 	ID=$1
-elif [[ $# -eq 2 && $1 == pruefen ]]; then
-	MODUS=pruefen
+elif [[ $# -eq 2 && ($1 == pruefen || $1 == ersetzen || $1 == pruefen-ersetzen) ]]; then
+	MODUS=$1
 	ID=$2
 else
 	aufruf
@@ -60,17 +71,24 @@ E=$EINGANG/$ID            # Upload des Deploy-Nutzers
 Q=$WURZEL/.freischalten-$ID  # Quarantäne: root-eigen, für Caddy und Katalog unsichtbar
 K=$WURZEL/.freischalten-$ID.kopie  # neue root-Inodes (der Punkt kommt in keiner projectId vor)
 Z=$WURZEL/$ID             # Ziel
+A=$WURZEL/.ersetzt-$ID    # nur ersetzen: das alte Paket nach dem Tausch (root, unsichtbar)
 
-# Zustand vor jeder Änderung; gibt genau ein Wort aus (siehe Kopf).
-zustand() {
+# Wurzeln: gibt WURZEL, EINGANG_WURZEL oder DATEISYSTEM aus, sonst nichts.
+zustand_wurzeln() {
 	if [[ -L $WURZEL || ! -d $WURZEL ]]; then echo WURZEL; return; fi
 	if [[ -L $EINGANG || ! -d $EINGANG ]]; then echo EINGANG_WURZEL; return; fi
 	# rename(2) geht nur innerhalb eines Dateisystems; sonst würde mv kopieren (nicht atomar,
 	# und der Deploy-Nutzer könnte während des Kopierens ändern).
 	if [[ $(stat -c %d -- "$EINGANG") != "$(stat -c %d -- "$WURZEL")" ]]; then
 		echo DATEISYSTEM
-		return
 	fi
+}
+
+# Zustand vor jeder Änderung; gibt genau ein Wort aus (siehe Kopf).
+zustand() {
+	local w
+	w=$(zustand_wurzeln)
+	if [[ -n $w ]]; then echo "$w"; return; fi
 	if [[ -e $Q || -L $Q || -e $K || -L $K ]]; then echo RESTE; return; fi
 	if [[ -e $Z || -L $Z ]]; then echo VORHANDEN; return; fi
 	if [[ -L $E ]]; then echo EINGANG_SYMLINK; return; fi
@@ -78,8 +96,26 @@ zustand() {
 	echo OK
 }
 
-STAND=$(zustand)
-if [[ $MODUS == pruefen ]]; then
+# Zustand für ersetzen, eigene Reihenfolge: alle Eingangsprüfungen VOR dem Ziel, damit ein
+# kaputter Eingang nie hinter einer Zielmeldung verschwindet. Reste schließen .ersetzt-<id> ein.
+zustand_ersetzen() {
+	local w
+	w=$(zustand_wurzeln)
+	if [[ -n $w ]]; then echo "$w"; return; fi
+	if [[ -e $Q || -L $Q || -e $K || -L $K || -e $A || -L $A ]]; then echo RESTE; return; fi
+	if [[ -L $E ]]; then echo EINGANG_SYMLINK; return; fi
+	if [[ -e $E && ! -d $E ]]; then echo EINGANG_KEIN_ORDNER; return; fi
+	if [[ -L $Z ]] || [[ -e $Z && ! -d $Z ]]; then echo ZIEL_KEIN_ORDNER; return; fi
+	if [[ ! -e $Z ]]; then echo ZIEL_FEHLT; return; fi
+	echo OK
+}
+
+if [[ $MODUS == freischalten || $MODUS == pruefen ]]; then
+	STAND=$(zustand)
+else
+	STAND=$(zustand_ersetzen)
+fi
+if [[ $MODUS == pruefen || $MODUS == pruefen-ersetzen ]]; then
 	echo "$STAND"
 	exit 0
 fi
@@ -89,8 +125,15 @@ OK) ;;
 WURZEL) fehler "$WURZEL ist ein Symlink oder kein Ordner." ;;
 EINGANG_WURZEL) fehler "$EINGANG ist ein Symlink oder kein Ordner (einrichten.sh legt ihn an)." ;;
 DATEISYSTEM) fehler "$EINGANG und $WURZEL liegen auf verschiedenen Dateisystemen — Verschieben wäre nicht atomar." ;;
-RESTE) fehler "$Q bzw. $K existiert (abgebrochener Lauf) — als root prüfen und entfernen: rm -r -- '$Q' '$K'" ;;
-VORHANDEN) fehler "$Z existiert schon — nie überschreiben. Erst von Hand wegräumen." ;;
+RESTE)
+	if [[ $MODUS == ersetzen ]]; then
+		fehler "$Q, $K bzw. $A existiert (abgebrochener Lauf oder altes Paket des letzten Ersetzens) — als root prüfen und entfernen: rm -r -- '$Q' '$K' '$A'"
+	fi
+	fehler "$Q bzw. $K existiert (abgebrochener Lauf) — als root prüfen und entfernen: rm -r -- '$Q' '$K'"
+	;;
+VORHANDEN) fehler "$Z existiert schon — nie überschreiben. Ersetzen: $NAME ersetzen $ID (paket-bereitstellen.sh --ersetzen)." ;;
+ZIEL_FEHLT) fehler "$Z fehlt — nichts zu ersetzen. Neues Paket ohne ersetzen freischalten." ;;
+ZIEL_KEIN_ORDNER) fehler "$Z ist ein Symlink oder kein Ordner — nie ersetzen. Von Hand prüfen." ;;
 EINGANG_SYMLINK) fehler "$E ist ein Symlink." ;;
 EINGANG_KEIN_ORDNER) fehler "$E ist kein Ordner." ;;
 *) fehler "unerwarteter Zustand '$STAND'." ;;
@@ -374,9 +417,37 @@ rm -r -- "$Q" || in_quarantaene "$Q nicht entfernt."
 # Die Default-ACL der Wurzel greift beim rename nicht; -P: keinem Symlink folgen (es gibt keine).
 setfacl -R -P -m u:caddy:rX "$K"
 
-# 5. Sichtbar machen. rename(2) ersetzt einen leeren Zielordner stillschweigend — daher die
-#    erneute Prüfung (in $WURZEL schreibt nur root).
-[[ ! -e $Z && ! -L $Z ]] || in_quarantaene "$Z ist inzwischen entstanden — nie überschreiben."
-mv -T -- "$K" "$Z"
-systemctl reload scanview-server
-echo "$Z bereit, Katalog neu geladen."
+if [[ $MODUS == freischalten ]]; then
+	# 5. Sichtbar machen. rename(2) ersetzt einen leeren Zielordner stillschweigend — daher die
+	#    erneute Prüfung (in $WURZEL schreibt nur root).
+	[[ ! -e $Z && ! -L $Z ]] || in_quarantaene "$Z ist inzwischen entstanden — nie überschreiben."
+	mv -T -- "$K" "$Z"
+	systemctl reload scanview-server
+	echo "$Z bereit, Katalog neu geladen."
+	exit 0
+fi
+
+# 5. (ersetzen) Tauschen mit zwei rename(2) in der Datenwurzel (dort schreibt nur root): altes
+#    Paket beiseite, neues an den Zielnamen. Dazwischen fehlt das Projekt für die Dauer eines
+#    rename; ein offener Lesezugriff des Dienstes auf das alte Paket läuft weiter. Scheitert das
+#    zweite rename, kommt das alte Paket zurück an den Zielnamen (Rückweg) — nichts ist ersetzt.
+[[ -d $Z && ! -L $Z ]] || in_quarantaene "$Z ist inzwischen kein Paketordner mehr — nichts ersetzt."
+[[ ! -e $A && ! -L $A ]] || in_quarantaene "$A ist inzwischen entstanden — nichts ersetzt."
+mv -T -- "$Z" "$A" || in_quarantaene "$Z nicht beiseitegelegt — nichts ersetzt."
+if ! mv -T -- "$K" "$Z"; then
+	if [[ ! -e $Z && ! -L $Z ]] && mv -T -- "$A" "$Z"; then
+		in_quarantaene "neues Paket nicht nach $Z verschoben — altes Paket zurückgelegt, nichts ersetzt."
+	fi
+	echo "$NAME: Fehler: neues Paket nicht nach $Z verschoben, Rückweg gescheitert." >&2
+	echo "$NAME: Altes Paket in $A, neues in $K (nur root). Als root zurücklegen: mv -T -- '$A' '$Z'" >&2
+	exit 1
+fi
+if ! systemctl reload scanview-server; then
+	# Getauscht ist schon; ohne diese Meldung hielte der Betreiber den Lauf für gescheitert und
+	# stieße beim nächsten Versuch nur auf RESTE.
+	echo "$NAME: Fehler: $Z ist ersetzt, aber der Katalog wurde nicht neu geladen — als root: systemctl reload scanview-server" >&2
+	echo "$NAME: Altes Paket in $A (nur root, unsichtbar). Nach Sichtprüfung als root entfernen: rm -r -- '$A'" >&2
+	exit 1
+fi
+echo "$Z ersetzt, Katalog neu geladen."
+echo "Altes Paket in $A (nur root, unsichtbar). Nach Sichtprüfung als root entfernen: rm -r -- '$A'"

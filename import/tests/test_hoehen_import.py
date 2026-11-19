@@ -42,6 +42,20 @@ def test_cli_ziel_ohne_quelle_bricht_ab(tmp_path: Path, capsys: pytest.CaptureFi
     assert not (tmp_path / "pkg" / "project.json").exists()
 
 
+def test_cli_dhhn92_ohne_ziel_bricht_vor_dem_paket_ab(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    src = tmp_path / "a.laz"
+    _laz_potsdam(src, 10)
+    pkg = tmp_path / "pkg"
+    rc = cli.main(
+        ["convert", str(src), str(pkg), "--crs", "EPSG:25833", "--quell-hoehensystem", "dhhn92"]
+    )
+    assert rc == 1
+    assert "--ziel-hoehensystem dhhn92" in capsys.readouterr().err
+    assert not pkg.exists()
+
+
 def test_e57_umrechnung_noch_nicht(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="E57"):
         convert(
@@ -78,11 +92,13 @@ def test_convert_rechnet_um_und_verify_vergleicht_gleich(tmp_path: Path) -> None
 
 
 @pytest.mark.docker
-def test_nur_deklarieren_ohne_umrechnung(tmp_path: Path) -> None:
+@pytest.mark.parametrize("system", ["dhhn2016", "dhhn92"])
+def test_nur_deklarieren_ohne_umrechnung(tmp_path: Path, system: str) -> None:
     src = tmp_path / "wolke.laz"
     xyz = _laz_potsdam(src, 200)
-    m = convert(src, tmp_path / "pkg", "EPSG:25833", mode="direct", hoehe=("dhhn2016", "dhhn2016"))
-    assert m["frame"]["crs"]["verticalDatum"] == "dhhn2016"
+    m = convert(src, tmp_path / "pkg", "EPSG:25833", mode="direct", hoehe=(system, system))
+    assert m["frame"]["crs"]["verticalDatum"] == system
+    assert cloud_of(m)["sourceOptions"]["hoehe"]["ziel"] == system
     las = laspy.read(tmp_path / "pkg" / "cloud.copc.laz")
     assert float(np.mean(las.z)) == pytest.approx(float(np.mean(xyz[:, 2])), abs=0.001)
 
@@ -209,6 +225,29 @@ def test_add_mesh_hoehe_fehler(hoehe: tuple[str | None, str | None], paket: str 
 
     with pytest.raises(ValueError):
         _add_hoehe(hoehe, paket)
+
+
+def test_add_mesh_dhhn92_in_fremdes_paket_nennt_das_paket(tmp_path: Path) -> None:
+    """DHHN92 in ein DHHN2016-Paket: Abbruch vor der Verarbeitung, ohne Rat zu anderem Ziel."""
+    from scanview_import.mesh_convert import add_mesh
+    from tests.test_kameras_cli import package
+
+    pkg = package(tmp_path, wkt="EPSG:25833", datum="dhhn2016")
+    vorher = (pkg / "project.json").read_bytes()
+    zweites = _mesh_potsdam(tmp_path / "b.obj")
+    with pytest.raises(hoehen.HoehenFehler, match="Dieses Paket steht auf dhhn2016") as fehler:
+        add_mesh(
+            zweites, pkg, same_frame=True, crs="EPSG:25833", unit="m", dreiecke=0,
+            hoehe=("dhhn92", None),
+        )
+    assert "nur in ein DHHN92-Paket" in str(fehler.value)
+    assert (pkg / "project.json").read_bytes() == vorher
+
+    from scanview_import.mesh_convert import _add_hoehe
+
+    assert _add_hoehe(("dhhn92", None), "dhhn92") == ("dhhn92", "dhhn92")
+    with pytest.raises(hoehen.HoehenFehler, match="nicht unterstützt; dieses Paket steht auf"):
+        _add_hoehe(("ellipsoidisch", None), "dhhn92")
 
 
 @pytest.mark.docker

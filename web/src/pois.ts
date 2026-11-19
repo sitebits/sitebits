@@ -125,6 +125,9 @@ export async function attachPois(o: {
   begehenAktiv?: () => boolean;
   /** Befund-Fäden: Kennzeichen (Status, „überfällig“) als Text im Schild über der Kugel; null = keins. */
   kennzeichen?: (lokalId: string) => string | null;
+  /** Mitgeliefertes pois.json des Pakets abrufen (Vorgabe ja). Gäste eines Nur-Lese-Links: nein —
+   *  ihre Positivliste enthält die Datei nicht, die Anfrage endete nur in einer 404. */
+  paketPois?: boolean;
 }): Promise<PoiPanel> {
   const { v, m, store, picker, pano, stations, notify, hiddenCloudMessage } = o;
   const { instance } = v;
@@ -550,13 +553,17 @@ export async function attachPois(o: {
     fileInput.value = '';
   });
 
-  // Mitgeliefertes pois.json (fehlt → 404 → keine Paket-POIs, kein Fehler) und eigene POIs aus dem Browser
-  try {
-    const res = await fetch(resolveUrl(o.pkgBase, 'pois.json'));
-    if (res.ok) store.setPackagePois(parsePoiFile(await res.json(), m.projectId, 'package'));
-    else void res.body?.cancel().catch(() => undefined);
-  } catch (e) {
-    notify(`pois.json im Paket ungültig: ${e instanceof Error ? e.message : String(e)}`);
+  // Mitgeliefertes pois.json und eigene POIs aus dem Browser. Nur 200 trägt Paket-POIs; 204 oder 404
+  // = keine Paket-POIs (die Datei ist optional; Plattform und nginx antworten auf eine fehlende mit
+  // 204), still und ohne Meldung.
+  if (o.paketPois ?? true) {
+    try {
+      const res = await fetch(resolveUrl(o.pkgBase, 'pois.json'));
+      if (res.status === 200) store.setPackagePois(parsePoiFile(await res.json(), m.projectId, 'package'));
+      else void res.body?.cancel().catch(() => undefined);
+    } catch (e) {
+      notify(`pois.json im Paket ungültig: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
   const loaded = await persist.load(store);
   if (loaded.warning) notify(loaded.warning);

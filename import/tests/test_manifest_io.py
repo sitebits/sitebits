@@ -261,3 +261,80 @@ def test_cli_start_sichtbar(tmp_path: Path, capsys: pytest.CaptureFixture[str]) 
     assert main(["start-sichtbar", str(pkg), "punkte", "aus"]) == 0
     assert json.loads(capsys.readouterr().out) == {"ebene": "punkte", "startVisible": False}
     assert main(["start-sichtbar", str(pkg), "nein", "aus"]) == 1
+
+
+def _paket_mit_startebenen(tmp_path: Path, ebenen: list[str]) -> Path:
+    from scanview_import.manifest_io import write_manifest
+    write_manifest(tmp_path, {"schemaVersion": 2, "layers": [
+        {"id": "cloud", "kind": "pointcloud"}, {"id": "mesh", "kind": "mesh", "format": "gltf"},
+        {"id": "splats", "kind": "splats"}],
+        "initialView": {"target": [1, 2, 3], "distance": 5, "layers": ebenen}})
+    return tmp_path
+
+
+def test_start_sichtbar_fuehrt_startebenen_mit(tmp_path: Path) -> None:
+    """initialView.layers hat im Viewer Vorrang vor startVisible; start-sichtbar führt sie mit."""
+    from scanview_import.manifest_io import read_manifest, start_sichtbar
+    pkg = _paket_mit_startebenen(tmp_path, ["splats", "cloud"])
+    assert start_sichtbar(pkg, "cloud", False) == {
+        "ebene": "cloud", "startVisible": False, "startebenen": ["splats"]}
+    m = read_manifest(pkg)
+    assert m["initialView"]["layers"] == ["splats"] and m["layers"][0]["startVisible"] is False
+    assert start_sichtbar(pkg, "mesh", True)["startebenen"] == ["splats", "mesh"]
+    assert read_manifest(pkg)["initialView"]["layers"] == ["splats", "mesh"]
+    # an für eine schon genannte Ebene: keine Dublette, Reihenfolge bleibt
+    assert start_sichtbar(pkg, "splats", True)["startebenen"] == ["splats", "mesh"]
+
+
+def test_start_sichtbar_letzte_startebene_aus(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Die letzte Startebene aus: [] bleibt stehen (Viewer: alles aus). Ohne den Schlüssel fiele der
+    Viewer auf startVisible zurück und zeigte Wolke und Mesh, die vorher aus waren."""
+    from scanview_import.cli import main
+    pkg = _paket_mit_startebenen(tmp_path, ["splats"])
+    assert main(["start-sichtbar", str(pkg), "splats", "aus"]) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "ebene": "splats", "startVisible": False, "startebenen": []}
+    iv = read_manifest(pkg)["initialView"]
+    assert iv == {"target": [1, 2, 3], "distance": 5, "layers": []}
+    # Aus der leeren Liste heraus: an hängt wieder an.
+    from scanview_import.manifest_io import start_sichtbar
+    assert start_sichtbar(pkg, "cloud", True)["startebenen"] == ["cloud"]
+
+
+# Gemeinsame Fälle mit dem Viewer (web/tests/startebenen.test.ts): welche Ebene darf in
+# initialView.layers stehen, ohne dass der Viewer das Manifest ablehnt?
+STARTEBENEN_FAELLE = (Path(__file__).resolve().parents[2] / "web" / "tests" / "fixtures"
+                      / "startebenen.json")
+
+
+def test_startebene_zeigbar_wie_im_viewer() -> None:
+    from scanview_import.manifest_io import _als_startebene_zeigbar
+    faelle = json.loads(STARTEBENEN_FAELLE.read_text(encoding="utf-8"))["faelle"]
+    assert {f["viewer"] for f in faelle} == {"unterstuetzt", "nicht-unterstuetzt", "ungueltig"}
+    for f in faelle:
+        assert _als_startebene_zeigbar(f["ebene"]) is (f["viewer"] == "unterstuetzt"), f["name"]
+
+
+def test_start_sichtbar_ohne_startebenen_keine_neue_liste(tmp_path: Path) -> None:
+    from scanview_import.manifest_io import read_manifest, start_sichtbar
+    pkg = _paket_v2(tmp_path)
+    assert "startebenen" not in start_sichtbar(pkg, "mesh", True)
+    assert "initialView" not in read_manifest(pkg)
+
+
+def test_start_sichtbar_nimmt_keine_unzeigbare_startebene_auf(tmp_path: Path) -> None:
+    """Eine Ebene, die der Viewer nicht zeigt (Splat-Platzhalter ohne Format), in initialView.layers
+    machte das ganze Paket unladbar: abgelehnt, project.json bleibt unverändert."""
+    from scanview_import.manifest_io import read_manifest, start_sichtbar
+    pkg = _paket_mit_startebenen(tmp_path, ["cloud"])
+    vorher = (pkg / "project.json").read_bytes()
+    with pytest.raises(ValueError, match="nicht als Startebene"):
+        start_sichtbar(pkg, "splats", True)
+    assert (pkg / "project.json").read_bytes() == vorher
+    m = read_manifest(pkg)
+    m["layers"][2]["format"] = "spz"
+    from scanview_import.manifest_io import write_manifest
+    write_manifest(pkg, m)
+    assert start_sichtbar(pkg, "splats", True)["startebenen"] == ["cloud", "splats"]

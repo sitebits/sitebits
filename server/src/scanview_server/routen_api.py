@@ -55,7 +55,7 @@ def karte_json(
         "crs": k.crs, "scandatum": k.scandatum, "groesseBytes": k.groesse_bytes,
         # Koordinaten- und Höhensystem wie im CSV-Kopf (F23), für Agenten (KI-Parität).
         "einheit": k.einheit,
-        "draufsicht": k.draufsicht, "rolle": rolle,
+        "draufsicht": k.draufsicht, "vorschau": k.vorschau, "rolle": rolle,
         "genauigkeit": [g.als_json() for g in k.genauigkeit],
         "version": int(meta["version"]) if meta else 0,
         "einstellungen": einst.als_json(),
@@ -98,7 +98,8 @@ def sitzung(request: Request, conn: sqlite3.Connection = Depends(db)) -> JSONRes
     # angemeldeter Nutzer ohne Rolle im Projekt den Link trotzdem öffnen kann (?gast=1).
     g = (teilen.gast(conn, request.cookies.get(teilen.GAST_COOKIE))
          if request.url.path == "/api/sitzung" else None)
-    gast_json = ({"projekt": g.project_id, "name": g.name, "ablauf": g.ablauf}
+    # `profil` (P08-S6): Oberfläche, die der Viewer dem Gast zeigt — vom Link, nie aus der Anfrage.
+    gast_json = ({"projekt": g.project_id, "name": g.name, "ablauf": g.ablauf, "profil": g.profil}
                  if g is not None else None)
     if g is not None and aktueller_nutzer(request, conn) is None:
         return JSONResponse({"dienst": DIENST, "nutzer": None, "gast": gast_json,

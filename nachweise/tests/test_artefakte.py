@@ -87,7 +87,8 @@ def repo(tmp_path: Path) -> Path:
         "mcp-server/tests/test_m.py": "",
         "import/pyproject.toml": "[project]\nname='i'\n",
         "import/uv.lock": "version = 1\n",
-        "import/docker/untwine.Dockerfile": "FROM scratch\n",
+        "import/docker/pdal.Dockerfile": "FROM scratch\n",
+        "import/docker/pdal.conda-lock.txt": "@EXPLICIT\n",
         UMLAUT_PFAD: "pass\n",
         "import/scripts/abnahme_messung.py": "# Entwicklerwerkzeug, nicht ausliefern\n",
         "import/tests/test_i.py": "",
@@ -194,8 +195,8 @@ def test_mcp_und_import_umfang(repo: Path, tmp_path: Path) -> None:
         "mcp-server/pyproject.toml", "mcp-server/src/scanview_mcp/server.py",
         "mcp-server/uv.lock"]
     assert [d.pfad_im_artefakt for d in alle["import"].lieferumfang] == [
-        "import/docker/untwine.Dockerfile", "import/pyproject.toml", UMLAUT_PFAD,
-        "import/uv.lock"]
+        "import/docker/pdal.Dockerfile", "import/docker/pdal.conda-lock.txt",
+        "import/pyproject.toml", UMLAUT_PFAD, "import/uv.lock"]
 
 
 def test_eintraege_sortiert_und_normalisiert(repo: Path, tmp_path: Path) -> None:

@@ -2,6 +2,7 @@
 // Anzeige von Azimut/Höhe und Auf-/Untergang. Nur Bedienung von sonne.ts — derselbe Weg wie API/MCP
 // (sonne.setzen). Texte über textContent; Regler mit aria-valuetext, damit Screenreader Datum/Uhrzeit sagen
 // statt der rohen Zahl. Ohne Georeferenz: Hinweis, Bedienelemente gesperrt.
+// Oben steht immer sichtbar (nicht nur als Tooltip) der Experiment-Hinweis, wortgleich mit docs/public/sonne.md.
 import type { Sonne } from './sonne';
 import { ausOrtszeit, ortszeit, tageImJahr, uhrzeitText } from './sonneOrt';
 
@@ -14,8 +15,13 @@ const datumText = new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'lon
 const grad = (x: number): string => `${x.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}°`;
 const himmelsrichtung = (az: number): string => ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'][Math.round(az / 45) % 8]!;
 
+/** Sichtbarer Hinweis oben im Panel; derselbe Satz steht oben in docs/public/sonne.md. */
+export const SONNE_EXPERIMENT_HINWEIS = 'Experiment – Ergebnisse ohne Gewähr. Haftung nur im gesetzlich vorgeschriebenen Umfang.';
+
 export function attachSonnePanel(root: HTMLElement, sonne: Sonne): void {
   const box = el('div'); box.className = 'sv-sonne';
+  const experiment = el('p', SONNE_EXPERIMENT_HINWEIS); experiment.className = 'sv-sonne-experiment';
+  box.append(experiment);
   root.replaceChildren(box);
   if (!sonne.ort) {
     const p = el('p', 'Sonne nicht verfügbar: Das Paket hat kein georeferenziertes Koordinatensystem (lokale Koordinaten), '

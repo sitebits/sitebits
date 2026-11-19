@@ -398,10 +398,13 @@ export async function createMeshLayer(o: {
       original.delete(obj);
     } }); discard(s);
   };
-  const full = async (): Promise<void> => {
+  /** `zumMessen`: aus der Mobilstufe die Vollstufe nachladen — gemessen wird nur auf ihr (Mobilstufe ohne Messfang).
+   *  Die Gerätegrenzen (Dateigröße, Grafikbudget) gelten weiter; scheitert es, bleibt die Mobilstufe stehen. */
+  const full = async (zumMessen = false): Promise<void> => {
     loading = true;
     try {
-      const mobil = GRENZEN.meshMobil && layer.mobile !== undefined;
+      const mobil = !zumMessen && GRENZEN.meshMobil && layer.mobile !== undefined;
+      if (zumMessen) notify('Lade das Modell in voller Auflösung zum Messen …');
       const s = await load(mobil ? layer.mobile!.url : layer.url, false, mobil);
       if (disposed) { removeStage(s); return; }
       if (current) removeStage(current);
@@ -416,7 +419,9 @@ export async function createMeshLayer(o: {
     finally { loading = false; }
   };
   const requestFull = (): void => {
-    if (!disposed && root.visible && stage === 'preview' && failure === null && !loading) void full();
+    if (disposed || !root.visible || failure !== null || loading) return;
+    if (stage === 'preview') void full();
+    else if (stage === 'mobil' && measuring) void full(true);
   };
   if (!compressed) notify('Grafikkarte ohne komprimierte Texturen – nur Vorschau des Meshes');
   try {

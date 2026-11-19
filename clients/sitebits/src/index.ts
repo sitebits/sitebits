@@ -112,17 +112,26 @@ export class SitebitsFehler extends Error {
   readonly fehler: string | null;
   /** Nur bei 409 nach Bearbeitungskonflikt: der aktuelle Stand des Objekts. */
   readonly aktuell: unknown;
+  /** Fester Fehlercode der Instanz (`docs/public/fehlercodes.md`); darauf verzweigen, nicht auf den Text. */
+  readonly code: string | null;
+  /** Was stattdessen ginge, wenn die Instanz es sagt. */
+  readonly hinweis: string | null;
 
   constructor(status: number, methode: string, pfad: string, fehler: string | null,
-    aktuell: unknown = null, ursache?: unknown) {
+    aktuell: unknown = null, ursache?: unknown,
+    zusatz: { code?: string | null; hinweis?: string | null } = {}) {
     super(`${methode} ${pfad}: ${status === 0 ? 'nicht erreichbar' : `HTTP ${status}`}`
-      + (fehler ? ` – ${fehler}` : ''), ursache === undefined ? undefined : { cause: ursache });
+      + (zusatz.code ? ` [${zusatz.code}]` : '') + (fehler ? ` – ${fehler}` : '')
+      + (zusatz.hinweis ? ` (${zusatz.hinweis})` : ''),
+    ursache === undefined ? undefined : { cause: ursache });
     this.name = 'SitebitsFehler';
     this.status = status;
     this.methode = methode;
     this.pfad = pfad;
     this.fehler = fehler;
     this.aktuell = aktuell;
+    this.code = zusatz.code ?? null;
+    this.hinweis = zusatz.hinweis ?? null;
   }
 }
 
@@ -157,12 +166,16 @@ function abfrage(werte: Werte | undefined): string {
   return s ? `?${s}` : '';
 }
 
-function fehlerAus(daten: unknown): { fehler: string | null; aktuell: unknown } {
+function fehlerAus(daten: unknown): {
+  fehler: string | null; aktuell: unknown; code: string | null; hinweis: string | null;
+} {
   if (typeof daten === 'object' && daten !== null) {
     const d = daten as Record<string, unknown>;
-    return { fehler: typeof d.fehler === 'string' ? d.fehler : null, aktuell: d.aktuell ?? null };
+    const text = (wert: unknown): string | null => (typeof wert === 'string' ? wert : null);
+    return { fehler: text(d.fehler), aktuell: d.aktuell ?? null, code: text(d.code),
+      hinweis: text(d.hinweis) };
   }
-  return { fehler: null, aktuell: null };
+  return { fehler: null, aktuell: null, code: null, hinweis: null };
 }
 
 export class Sitebits {
@@ -203,8 +216,9 @@ export class Sitebits {
     if (!r.ok) {
       let daten: unknown = null;
       try { daten = await r.json(); } catch { /* kein JSON */ }
-      const { fehler, aktuell } = fehlerAus(daten);
-      throw new SitebitsFehler(r.status, methode.toUpperCase(), pfad, fehler, aktuell);
+      const { fehler, aktuell, code, hinweis } = fehlerAus(daten);
+      throw new SitebitsFehler(r.status, methode.toUpperCase(), pfad, fehler, aktuell, undefined,
+        { code, hinweis });
     }
     if (opt.antwortKopf !== undefined) return r.headers.get(opt.antwortKopf);
     if (r.status === 204) return null;

@@ -197,8 +197,12 @@ def verify_splats(quelle: Path, paket: Path) -> dict[str, Any]:
     from .mesh_convert import positions_hoehe
     from .splat_source import read_gaussians
     from .splat_spz import POSITION_TOLERANCE_M
+    from .verweise import pruefe_paket
 
     m = read_manifest(paket)
+    # Erst die Verweise (ADR 0016, Nachtrag 2026-11), dann irgendeine Datei des Pakets öffnen
+    # oder den Bericht schreiben.
+    pruefe_paket(paket, m)
     layer = next(lay for lay in m["layers"] if lay.get("kind") == "splats")
     opts = layer.get("sourceOptions", {})
     url = (paket / layer["url"]).resolve()

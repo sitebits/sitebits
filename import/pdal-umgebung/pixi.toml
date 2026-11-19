@@ -1,0 +1,21 @@
+# PDAL und untwine für den Import auf dem Server (Etappe U2b): gelockte conda-forge-Umgebung,
+# die einrichten.sh mit `pixi install --locked` unter /opt/scanview/pdal anlegt. Läuft nur als
+# externer Prozess im isolierten Auftrag (pdal_runner, Ausführung „lokal“); am Arbeitsplatz
+# bleibt der Docker-Weg mit denselben Paketen (Image scanview-pdal, import/docker/pdal.Dockerfile).
+#
+# Lieferkette: Paket-URLs mit SHA-256 und MD5 in pixi.lock; pixi prüft beim Laden dagegen.
+# Mindestalter wie bei uv: nur Pakete, die vor dem festen Stichtag veröffentlicht waren
+# (Stichtag mindestens sieben Tage vor dem Commit des Locks, 05.11.2026).
+# libarchive in der LGPL-Variante: die Standardvariante zieht lzo (GPL-2.0) nach.
+[workspace]
+name = "scanview-pdal"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+exclude-newer = "2026-10-29"
+requires-pixi = ">=0.82.0"
+
+[dependencies]
+libpdal-core = "==2.10.2"
+libpdal-e57 = "==2.10.2"
+untwine = "==1.5.1"
+libarchive = { version = "*", build = "lgpl*" }

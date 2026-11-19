@@ -370,7 +370,9 @@ def test_n4_zu_grosse_project_json_wird_nicht_gelesen(tmp_path: Path) -> None:
 def test_n5_authz_nur_paket_endungen(client: TestClient, pfad: str, status: int) -> None:
     lege_paket(client.app.state.settings.data_dir, "p1")  # type: ignore[attr-defined]
     client.app.state.katalog.laden()  # type: ignore[attr-defined]
-    anmelden(client, grants={"p1": "betrachter"})
+    # Bearbeiter: Hier geht es nur um die Endungen; Panoramen ohne Freigabe sperrt für Betrachter
+    # vorher schon das Tor (F20, test_freigabe.py).
+    anmelden(client, grants={"p1": "bearbeiter"})
     r = client.get("/api/authz", headers={"X-Forwarded-Uri": pfad, "X-Forwarded-Method": "GET"})
     assert r.status_code == status
 

@@ -15,7 +15,15 @@ from fastapi.testclient import TestClient
 from nutzer import person
 from test_authz import mit_paketen  # noqa: F401  (Fixture)
 
-from scanview_server import apitoken, db, konten, lesezugriff, projektverwaltung, verwaltung
+from scanview_server import (
+    apitoken,
+    db,
+    fehlercodes,
+    konten,
+    lesezugriff,
+    projektverwaltung,
+    verwaltung,
+)
 from scanview_server.config import Settings
 from scanview_server.web import COOKIE, create_app
 
@@ -162,7 +170,9 @@ def test_nur_admin_sieht_das_protokoll(mit_paketen: TestClient, rolle: str,  # n
     _n, p = person(mit_paketen, f"{rolle}@b.de", grants={PID: rolle})
     p.get(f"/api/v1/projekte/{PID}")
     r = p.get(pfad)
-    assert r.status_code == 404 and r.json() == {"dienst": "scanview", "fehler": "nicht gefunden"}
+    assert r.status_code == 404 and r.json() == {"dienst": "scanview", "fehler": "nicht gefunden",
+                                            "code": "nicht_gefunden",
+                                            "hinweis": fehlercodes.NICHT_GEFUNDEN.hinweis}
 
 
 @pytest.mark.parametrize("pfad", LESE_ROUTEN)

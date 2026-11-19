@@ -63,6 +63,7 @@ from . import (
     lizenzen,
     manifest,
     osv,
+    pdal_scan,
     register,
     sast,
     sbom,
@@ -635,10 +636,12 @@ def stufe_scan(lauf: Lauf) -> dict[str, Any]:
     scan.pruefe_sbom_vollstaendig(e.sboms, gebaut | manifest.AUSGELIEFERT
                                   | ({sbom.BILDER} if "import" in gebaut else set()))
     osv_stand = osv.stand_falls_noetig(e.sboms.values(), lauf.cache, scan.jetzt())
+    pdal = pdal_scan.scan_eingaben(wt, e.sboms.values(), lauf.cache, scan.jetzt(),
+                                   lambda: register.lade_register(wt).befunde)
     erg = scan.scanne_alle(e.sboms, lauf.cache, vex_pfad, lauf.werkzeuge, uhr=scan.jetzt(),
-                           osv=osv_stand)
+                           osv=osv_stand, pdal=pdal.stand, blind=pdal.blind)
     lauf.db_stand = erg.stand
-    aussagen = vex.lade_vex(vex_pfad)
+    aussagen = [*vex.lade_vex(vex_pfad), *pdal.vex]
     locks = vex.lock_hashes(wt)
     stichtag = heute()
     geliefert = [t for t in erg.treffer if t.artefakt in manifest.AUSGELIEFERT]
@@ -653,6 +656,7 @@ def stufe_scan(lauf: Lauf) -> dict[str, Any]:
                      for n, w in lauf.werkzeuge.items() if n == "trivy"},
         "vex": {"datei": vex_pfad.name, "aussagen": len(aussagen)},
         "osv": osv.stand_bericht(osv_stand) if osv_stand else None,
+        "osv_pdal": pdal_scan.stand_bericht(pdal.stand) if pdal.stand else None,
         "lockdateien": locks,
         "gate_artefakte": sorted(manifest.AUSGELIEFERT),
         "artefakte": erg.artefakte,
@@ -696,6 +700,10 @@ def stufe_lizenzen(lauf: Lauf) -> dict[str, Any]:
     if set(geliefert) != manifest.AUSGELIEFERT:
         raise NachweisFehler("lizenzen", "SBOM eines ausgelieferten Artefakts fehlt")
     bericht = lizenzen.pruefe(geliefert, regeln, third_party)
+    # PDAL-Umgebung (ADR 2026-10-22): Lizenztexte und Quellbezug je Paket müssen zum Lock passen.
+    from . import pdal_umgebung
+    if (wt / pdal_umgebung.LOCK).is_file():
+        bericht["pdalUmgebung"] = pdal_umgebung.pruefe(wt)
     genannt = lizenzen.genannte_komponenten(third_party)
     bericht["informativ"] = {}
     for n, p in sorted(e.sboms.items()):

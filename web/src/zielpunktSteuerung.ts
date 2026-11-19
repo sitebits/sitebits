@@ -96,7 +96,8 @@ export function attachZielpunktSteuerung(o: {
     const mitte = { x: r.x + r.width / 2, y: r.y + r.height / 2 };
     const snap = zielen || toolbar.snapEdges();
     if (!befund && werkzeug !== 'poi') {
-      // Messen: derselbe Weg wie ein Klick in Bildmitte (Eckpunkt-Fang, Schließen am ersten Eckpunkt); den
+      // Messen: derselbe Weg wie ein Klick in Bildmitte (Eckpunkt-Fang, Schließen am ersten Eckpunkt, Beenden am
+      // letzten Polylinienpunkt); den
       // Hinweis ohne Punkt sagt das Messwerkzeug selbst, mit demselben Satz wie beim Klick.
       const status = await tool.setzeAmBildschirm(mitte.x, mitte.y, { snapEdges: snap, vorher, keinPunkt: say });
       await vorher;
@@ -105,7 +106,7 @@ export function attachZielpunktSteuerung(o: {
         say('Punkt gesetzt');
       } else if (status === 'geschlossen') {
         o.hinweis?.gesetzt(false);
-        say('Fläche geschlossen');
+        say(werkzeug === 'polyline' ? 'Polylinie beendet' : 'Fläche geschlossen');
       } else if (status === 'abgebrochen') say('abgebrochen');
       else if (status === 'ansicht') say('abgebrochen – Ansicht hat sich bewegt');
       else if (toolbar.tool() !== werkzeug) say('Werkzeug gewechselt – Punkt nicht gesetzt');

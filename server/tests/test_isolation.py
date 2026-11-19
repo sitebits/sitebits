@@ -21,7 +21,14 @@ import pytest
 
 from scanview_server import auftraege
 from scanview_worker import worker as W
-from scanview_worker.laeufer import Ergebnis, Grenzen, Lauf, SystemdLaeufer
+from scanview_worker.laeufer import (
+    NETZRAUM_VERSTOSS,
+    VORSPANN,
+    Ergebnis,
+    Grenzen,
+    Lauf,
+    SystemdLaeufer,
+)
 
 
 def _user_manager() -> bool:
@@ -336,7 +343,7 @@ def test_selbsttest_besteht(tmp_path: Path) -> None:
     s = W.Einstellungen(jobs_db=tmp_path / "jobs.db", berichte=tmp_path / "berichte",
                         data_dir=tmp_path / "data", import_bin=tmp_path / "bin")
     assert W.selbsttest(s, SystemdLaeufer()) == {
-        "netz": "zu", "dns": "zu", "unix": "zu", "aussen": "zu", "ram": "zu"}
+        "netz": "zu", "dns": "zu", "unix": "zu", "netzraum": "zu", "aussen": "zu", "ram": "zu"}
     assert list((tmp_path / "berichte").iterdir()) == []
 
 
@@ -396,6 +403,67 @@ def test_gegenprobe_ram_mit_wirkungsloser_grenze_ist_offen(arbeit: Path) -> None
     assert W.ram_grenze(ml, arbeit, ram_mb=1024) == "offen"
     [e] = ml.ergebnisse
     assert (e.ausgang, e.status) == ("ok", 0), e.roh
+
+
+# --- Netz-Namensraum: Selbsttest und Vorspann je Auftrag (Grundlage VEX libssh2) -------------
+
+
+class _OhnePrivateNetwork(_Mitschrift):
+    """Fehlerbild „proceeding without“: der User-Manager lässt `PrivateNetwork` still weg (keine
+    unprivilegierten User-Namensräume). Hier fehlt die Property ganz; die Unit sieht dann den
+    Netz-Namensraum des Hosts (der Test setzt voraus, dass der Host neben lo ein Gerät hat)."""
+
+    def befehl(self, lauf: Lauf) -> list[str]:
+        cmd = super().befehl(lauf)
+        j = cmd.index("PrivateNetwork=yes")
+        assert cmd[j - 1] == "-p"
+        return cmd[:j - 1] + cmd[j + 1:]
+
+
+_MARKE = ("import os, sys\n"
+          "open(os.path.join(sys.argv[1], 'werkzeug-lief'), 'w').write('ja')")
+
+
+def test_gegenprobe_selbsttest_ohne_privatenetwork_scheitert_an_netzraum(
+        tmp_path: Path) -> None:
+    """Ohne eigenen Netz-Namensraum startet der Worker nicht: die Kette Probe → Auswertung →
+    SelbsttestFehler, mit den gefundenen Geräten in der Meldung. Ohne `$`, weil netz und dns auf
+    einem Host mit Internet ebenfalls offen sind."""
+    s = W.Einstellungen(jobs_db=tmp_path / "jobs.db", berichte=tmp_path / "berichte",
+                        data_dir=tmp_path / "data", import_bin=tmp_path / "bin")
+    with pytest.raises(W.SelbsttestFehler, match=r"netzraum") as fehler:
+        W.selbsttest(s, _OhnePrivateNetwork())
+    assert "/sys/class/net" in str(fehler.value), fehler.value
+
+
+def test_vorspann_laesst_auftrag_mit_privatenetwork_durch(arbeit: Path) -> None:
+    """Echter Auftrag mit Vorspann: Netz-Namensraum geprüft, dann execv ins Werkzeug — es läuft,
+    sein Exit-Code kommt unverändert an."""
+    sl = _Mitschrift()
+    lauf = _lauf(arbeit, [sys.executable, "-I", "-c", _MARKE, str(arbeit)])
+    assert lauf.vorspann and VORSPANN in sl.befehl(lauf)
+    e = sl.ausfuehren(lauf)
+    assert (e.ausgang, e.status) == ("ok", 0), e.roh
+    assert (arbeit / "werkzeug-lief").read_text() == "ja"
+    e = sl.ausfuehren(_lauf(arbeit, [sys.executable, "-I", "-c", "import sys; sys.exit(3)"]))
+    assert (e.ausgang, e.status) == ("exit", 3), e.roh
+
+
+def test_gegenprobe_vorspann_ohne_privatenetwork_startet_das_werkzeug_nicht(
+        arbeit: Path) -> None:
+    """Je Auftrag fail-closed: ohne eigenen Netz-Namensraum endet der Vorspann mit
+    NETZRAUM_VERSTOSS, bevor das Werkzeug läuft; der Grund steht im Protokoll."""
+    e = _OhnePrivateNetwork().ausfuehren(
+        _lauf(arbeit, [sys.executable, "-I", "-c", _MARKE, str(arbeit)]))
+    assert (e.ausgang, e.status) == ("exit", NETZRAUM_VERSTOSS), e.roh
+    assert not (arbeit / "werkzeug-lief").exists()
+    log = (arbeit / "lauf.log").read_text()
+    assert "Isolation greift nicht: netzraum" in log and "/sys/class/net" in log, log
+
+
+def test_vorspann_meldet_fehlendes_werkzeug_nicht_als_isolationsfehler(arbeit: Path) -> None:
+    e = SystemdLaeufer().ausfuehren(_lauf(arbeit, [str(arbeit / "gibt-es-nicht")]))
+    assert (e.ausgang, e.status) == ("exit", 127), e.roh
 
 
 def test_neustart_stoppt_verwaiste_unit(tmp_path: Path) -> None:

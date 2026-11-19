@@ -1,0 +1,656 @@
+# OSV-Ersatzprüfung der PDAL-Umgebung (pdal_scan, scanview-nachweise db-aktualisieren).
+# Gebunden an den SHA-256 von pixi.lock: ein neues Lock macht die Datei ungültig (Neuerhebung).
+# Je Paket Upstream-Repo (OSV-Ökosystem GIT), Release-Tag (kein rc) und Commit, dazu eine
+# Gegenprobe: älterer Release-Tag desselben Repos mit einem Eintrag, den OSV am 05.11.2026 per
+# Commit UND per Tag gemeldet hat. Bleibt die Gegenprobe leer, gilt das Paket als blind.
+# Erhoben am 05.11.2026 mit git ls-remote (Tags/Commits) und api.osv.dev/v1/query.
+# Nicht hier: Pakete, deren Repo OSV nicht führt, ohne Repo, oder ohne Gegenprobe auf beiden
+# Wegen (zstd: v1.3.7 nur per Commit, v1.4.9 nur per Tag) — sie stehen in scan-blind.toml.
+lock_sha256 = "8a303273e89ffc40693a3f00c47ac45d6534eeb9d7294170d719784407431a3c"
+
+[[paket]]
+name = "c-ares"
+version = "1.34.9"
+build = "hebe6cf0_0"
+repo = "https://github.com/c-ares/c-ares"
+tag = "v1.34.9"
+commit = "bc91829cce983a35ec01f5dbc05465858a3df469"
+gegenprobe_tag = "cares-1_18_1"
+gegenprobe_commit = "2aa086f822aad5017a6f2061ef656f237a62d0ed"
+gegenprobe_erwartet = "CVE-2022-4904"
+
+[[paket]]
+name = "icu"
+version = "78.3"
+build = "py310h44b86e0_2"
+repo = "https://github.com/unicode-org/icu"
+tag = "release-78.3"
+commit = "21d1eb0f306e1141c10931e914dfc038c06121da"
+gegenprobe_tag = "release-66-1"
+gegenprobe_commit = "5f681ecbc75898a6484217b322f3883b6d1b2049"
+gegenprobe_erwartet = "CVE-2020-10531"
+
+[[paket]]
+name = "krb5"
+version = "1.22.2"
+build = "hbc21106_2"
+repo = "https://github.com/krb5/krb5"
+tag = "krb5-1.22.2-final"
+commit = "8570e77819563e036027e1da789d08ec9333ed4d"
+gegenprobe_tag = "krb5-1.20-final"
+gegenprobe_commit = "fea39a0daeed8720b5c6fe095a81d8ca158351d2"
+gegenprobe_erwartet = "CVE-2023-36054"
+
+[[paket]]
+name = "libarchive"
+version = "3.8.9"
+build = "lgpl_hee3b6c9_1"
+repo = "https://github.com/libarchive/libarchive"
+tag = "v3.8.9"
+commit = "27cbc7827172698143e440801fc0ba39ccb4f1f5"
+gegenprobe_tag = "v3.7.1"
+gegenprobe_commit = "0c21691b177fac5f4cceca2a1ff2ddfa5d60f51c"
+gegenprobe_erwartet = "CVE-2024-26256"
+
+[[paket]]
+name = "libbrotlicommon"
+version = "1.2.1"
+build = "h39a168f_0"
+repo = "https://github.com/google/brotli"
+tag = "v1.2.1"
+commit = "db24a98aed38a16de78cc05ca15cdd8dc2a0d92d"
+gegenprobe_tag = "v1.0.7"
+gegenprobe_commit = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
+gegenprobe_erwartet = "CVE-2020-36846"
+
+[[paket]]
+name = "libbrotlidec"
+version = "1.2.1"
+build = "ha411449_0"
+repo = "https://github.com/google/brotli"
+tag = "v1.2.1"
+commit = "db24a98aed38a16de78cc05ca15cdd8dc2a0d92d"
+gegenprobe_tag = "v1.0.7"
+gegenprobe_commit = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
+gegenprobe_erwartet = "CVE-2020-36846"
+
+[[paket]]
+name = "libbrotlienc"
+version = "1.2.1"
+build = "h018ffa1_0"
+repo = "https://github.com/google/brotli"
+tag = "v1.2.1"
+commit = "db24a98aed38a16de78cc05ca15cdd8dc2a0d92d"
+gegenprobe_tag = "v1.0.7"
+gegenprobe_commit = "d6d98957ca8ccb1ef45922e978bb10efca0ea541"
+gegenprobe_erwartet = "CVE-2020-36846"
+
+[[paket]]
+name = "libcurl"
+version = "8.23.0"
+build = "ha042cf0_0"
+repo = "https://github.com/curl/curl"
+tag = "curl-8_23_0"
+commit = "3163ec065643ba20709f190111f42c3e1fe95273"
+gegenprobe_tag = "curl-8_5_0"
+gegenprobe_commit = "7161cb17c01dcff1dc5bf89a18437d9d729f1ecd"
+gegenprobe_erwartet = "CURL-CVE-2024-0853"
+
+[[paket]]
+name = "libexpat"
+version = "2.9.0"
+build = "hd2095e1_0"
+repo = "https://github.com/libexpat/libexpat"
+tag = "R_2_9_0"
+commit = "a76b1174c1ea52abb639a4c69d52b630a8a106a2"
+gegenprobe_tag = "R_2_5_0"
+gegenprobe_commit = "654d2de0da85662fcc7644a7acd7c2dd2cfb21f0"
+gegenprobe_erwartet = "CVE-2023-52425"
+
+[[paket]]
+name = "libjpeg-turbo"
+version = "3.2.1"
+build = "h7cc23a3_0"
+repo = "https://github.com/libjpeg-turbo/libjpeg-turbo"
+tag = "3.2.1"
+commit = "7b4993786d856cbccabfc0ed2f923ba000e326cc"
+gegenprobe_tag = "2.0.4"
+gegenprobe_commit = "166e34213e4f4e2363ce058a7bcc69fd03e38b76"
+gegenprobe_erwartet = "CVE-2020-13790"
+
+[[paket]]
+name = "libjxl"
+version = "0.12.0"
+build = "heb2dce7_4"
+repo = "https://github.com/libjxl/libjxl"
+tag = "v0.12.0"
+commit = "a7a9c787341cf703dede03c2009fa460cae5e5df"
+gegenprobe_tag = "v0.8.3"
+gegenprobe_commit = "20374fdd040dec80f28ee35a30aa882a1be54bd6"
+gegenprobe_erwartet = "CVE-2024-11403"
+
+[[paket]]
+name = "liblzma"
+version = "5.8.3"
+build = "hb03c661_1"
+repo = "https://github.com/tukaani-project/xz"
+tag = "v5.8.3"
+commit = "4b73f2ec19a99ef465282fbce633e8deb33691b3"
+gegenprobe_tag = "v5.6.0"
+gegenprobe_commit = "2d7d862e3ffa8cec4fd3fdffcd84e984a17aa429"
+gegenprobe_erwartet = "CVE-2024-3094"
+
+[[paket]]
+name = "libnghttp2"
+version = "1.70.0"
+build = "hc5e5977_0"
+repo = "https://github.com/nghttp2/nghttp2"
+tag = "v1.70.0"
+commit = "85e300c79fb6dbcfa9c1013215c8710c1c2cd3d2"
+gegenprobe_tag = "v1.56.0"
+gegenprobe_commit = "80d05fe917e428923e0ab654d18f958e49b3db0a"
+gegenprobe_erwartet = "CVE-2024-28182"
+
+[[paket]]
+name = "libssh2"
+version = "1.11.1"
+build = "h6154650_1"
+repo = "https://github.com/libssh2/libssh2"
+tag = "libssh2-1.11.1"
+commit = "a312b43325e3383c865a87bb1d26cb52e3292641"
+gegenprobe_tag = "libssh2-1.10.0"
+gegenprobe_commit = "635caa90787220ac3773c1d5ba11f1236c22eae8"
+gegenprobe_erwartet = "CVE-2020-22218"
+
+[[paket]]
+name = "libxml2-16"
+version = "2.15.4"
+build = "hf3af7cc_1"
+repo = "https://gitlab.gnome.org/GNOME/libxml2"
+tag = "v2.15.4"
+commit = "96498992efa48d52b0e8b83058bd88dbdaf153c1"
+gegenprobe_tag = "v2.15.0"
+gegenprobe_commit = "0bea77c8289324483c0504d36ac730bb03f6a70b"
+gegenprobe_erwartet = "OSV-2021-777"
+
+[[paket]]
+name = "libxml2"
+version = "2.15.4"
+build = "h7df9aa5_1"
+repo = "https://gitlab.gnome.org/GNOME/libxml2"
+tag = "v2.15.4"
+commit = "96498992efa48d52b0e8b83058bd88dbdaf153c1"
+gegenprobe_tag = "v2.15.0"
+gegenprobe_commit = "0bea77c8289324483c0504d36ac730bb03f6a70b"
+gegenprobe_erwartet = "OSV-2021-777"
+
+[[paket]]
+name = "libxml2-devel"
+version = "2.15.4"
+build = "h7df9aa5_1"
+repo = "https://gitlab.gnome.org/GNOME/libxml2"
+tag = "v2.15.4"
+commit = "96498992efa48d52b0e8b83058bd88dbdaf153c1"
+gegenprobe_tag = "v2.15.0"
+gegenprobe_commit = "0bea77c8289324483c0504d36ac730bb03f6a70b"
+gegenprobe_erwartet = "OSV-2021-777"
+
+[[paket]]
+name = "libzlib"
+version = "1.3.2"
+build = "h25fd6f3_3"
+repo = "https://github.com/madler/zlib"
+tag = "v1.3.2"
+commit = "da607da739fa6047df13e66a2af6b8bec7c2a498"
+gegenprobe_tag = "v1.2.11"
+gegenprobe_commit = "cacf7f1d4e3d44d871b605da3b647f07d718623f"
+gegenprobe_erwartet = "CVE-2018-25032"
+
+[[paket]]
+name = "lz4-c"
+version = "1.10.0"
+build = "hee9eb32_2"
+repo = "https://github.com/lz4/lz4"
+tag = "v1.10.0"
+commit = "ebb370ca83af193212df4dcbadcc5d87bc0de2f0"
+gegenprobe_tag = "v1.8.1.2"
+gegenprobe_commit = "dfed9fa1d77f0434306d377c4da1f7191d3ba08a"
+gegenprobe_erwartet = "CVE-2019-17543"
+
+[[paket]]
+name = "muparser"
+version = "2.3.5"
+build = "hee9eb32_1"
+repo = "https://github.com/beltoforion/muparser"
+tag = "v2.3.5"
+commit = "fbafd7f8774af2b53f4d2de07c57353fcfc09216"
+gegenprobe_tag = "v2.3.2"
+gegenprobe_commit = "207d5b77c05c9111ff51ab91082701221220c477"
+gegenprobe_erwartet = "OSV-2020-1330"
+
+[[paket]]
+name = "openssl"
+version = "3.6.5"
+build = "h781a0a9_0"
+repo = "https://github.com/openssl/openssl"
+tag = "openssl-3.6.5"
+commit = "c8bd5a57108599ac650bbae77fcabe3109dab2e8"
+gegenprobe_tag = "openssl-3.0.7"
+gegenprobe_commit = "19cc035b6c6f2283573d29c7ea7f7d675cf750ce"
+gegenprobe_erwartet = "CVE-2022-3996"
+
+[[paket]]
+name = "pcre2"
+version = "10.47"
+build = "h8b3dc9c_1"
+repo = "https://github.com/PCRE2Project/pcre2"
+tag = "pcre2-10.47"
+commit = "f454e231fe5006dd7ff8f4693fd2b8eb94333429"
+gegenprobe_tag = "pcre2-10.46"
+gegenprobe_commit = "b2bd4254b379b9d7dc9a3dda060a7e27009ccdff"
+gegenprobe_erwartet = "OSV-2026-343"
+
+[[paket]]
+name = "snappy"
+version = "1.2.2"
+build = "h34e00bb_2"
+repo = "https://github.com/google/snappy"
+tag = "1.2.2"
+commit = "6af9287fbdb913f0794d0148c6aa43b58e63c8e3"
+gegenprobe_tag = "1.1.4"
+gegenprobe_commit = "2d99bd14d471664758e4dfdf81b44f413a7353fd"
+gegenprobe_erwartet = "CVE-2018-7577"
+
+[[paket]]
+name = "uriparser"
+version = "0.9.8"
+build = "hac33072_0"
+repo = "https://github.com/uriparser/uriparser"
+tag = "uriparser-0.9.8"
+commit = "bfe94f6e54d0abb5afa7bb0411940b7242cb835a"
+gegenprobe_tag = "uriparser-0.9.3"
+gegenprobe_commit = "737e95f67bc2e5d8b90a1392797b353b52e5124a"
+gegenprobe_erwartet = "CVE-2021-46141"
+
+[[paket]]
+name = "zlib"
+version = "1.3.2"
+build = "h25fd6f3_3"
+repo = "https://github.com/madler/zlib"
+tag = "v1.3.2"
+commit = "da607da739fa6047df13e66a2af6b8bec7c2a498"
+gegenprobe_tag = "v1.2.11"
+gegenprobe_commit = "cacf7f1d4e3d44d871b605da3b647f07d718623f"
+gegenprobe_erwartet = "CVE-2018-25032"
+
+# VEX (nur hier gültig für Pakete der Umgebung; an lock_sha256 oben gebunden). Beleg je
+# Aussage im impact_statement, reproduzierbar mit ldd/nm über die installierte Umgebung.
+
+[[vex]]
+schwachstelle = "OSV-2026-343"
+paket = "pcre2"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Absturz in pcre2_compile_32 (Bibliothek libpcre2-32, 32-Bit-Codeeinheiten). In der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 05.11.2026 steht nur libpcre2-8.so.0; einziger Importeur ist libgdal, und zwar nur 8-Bit-Symbole (pcre2_compile_8, pcre2_jit_compile_8, pcre2_match_8 u. a.); libpcre2-32 lädt kein Programm, das siteBits startet (pdal_runner startet nur bin/pdal und bin/untwine). Ergänzender Beleg: GHSA-fmgr-6ggq-9859 (CVE-2026-89158, Advisory im Repo PCRE2Project/pcre2, veröffentlicht 31.08.2026) beschreibt einen Überlauf allein in pcre2_compile_32() und nennt die 8- und 16-Bit-Bibliothek nicht betroffen. Dass OSV-2026-343 (OSS-Fuzz, 03.03.2026) derselbe Fehler ist, ist inhaltlich wahrscheinlich (gleiche Funktion, gleiche Fehlerklasse, von OSS-Fuzz gefunden), aber nicht bewiesen: Die GHSA nennt einen anderen OSS-Fuzz-Testfall und gibt 10.48 als behoben an, während OSV 10.48 und 10.49 noch als betroffen führt. Die Aussage stützt sich deshalb auf die Symbolprüfung, nicht auf die GHSA."
+zeit = 2026-11-05T06:10:15Z
+pruefer = "Claude (P04 Teil 1, im Auftrag der Master-Session)"
+
+[[vex]]
+schwachstelle = "CVE-2026-113351"
+paket = "libexpat"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Fehler nur bei wiederverwendetem Parser über XML_ParserReset. Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 05.11.2026 importiert XML_ParserReset (Importeure von XML_Parse: libgdal, libkmlbase, libfreexl — ohne Reset)."
+zeit = 2026-11-05T05:26:02Z
+pruefer = "Claude (P04 Teil 1, im Auftrag der Master-Session)"
+
+[[vex]]
+schwachstelle = "OSV-2024-698"
+paket = "libxml2"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Use-after-free in xmlCharEncCloseFunc beim HTML-Speichern (Absturzpfad htmlSaveFileFormat). Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 05.11.2026 importiert irgendein html*-Symbol aus libxml2 (weder htmlSaveFile*, htmlDocDump*, htmlDocDumpMemory*, htmlNodeDump* noch htmlNodeDumpFile*; Gegenprobe: libxml2 exportiert 63 html*-Symbole); libxml2 wird dort nur zum Lesen genutzt (xmlReadFile/xmlReadMemory in libpdalcpp und libspatialite, xmlReaderForIO in libarchive)."
+zeit = 2026-11-05T06:10:15Z
+pruefer = "Claude (P04 Teil 1, im Auftrag der Master-Session)"
+
+[[vex]]
+schwachstelle = "OSV-2024-698"
+paket = "libxml2-16"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Use-after-free in xmlCharEncCloseFunc beim HTML-Speichern (Absturzpfad htmlSaveFileFormat). Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 05.11.2026 importiert irgendein html*-Symbol aus libxml2 (weder htmlSaveFile*, htmlDocDump*, htmlDocDumpMemory*, htmlNodeDump* noch htmlNodeDumpFile*; Gegenprobe: libxml2 exportiert 63 html*-Symbole); libxml2 wird dort nur zum Lesen genutzt (xmlReadFile/xmlReadMemory in libpdalcpp und libspatialite, xmlReaderForIO in libarchive)."
+zeit = 2026-11-05T06:10:15Z
+pruefer = "Claude (P04 Teil 1, im Auftrag der Master-Session)"
+
+[[vex]]
+schwachstelle = "OSV-2024-698"
+paket = "libxml2-devel"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Use-after-free in xmlCharEncCloseFunc beim HTML-Speichern (Absturzpfad htmlSaveFileFormat). Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 05.11.2026 importiert irgendein html*-Symbol aus libxml2 (weder htmlSaveFile*, htmlDocDump*, htmlDocDumpMemory*, htmlNodeDump* noch htmlNodeDumpFile*; Gegenprobe: libxml2 exportiert 63 html*-Symbole); libxml2 wird dort nur zum Lesen genutzt (xmlReadFile/xmlReadMemory in libpdalcpp und libspatialite, xmlReaderForIO in libarchive)."
+zeit = 2026-11-05T06:10:15Z
+pruefer = "Claude (P04 Teil 1, im Auftrag der Master-Session)"
+
+[[vex]]
+schwachstelle = "CVE-2026-85091"
+paket = "libzlib"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Überlauf in gz_vacate, nur über gzprintf()/gzvprintf() erreichbar (zlib v1.3.2 gzwrite.c: gz_vacate Z. 382, Aufrufe nur Z. 438/480 in gzvprintf und Z. 546/593 in gzprintf). Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 05.11.2026 importiert gzprintf oder gzvprintf (einziger gz-Schreibimporteur: libxml2 mit gzwrite)."
+zeit = 2026-11-05T05:26:02Z
+pruefer = "Claude (P04 Teil 1, im Auftrag der Master-Session)"
+
+[[vex]]
+schwachstelle = "CVE-2026-85091"
+paket = "zlib"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Überlauf in gz_vacate, nur über gzprintf()/gzvprintf() erreichbar (zlib v1.3.2 gzwrite.c: gz_vacate Z. 382, Aufrufe nur Z. 438/480 in gzvprintf und Z. 546/593 in gzprintf). Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 05.11.2026 importiert gzprintf oder gzvprintf (einziger gz-Schreibimporteur: libxml2 mit gzwrite)."
+zeit = 2026-11-05T05:26:02Z
+pruefer = "Claude (P04 Teil 1, im Auftrag der Master-Session)"
+
+[[vex]]
+schwachstelle = "CVE-2026-107708"
+paket = "krb5"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Fehler im KDC (get_pac_princ_with_realm). Der Code ist installiert, aber nie ausgeführt — deshalb nicht vulnerable_code_not_present: Die Funktion steht in der Umgebung nur in sbin/krb5kdc (nm und Bytesuche über lib/, bin/ und sbin/, 05.11.2026), in keiner Bibliothek. krb5kdc gehört nicht zur Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 05.11.2026 (dort nur libkrb5, libgssapi_krb5, libk5crypto, libkrb5support, libcom_err); pdal_runner startet nur bin/pdal und bin/untwine, einrichten.sh startet keinen KDC."
+zeit = 2026-11-05T06:10:15Z
+pruefer = "Claude (P04 Teil 1, im Auftrag der Master-Session)"
+
+[[vex]]
+schwachstelle = "CVE-2026-107778"
+paket = "krb5"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "NULL-Zeiger-Dereferenz in make_cred_list() (static in src/lib/krb5/krb/rd_cred.c, nur über krb5_rd_cred erreichbar; Fix-Commits 48afa9ab/62196e2b, behoben in 1.22.3). Laut Advisory ausgelöst durch weitergeleitete Credentials an einen GSS-API-Acceptor (gss_accept_sec_context). Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 10.11.2026 importiert gss_accept_sec_context; krb5_rd_cred importiert in der Hülle nur libgssapi_krb5, und dort ruft es allein kg_accept_krb5 (objdump), also der Acceptor-Pfad (kg_accept_krb5 wird nur aus krb5_gss_accept_sec_context_ext angesprungen, und das rufen nur krb5_gss_accept_sec_context und iakerb_gss_accept_sec_context auf; erreichbar über gss_accept_sec_context sowie die SPNEGO-/NegoEx-Acceptoren). In libkrb5 selbst gibt es keinen internen Aufruf von krb5_rd_cred. Einziger Nutzer von GSS-API in der Hülle ist libcurl, und zwar nur clientseitig (gss_init_sec_context, gss_acquire_cred u. a., kein Accept). Die übrigen Importeure von gss_accept_sec_context in der Umgebung (sbin/gss-server, lib/libgssrpc) gehören nicht zur Hülle; pdal_runner startet nur bin/pdal und bin/untwine. Die Aussage beruht auf dieser Symbolprüfung, nicht auf der Netzisolation des Workers."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-115506"
+paket = "libexpat"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Verspätete Billion-Laughs-Erkennung in accountingDiffTolerated() (lib/xmlparse.c). Erreichbar ist sie mit jedem XML_Parse eines Dokuments mit DTD. Die Symbolprüfung allein schließt das deshalb nicht aus: In der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 10.11.2026 importieren libgdal, libkmlbase und libfreexl XML_Parse. pdal, untwine, libpdalcpp und die PDAL-Plugins importieren kein XML_*-Symbol. libexpat, libkml* und libfreexl kommen nur über libgdal in den Prozess (readelf DT_NEEDED: libgdal → libexpat, libkmlbase/libkmldom/libkmlengine und libspatialite → libfreexl; libexpat steht sonst nur bei libkmlbase, libkmldom und libfreexl); lib/gdalplugins enthält nur drivers.ini. Was trägt: (1) In der GDAL-Quelle 3.13.3 (die Binärdatei enthält den String „GDAL 3.13.3“) steht XML_Parse nur in OGR-Vektortreibern (georss, gml, gpx, jml, kml, lvbag, ods, osm, xlsx); libkml wird nur vom Treiber LIBKML aufgerufen (ogr/ogrsf_frmts/libkml). Nur libspatialite bindet freexl ein (libgdal importiert kein freexl_*), und GDAL bindet libspatialite nur im SQLite-Treiber ein (spatialite_init_ex/spatialite_alloc_connection nur in ogr/ogrsf_frmts/sqlite/ogrsqlitedatasource.cpp). Einen XLS-Treiber hat dieses libgdal nicht (ogrinfo --formats: XLSX und ODS, kein XLS; kein RegisterOGRXLS). (2) In libpdalcpp 2.10.2 (objdump -d, 10.11.2026) rufen nur pdal::gdal::Raster::open und pdal::gdal::getPolygons GDALOpenEx auf, nur OverlayFilter::ready, TIndexReader::initialize und TIndexKernel::openDataset OGROpen und nur pdal::OGR::createLayer OGR_Dr_Open. Keine dieser Stellen gehört zu den festen Stufen readers.e57/las/text/ply/pts, filters.assign/transformation/voxelcenternearestneighbor/ferry/expression und writers.las/copc. COPC-Uploads laufen über readers.las (point_source.py). (3) CRS-Zeichenketten aus Datei oder Sidecar (override_srs, a_srs) gehen über SpatialRef an OSRSetFromUserInput. Laut GDAL-Quelle (ogrspatialreference.cpp Z. 4388/4416) öffnet das Dateien nur per VSIFOpenL, und importFromXML parst mit GDALs eigenem Minixml statt mit expat. (4) gdb mit Haltepunkten auf XML_ParserCreate, XML_ParserCreate_MM, XML_ParserCreateNS, XML_Parse und XML_ParseBuffer: Die festen Pipelines (text→transformation→assign→voxel→ferry→writers.las, readers.las→writers.copc, readers.e57/ply mit und ohne --stream, readers.pts, override_srs als Pfad auf eine XML-Datei mit DTD) und untwine erzeugen 0 Treffer. Die Positivkontrolle filters.overlay mit KML-Datei trifft (kmlbase::ExpatParser über OGRLIBKMLDriverOpen). Upstream behoben in R_2_10_0 (c30145b, PR #1433); conda-forge führt am 10.11.2026 nur 2.9.0."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-118370"
+paket = "libexpat"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Vorzeichenbehafteter Ganzzahlüberlauf von attIndex/nPrefixes in storeAtts() (lib/xmlparse.c). Ausgelöst wird er durch ein Starttag mit mehr als 2^30 Attributen in einem Dokument von mehreren GB. storeAtts läuft bei jedem XML_Parse; die Symbolprüfung allein schließt den Fehler deshalb nicht aus: In der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 10.11.2026 importieren libgdal, libkmlbase und libfreexl XML_Parse. pdal, untwine, libpdalcpp und die PDAL-Plugins importieren kein XML_*-Symbol. libexpat kommt nur über libgdal in den Prozess (direkt sowie über libkml* und libspatialite → libfreexl; einen XLS-Treiber hat dieses libgdal nicht, ogrinfo --formats). Die Entscheidung tragen dieselben Belege wie bei CVE-2026-115506: XML_Parse steht in der GDAL-Quelle 3.13.3 nur in OGR-Vektortreibern. Datensätze öffnet libpdalcpp 2.10.2 laut Disassemblierung nur in gdal::Raster::open, gdal::getPolygons, OverlayFilter, TIndexReader, TIndexKernel und OGR::createLayer; keine dieser Stellen liegt in den festen Stufen (readers.e57/las/text/ply/pts, filters.assign/transformation/voxelcenternearestneighbor/ferry/expression, writers.las/copc; COPC über readers.las). CRS-Zeichenketten gehen an OSRSetFromUserInput und werden ohne expat geparst (VSIFOpenL + importFromXML mit CPL-Minixml). Die gdb-Läufe der festen Pipelines und von untwine ergeben 0 Treffer auf XML_ParserCreate*/XML_Parse/XML_ParseBuffer; die KML-Positivkontrolle trifft. Upstream behoben mit 1bac53c und 621cb2c (PR #1450), beide in R_2_10_0; conda-forge führt am 10.11.2026 nur 2.9.0."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-124317"
+paket = "libexpat"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Lesezugriff außerhalb des Puffers in unknown_toUtf8()/unknown_toUtf16() (lib/xmltok.c, 2.9.0 Z. 1274/1304), nur bei einer von der Anwendung registrierten unbekannten Kodierung mit Mehrbyte-Folgen und convert-Callback. Grund 1: In den festen Stufen läuft überhaupt kein expat-Parse. Belegt ist das wie bei CVE-2026-115506: XML_Parse steht nur in GDAL-OGR-Vektortreibern sowie in libkml und freexl, libpdalcpp öffnet in den festen Stufen keinen GDAL/OGR-Datensatz, und die gdb-Läufe der festen Pipelines und von untwine ergeben 0 Treffer. Grund 2: Auch wo ein GDAL-Treiber parst, ist der fehlerhafte Zweig nicht erreichbar. In der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 10.11.2026 importiert nur libgdal XML_SetUnknownEncodingHandler; libkmlbase und libfreexl registrieren keinen Handler. Der einzige Handler, OGRExpatUnknownEncodingHandler (GDAL 3.13.3 ogr/ogr_expat.cpp, String „Unhandled encoding %s“ in libgdal vorhanden), kennt nur WINDOWS-1252 und ISO-8859-15. Er setzt ausschließlich Einbyte-Werte (Codepunkt oder -1) und convert = nullptr. expat 2.9.0 lehnt Mehrbyte-Einträge ohne Konverter ab (XmlInitUnknownEncoding, xmltok.c Z. 1345–1347). Der fehlerhafte Zweig (utf8[0] == 0 bzw. utf16 == 0, Aufruf von convert) entsteht nur für Mehrbyte-Einträge. Fix 3f83976 (PR #1492, 07.11.2026) steht in keinem Release-Tag; conda-forge führt am 10.11.2026 nur 2.9.0."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-128241"
+paket = "libexpat"
+status = "not_affected"
+justification = "vulnerable_code_not_present"
+impact_statement = "Symlink-Folgen im Kommandozeilenwerkzeug xmlwf (expat/xmlwf/xmlwf.c, Ausgabe mit -d per fopen(\"wb\")), nicht in der Bibliothek. Das conda-forge-Paket libexpat-2.9.0-hd2095e1_0 enthält laut conda-meta/libexpat-2.9.0-hd2095e1_0.json nur lib/libexpat.so.1 und lib/libexpat.so.1.13.0; xmlwf liefert das getrennte Paket expat, das in pixi.lock nur als Versionsbindung unter constrains von libexpat (expat 2.9.0.*) steht und kein eigenes Paket der Umgebung ist. Beleg 18.11.2026 im Image scanview-pdal:e65b1fb8ba03 (ID sha256:99c713291747da729689d974f47572a789d21bb57032d07ab84c696f46ad083f, docker export | tar -t): kein conda-meta/expat-*, kein bin/xmlwf; die einzigen bin/xml*-Dateien sind xml2-config, xmlcatalog und xmllint aus libxml2. Unabhängig davon starten die Stufen von pdal_runner als Werkzeug nur pdal und untwine (lokal direkt als bin/pdal und bin/untwine, im Container über den RSS-Messwrapper python -c, auf dem Host über docker run/inspect/build), xmlwf nie."
+zeit = 2026-11-18T17:48:19Z
+pruefer = "Claude (Release 0.12.5, Master-Session; zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "OSV-2022-608"
+paket = "libjxl"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Heap-use-after-free in jxl::WriteToPixelCallbackStage::ProcessRow. Das ist die Renderpipeline des Decoders (LowMemoryRenderPipeline::RenderRect/ProcessBuffers, OSS-Fuzz 49277). OSV verzeichnet kein Fix-Ereignis und führt v0.12.0 als betroffen. Der Code ist geladen, wird aber nie ausgeführt, deshalb gilt nicht vulnerable_code_not_present. libjxl.so.0.12.0 liegt in der Hülle (ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung, 70 ELF-Dateien, Importe per nm -D --undefined-only, 10.11.2026). Einziger Importeur ist libgdal mit 58 Jxl*-Importen aus libjxl/libjxl_threads, darunter JxlDecoderCreate und JxlDecoderProcessInput. Laut Quelle (GDAL v3.13.3) und installierter Binärdatei (objdump -d -C) rufen nur zwei Stellen den Decoder auf: der Treiber JPEGXL (JPEGXLDataset::Identify/Open/GetDecodedImage/ReadCompressedData, frmts/jpegxl/jpegxl.cpp) und der JXL-Codec der GDAL-internen libtiff (JXLPreDecode, frmts/gtiff/tif_jxl.c). Beide laufen erst, wenn GDAL einen Rasterdatensatz öffnet. In der Hülle importiert nur libpdalcpp GDAL-Symbole. Dort rufen nur pdal::gdal::Raster::open und pdal::gdal::getPolygons GDALOpenEx auf (objdump, 10.11.2026). Raster::open wird aufgerufen von readers.gdal, filters.colorization, colorinterp, dem und hag_dem, writers.gdal und raster sowie math::writeMatrix. getPolygons öffnet nur mit GDAL_OF_VECTOR und dient OGRSpec (filters.crop/geomdistance, readers.copc/ept/stac/tindex). Keine dieser Stufen erzeugt siteBits: pdal_runner und point_source.detect_format kennen nur readers.e57/las/text/ply/pts, filters.assign/transformation/voxelcenternearestneighbor/ferry/expression, writers.las/copc und untwine. SRS-Angaben aus override_srs/a_srs und LAS-VLRs laufen über OGRSpatialReference::SetFromUserInput. Dessen Dateizweig liest in GDAL 3.13.3 nur Text (VSIFOpenL Z. 4388, VSIFReadL, dann WKT/PROJ/XML) und öffnet keinen Datensatz. Gegenprobe zur Laufzeit (gdb, Haltepunkte auf JxlDecoderCreate, JxlDecoderProcessInput und GDALOpenEx, Umgebung wie im Runner): Für diese Testeingaben gab es keinen Treffer, nämlich LAS mit SRS-VLR, LAZ, COPC, PLY, CSV, PTS und E57, jeweils durch alle fünf Filter nach writers.las, dazu writers.copc und untwine. Die Positivkontrolle (readers.gdal auf ein GeoTIFF mit COMPRESS=JXL) trifft JxlDecoderCreate über JXLPreDecode und gdal_TIFFStartStrip."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "OSV-2022-725"
+paket = "libjxl"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Heap-buffer-overflow (WRITE 1) in jxl::N_EMU128::WriteToU8Stage::ProcessRow. Das ist die Renderpipeline des Decoders (LowMemoryRenderPipeline::RenderRect/ProcessBuffers, OSS-Fuzz 50295). OSV verzeichnet kein Fix-Ereignis und führt v0.12.0 als betroffen. Der Code ist geladen, wird aber nie ausgeführt, deshalb gilt nicht vulnerable_code_not_present. libjxl.so.0.12.0 liegt in der Hülle (ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung, 70 ELF-Dateien, Importe per nm -D --undefined-only, 10.11.2026). Einziger Importeur ist libgdal mit 58 Jxl*-Importen aus libjxl/libjxl_threads, darunter JxlDecoderCreate und JxlDecoderProcessInput. Laut Quelle (GDAL v3.13.3) und installierter Binärdatei (objdump -d -C) rufen nur zwei Stellen den Decoder auf: der Treiber JPEGXL (JPEGXLDataset::Identify/Open/GetDecodedImage/ReadCompressedData) und der JXL-Codec der GDAL-internen libtiff (JXLPreDecode, frmts/gtiff/tif_jxl.c). Beide laufen erst, wenn GDAL einen Rasterdatensatz öffnet. In libpdalcpp, dem einzigen Importeur von GDAL-Symbolen der Hülle, rufen nur gdal::Raster::open und gdal::getPolygons GDALOpenEx auf. Raster::open wird aufgerufen von readers.gdal, filters.colorization, colorinterp, dem und hag_dem, writers.gdal und raster sowie math::writeMatrix. getPolygons öffnet nur mit GDAL_OF_VECTOR und dient OGRSpec (filters.crop/geomdistance, readers.copc/ept/stac/tindex). Keine dieser Stufen erzeugt siteBits: Der Runner kennt nur readers.e57/las/text/ply/pts, filters.assign/transformation/voxelcenternearestneighbor/ferry/expression, writers.las/copc und untwine. Der Dateizweig von SetFromUserInput für SRS aus den Eingaben liest nur Text (VSIFOpenL Z. 4388). Gegenprobe zur Laufzeit (gdb, Haltepunkte auf JxlDecoderCreate, JxlDecoderProcessInput und GDALOpenEx, Umgebung wie im Runner): Für diese Testeingaben gab es keinen Treffer, nämlich LAS mit SRS-VLR, LAZ, COPC, PLY, CSV, PTS und E57, dazu writers.copc und untwine. Die Positivkontrolle (readers.gdal auf ein JXL-GeoTIFF) trifft JxlDecoderCreate."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "OSV-2026-564"
+paket = "libjxl"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Use-of-uninitialized-value. Als Absturzstelle nennt OSS-Fuzz (501356662) nur das Harness DoTestOneInput in djxl_fuzzer.cc, also den Decoder-Fuzzer. Eine Bibliotheksfunktion ist nicht benannt. Fix laut OSV: ec2982b1. Der Fix-Bereich e47d2a2b..ec2982b1 umfasst 6 Commits vom 26.10.2026, darunter Änderungen an lib/jxl/render_pipeline/low_memory_render_pipeline.cc und lib/jxl/decode.cc. ec2982b1 selbst ändert nur den PNM-Leser in lib/extras. Der Bereich liegt 32 Commits nach v0.12.0, und es gibt kein neueres Release-Tag. Die Aussage stützt sich deshalb nicht auf eine Funktion, sondern darauf, dass kein Decoder-Einstieg von libjxl je aufgerufen wird. Der Code ist geladen, wird aber nie ausgeführt, deshalb gilt nicht vulnerable_code_not_present. libjxl.so.0.12.0 liegt in der Hülle (ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so, 70 ELF-Dateien, Importe per nm -D --undefined-only, 10.11.2026). Einziger Importeur ist libgdal mit 58 Jxl*-Importen aus libjxl/libjxl_threads. JxlDecoderCreate und JxlDecoderProcessInput rufen laut Quelle (GDAL v3.13.3) und Binärdatei (objdump) nur JPEGXLDataset::Identify/Open/GetDecodedImage/ReadCompressedData und JXLPreDecode auf (JXL-Codec der GDAL-internen libtiff). Beide laufen erst, wenn GDAL einen Rasterdatensatz öffnet. In libpdalcpp rufen nur gdal::Raster::open und gdal::getPolygons (nur Vektor) GDALOpenEx auf. Ihre Aufrufer sind readers.gdal, filters.colorization/colorinterp/dem/hag_dem, writers.gdal/raster und OGRSpec-Stufen, die siteBits alle nie erzeugt (Runner: nur readers.e57/las/text/ply/pts, filters.assign/transformation/voxelcenternearestneighbor/ferry/expression, writers.las/copc und untwine). Der Dateizweig von SetFromUserInput liest nur Text. Gegenprobe zur Laufzeit (gdb, Haltepunkte auf JxlDecoderCreate, JxlDecoderProcessInput und GDALOpenEx): Für diese Testeingaben (LAS mit SRS-VLR, LAZ, COPC, PLY, CSV, PTS, E57, untwine) gab es keinen Treffer. Die Positivkontrolle (readers.gdal auf ein JXL-GeoTIFF) trifft JxlDecoderCreate."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "OSV-2026-711"
+paket = "libjxl"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Use-of-uninitialized-value in jxl::PerformMulBlending (<- PerformBlending <- N_AVX2::BlendingStage::ProcessRow). Das ist die Blending-Stufe in der Renderpipeline des Decoders (OSS-Fuzz 511400706). Fix laut OSV: ec2982b1. Der Fix-Bereich e47d2a2b..ec2982b1 umfasst 6 Commits vom 26.10.2026, liegt 32 Commits nach v0.12.0 und steckt in keinem Release-Tag. Der Code ist geladen, wird aber nie ausgeführt, deshalb gilt nicht vulnerable_code_not_present. libjxl.so.0.12.0 liegt in der Hülle (ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung, 70 ELF-Dateien, Importe per nm -D --undefined-only, 10.11.2026). Einziger Importeur ist libgdal mit 58 Jxl*-Importen aus libjxl/libjxl_threads, darunter JxlDecoderCreate und JxlDecoderProcessInput. Laut Quelle (GDAL v3.13.3) und installierter Binärdatei (objdump -d -C) rufen nur JPEGXLDataset::Identify/Open/GetDecodedImage/ReadCompressedData und JXLPreDecode (JXL-Codec der GDAL-internen libtiff) den Decoder auf. Beide laufen erst, wenn GDAL einen Rasterdatensatz öffnet. In libpdalcpp, dem einzigen Importeur von GDAL-Symbolen, rufen nur gdal::Raster::open und gdal::getPolygons (nur GDAL_OF_VECTOR) GDALOpenEx auf. Ihre Aufrufer sind readers.gdal, filters.colorization/colorinterp/dem/hag_dem, writers.gdal/raster, math::writeMatrix und OGRSpec-Stufen, die siteBits alle nie erzeugt (Runner: nur readers.e57/las/text/ply/pts, filters.assign/transformation/voxelcenternearestneighbor/ferry/expression, writers.las/copc und untwine). Der Dateizweig von SetFromUserInput für SRS aus den Eingaben liest nur Text (VSIFOpenL Z. 4388). Gegenprobe zur Laufzeit (gdb, Haltepunkte auf JxlDecoderCreate, JxlDecoderProcessInput und GDALOpenEx, Umgebung wie im Runner): Für diese Testeingaben (LAS mit SRS-VLR, LAZ, COPC, PLY, CSV, PTS, E57, writers.copc, untwine) gab es keinen Treffer. Die Positivkontrolle (readers.gdal auf ein JXL-GeoTIFF) trifft JxlDecoderCreate über JXLPreDecode und gdal_TIFFStartStrip."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "OSV-2021-777"
+paket = "libxml2"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Use-after-free in xmlAddNextSibling beim XInclude-Kopieren (OSS-Fuzz 34461, Absturzpfad xmlXIncludeCopyRange/xmlXIncludeCopyXPointer). OSV führt nur ein introduced-Ereignis, keine behobene Version; xmlXIncludeCopyRange gibt es in libxml2 2.15.4 nicht mehr, xmlXIncludeCopyXPointer schon (xinclude.c Z. 826, Aufruf Z. 1313). Die Aussage stützt sich deshalb auf die Symbolprüfung und darauf, dass XInclude abgeschaltet bleibt, nicht auf den Wegfall der Funktion. XInclude läuft nur über die xmlXInclude*-API oder intern im xmlTextReader (xmlreader.c Z. 1433–1461), und dort nur, wenn XML_PARSE_XINCLUDE an xmlTextReaderSetup übergeben wurde (Z. 4855–4859); der Parser selbst ignoriert die Option (parser.c Z. 13176–13178), andere Aufrufer gibt es in 2.15.4 außerhalb von Tests, Beispielen und xmllint nicht. Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 10.11.2026 importiert irgendein xmlXInclude*-Symbol (Gegenprobe: libxml2.so.16.1.4 exportiert 13 davon), xmlTextReaderSetup, xmlTextReaderSetParserProp oder xmlReaderNew*. Einziger Reader-Importeur der Hülle ist libarchive (xar-Leser): xmlReaderForIO(..., 0), im Binärcode belegt (xar_read_header: xor %r9d,%r9d an 0x63c6b vor dem Aufruf an 0x63c84). libgdal, libspatialite und libpdalcpp parsen XML nur über xmlReadFile/xmlReadMemory (libspatialite, libpdalcpp) bzw. xmlParseDoc (libgdal) sowie im Schema-Code (xmlSchemaParse, bei libgdal auch xmlSchemaValidateFile); dazu kommen XPath-, Baum- und Speicher-Schreibfunktionen. XInclude rufen in den Bibliotheksquellen von 2.15.4 nur xinclude.c selbst und xmlreader.c auf, Schema-, XPath- und Baumcode nicht. lib/gdalplugins enthält nur drivers.ini. In der Umgebung importiert allein bin/xmllint (aus dem Paket libxml2) XInclude-Symbole, aber xmllint liegt außerhalb der Hülle und wird nie gestartet (pdal_runner startet nur bin/pdal und bin/untwine). Ebenfalls außerhalb der Hülle liegen bin/bsdtar und bin/bsdcpio, die denselben xmlReaderForIO-Weg nutzen. Das Paket libxml2 selbst enthält laut conda-meta nur bin/xmllint und bin/xmlcatalog, beide außerhalb der Hülle; die Bibliothek lib/libxml2.so.16.1.4 gehört zum Paket libxml2-16."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "OSV-2021-777"
+paket = "libxml2-16"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Use-after-free in xmlAddNextSibling beim XInclude-Kopieren (OSS-Fuzz 34461, Absturzpfad xmlXIncludeCopyRange/xmlXIncludeCopyXPointer). OSV führt nur ein introduced-Ereignis, keine behobene Version; xmlXIncludeCopyRange gibt es in libxml2 2.15.4 nicht mehr, xmlXIncludeCopyXPointer schon (xinclude.c Z. 826, Aufruf Z. 1313). Die Aussage stützt sich deshalb auf die Symbolprüfung und darauf, dass XInclude abgeschaltet bleibt, nicht auf den Wegfall der Funktion. XInclude läuft nur über die xmlXInclude*-API oder intern im xmlTextReader (xmlreader.c Z. 1433–1461), und dort nur, wenn XML_PARSE_XINCLUDE an xmlTextReaderSetup übergeben wurde (Z. 4855–4859); der Parser selbst ignoriert die Option (parser.c Z. 13176–13178), andere Aufrufer gibt es in 2.15.4 außerhalb von Tests, Beispielen und xmllint nicht. Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 10.11.2026 importiert irgendein xmlXInclude*-Symbol (Gegenprobe: libxml2.so.16.1.4 exportiert 13 davon), xmlTextReaderSetup, xmlTextReaderSetParserProp oder xmlReaderNew*. Einziger Reader-Importeur der Hülle ist libarchive (xar-Leser): xmlReaderForIO(..., 0), im Binärcode belegt (xar_read_header: xor %r9d,%r9d an 0x63c6b vor dem Aufruf an 0x63c84). libgdal, libspatialite und libpdalcpp parsen XML nur über xmlReadFile/xmlReadMemory (libspatialite, libpdalcpp) bzw. xmlParseDoc (libgdal) sowie im Schema-Code (xmlSchemaParse, bei libgdal auch xmlSchemaValidateFile); dazu kommen XPath-, Baum- und Speicher-Schreibfunktionen. XInclude rufen in den Bibliotheksquellen von 2.15.4 nur xinclude.c selbst und xmlreader.c auf, Schema-, XPath- und Baumcode nicht. lib/gdalplugins enthält nur drivers.ini. In der Umgebung importiert allein bin/xmllint (aus dem Paket libxml2) XInclude-Symbole, aber xmllint liegt außerhalb der Hülle und wird nie gestartet (pdal_runner startet nur bin/pdal und bin/untwine). Ebenfalls außerhalb der Hülle liegen bin/bsdtar und bin/bsdcpio, die denselben xmlReaderForIO-Weg nutzen."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "OSV-2021-777"
+paket = "libxml2-devel"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Use-after-free in xmlAddNextSibling beim XInclude-Kopieren (OSS-Fuzz 34461, Absturzpfad xmlXIncludeCopyRange/xmlXIncludeCopyXPointer). OSV führt nur ein introduced-Ereignis, keine behobene Version; xmlXIncludeCopyRange gibt es in libxml2 2.15.4 nicht mehr, xmlXIncludeCopyXPointer schon (xinclude.c Z. 826, Aufruf Z. 1313). Die Aussage stützt sich deshalb auf die Symbolprüfung und darauf, dass XInclude abgeschaltet bleibt, nicht auf den Wegfall der Funktion. XInclude läuft nur über die xmlXInclude*-API oder intern im xmlTextReader (xmlreader.c Z. 1433–1461), und dort nur, wenn XML_PARSE_XINCLUDE an xmlTextReaderSetup übergeben wurde (Z. 4855–4859); der Parser selbst ignoriert die Option (parser.c Z. 13176–13178), andere Aufrufer gibt es in 2.15.4 außerhalb von Tests, Beispielen und xmllint nicht. Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 10.11.2026 importiert irgendein xmlXInclude*-Symbol (Gegenprobe: libxml2.so.16.1.4 exportiert 13 davon), xmlTextReaderSetup, xmlTextReaderSetParserProp oder xmlReaderNew*. Einziger Reader-Importeur der Hülle ist libarchive (xar-Leser): xmlReaderForIO(..., 0), im Binärcode belegt (xar_read_header: xor %r9d,%r9d an 0x63c6b vor dem Aufruf an 0x63c84). libgdal, libspatialite und libpdalcpp parsen XML nur über xmlReadFile/xmlReadMemory (libspatialite, libpdalcpp) bzw. xmlParseDoc (libgdal) sowie im Schema-Code (xmlSchemaParse, bei libgdal auch xmlSchemaValidateFile); dazu kommen XPath-, Baum- und Speicher-Schreibfunktionen. XInclude rufen in den Bibliotheksquellen von 2.15.4 nur xinclude.c selbst und xmlreader.c auf, Schema-, XPath- und Baumcode nicht. lib/gdalplugins enthält nur drivers.ini. In der Umgebung importiert allein bin/xmllint (aus dem Paket libxml2) XInclude-Symbole, aber xmllint liegt außerhalb der Hülle und wird nie gestartet (pdal_runner startet nur bin/pdal und bin/untwine). Ebenfalls außerhalb der Hülle liegen bin/bsdtar und bin/bsdcpio, die denselben xmlReaderForIO-Weg nutzen. Das Paket libxml2-devel enthält laut conda-meta 49 Dateien: 46 Header (include/libxml2/libxml/*.h), bin/xml2-config (Shell-Skript), lib/pkgconfig/libxml-2.0.pc und den Entwicklungs-Symlink lib/libxml2.so → libxml2.so.16.1.4 (ls -l), also keinen eigenen Code; die Bibliothek gehört zum Paket libxml2-16."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2025-67899"
+paket = "uriparser"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Unbegrenzte Rekursion/Stapelüberlauf im Parser src/UriParse.c (uriparser 0.9.8; OSV: last_affected 0.9.9, Beispiel ParseMustBeSegmentNzNc mit vielen Kommas). Der Fix PR #284 (ChangeLog 0.9.10) löst alle 13 Fälle direkter und indirekter Rekursion im Parser auf, nicht nur die in ParseMustBeSegmentNzNc (Selbstaufrufe Z. 911/932; Einstiege in ParseMustBeSegmentNzNc aus ParseSegmentNzNcOrScheme2 Z. 1868/1884 und ParseUriReference Z. 1976/1986). Erreichbar sind sie über die Parse-Einstiege (uriParseUriA u. a.). Der Code ist geladen, wird aber nie aufgerufen, deshalb nicht vulnerable_code_not_present: liburiparser kommt nur über die NEEDED-Kette libgdal → libkmlbase → liburiparser in den Prozess. In der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 10.11.2026 importiert nur libkmlbase uri*-Symbole (uriParseUriA, uriAddBaseUriA, uriNormalizeSyntaxA, uriToStringA, uriToStringCharsRequiredA, uriFreeUriMembersA, uriUnixFilenameToUriStringA, uriUriStringToUnixFilenameA, uriUriStringToWindowsFilenameA, uriWindowsFilenameToUriStringA); libkml-Symbole importieren nur libgdal, libkmldom und libkmlengine. In GDAL 3.13.3 bindet nur ogr/ogrsf_frmts/libkml die libkml-Header ein; dieser Treiber ist fest in libgdal (lib/gdalplugins enthält nur drivers.ini) und wird nur über GDALAllRegister/OGRRegisterAll (ogrregisterall.cpp) registriert. In der Hülle importiert nur libpdalcpp diese Symbole; PDAL 2.10.2 ruft sie nur in gdal::registerDrivers() (GDALUtils.cpp) auf, erreichbar aus readers.gdal/ogr/tindex/stac, filters.colorization/colorinterp/overlay/dem/hag_dem/geomdistance/smrf (Debug-Raster), writers.gdal/ogr/raster und OGRSpec-Optionen (readers.copc/ept, filters.crop) — keine der festen Stufen (readers.e57/las/text/ply/pts, filters.assign/transformation/voxelcenternearestneighbor/ferry/expression, writers.las/copc) enthält GDAL-Öffnungs- oder Registrierungsaufrufe, und die Pipeline-JSON baut pdal_runner mit festen Schlüsseln, sodass eine hochgeladene Datei keine Stufe oder Option ergänzen kann. SRS-Zeichenketten gehen nur an OGRSpatialReference::SetFromUserInput, das höchstens per VSIFOpenL eine Datei liest, keinen Treiber öffnet. Gegenprobe zur Laufzeit (10.11.2026): bin/pdal pipeline mit allen festen Stufen (6 Pipelines, darunter --stream mit readers.e57) und bin/untwine unter gdb mit Haltepunkten auf allen 47 uri*-Exporten von liburiparser sowie GDALAllRegister/OGRRegisterAll/RegisterOGRLIBKML/GDALOpen/GDALOpenEx/OGROpen, je 53 aufgelöst, 0 Treffer; Kontrollen: ogrinfo -if LIBKML trifft die GDAL-Haltepunkte, direkter Aufruf von uriParseSingleUriA trifft die uri*-Haltepunkte. Behoben erst nach 0.9.9; conda-forge führt nur 0.9.8 (api.anaconda.org, 10.11.2026)."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-42371"
+paket = "uriparser"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Längenabschneidung in CompareRange (src/UriCommon.c; OSV: behoben in 1.0.1, PR #298). Aufrufer in uriparser 0.9.8 nur EqualsUri (UriCompare.c), RemoveBaseUriImpl samt EqualsAuthority (UriShorten.c) und AddBaseUriImpl (UriResolve.c:180), dort nur mit Option URI_RESOLVE_IDENTICAL_SCHEME_COMPAT. Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 10.11.2026 importiert uriEqualsUri*, uriRemoveBaseUri* oder uriAddBaseUriEx*; einziger uri*-Importeur libkmlbase nutzt uriAddBaseUriA, das fest URI_RESOLVE_STRICTLY (= 0) übergibt (UriResolve.c:297-300), womit der CompareRange-Zweig nie läuft. Zusätzlich ist libkmlbase nur über den GDAL-Treiber LIBKML erreichbar, den keine der festen PDAL-Stufen registriert oder öffnet (gdb-Gegenprobe 10.11.2026: 0 Treffer auf allen uri*-Exporten über alle festen Stufen und untwine). Code geladen, aber nie aufgerufen. conda-forge führt nur 0.9.8 (api.anaconda.org, 10.11.2026)."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-44927"
+paket = "uriparser"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Abschneiden von Zeigerdifferenzen auf int an mehreren Stellen (OSV: behoben in 1.0.2, PR #304: UriCommon.c, UriFile.c, UriNormalize.c, UriQuery.c, UriRecompose.c). Über die Importe von libkmlbase (uriToStringA, uriToStringCharsRequiredA, uriNormalizeSyntaxA, uri*Filename*) sind betroffene Dateien grundsätzlich erreichbar, die Aussage stützt sich deshalb auf die Aufrufkette, nicht auf Symbole: Der Code ist geladen (NEEDED-Kette libgdal → libkmlbase → liburiparser), wird aber nie aufgerufen. In der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 10.11.2026 importiert nur libkmlbase uri*-Symbole; libkml nutzt in GDAL 3.13.3 nur der fest eingebaute Treiber LIBKML (lib/gdalplugins nur drivers.ini), registriert nur über GDALAllRegister/OGRRegisterAll, die in der Hülle nur libpdalcpp importiert und PDAL 2.10.2 nur in gdal::registerDrivers() aufruft — aus keiner der festen Stufen (readers.e57/las/text/ply/pts, filters.assign/transformation/voxelcenternearestneighbor/ferry/expression, writers.las/copc); pdal_runner baut die Pipeline mit festen Schlüsseln. Laufzeit-Gegenprobe 10.11.2026 unter gdb: 6 Pipelines mit allen festen Stufen und bin/untwine, je 53 aufgelöste Haltepunkte (47 uri*-Exporte, GDAL-Registrierung/-Öffnung), 0 Treffer. conda-forge führt nur 0.9.8 (api.anaconda.org, 10.11.2026)."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-44928"
+paket = "uriparser"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Fehlklassifikation ungleicher URIs als gleich in der Funktionsfamilie EqualsUri (src/UriCompare.c; OSV: behoben in 1.0.2, PR #305 ändert nur UriCompare.c). EqualsUri hat in uriparser 0.9.8 keine internen Aufrufer, erreichbar nur über die Exporte uriEqualsUriA/W/Mm. Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 10.11.2026 importiert uriEqualsUri* (einziger uri*-Importeur libkmlbase, nur uriParseUriA, uriAddBaseUriA, uriNormalizeSyntaxA, uriToStringA, uriToStringCharsRequiredA, uriFreeUriMembersA und die vier Dateinamen-Umwandler). Code geladen (über libgdal → libkmlbase), aber nie aufgerufen; gdb-Gegenprobe 10.11.2026 über alle festen Stufen und untwine: 0 Treffer. conda-forge führt nur 0.9.8 (api.anaconda.org, 10.11.2026)."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-76844"
+paket = "libzlib"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Heap-Überlauf in gz_write (zlib v1.3.2 gzwrite.c Z. 188, Rücksprung ohne Zurücksetzen von strm.next_in Z. 245) nach fehlgeschlagenem write(). Eingang nur über gz-Schreibaufrufe (gzwrite/gzfwrite/gzputc/gzputs; der von VulnCheck genannte gz_vacate-Pfad über gzprintf/gzvprintf ist mitgeprüft) auf einem zum Schreiben geöffneten gzFile. In der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 10.11.2026, importiert nur libxml2 gz-Symbole (gzwrite, gzdopen, gzclose, gzread, gzdirect), kein ELF importiert gzfwrite, gzputc, gzputs, gzprintf, gzvprintf, gzflush, gzsetparams, gzopen; zlib steckt in keinem anderen ELF der Hülle (Bytesuche nach den zlib-Kennungen nur in libz.so.1.3.2); lib/gdalplugins enthält nur drivers.ini. In libxml2 2.15.4 ruft gzwrite einzig xmlGzfileWrite (xmlIO.c Z. 1117; objdump: einzige Aufrufstelle); dessen Adresse wird nur in __xmlOutputBufferCreateFilename nach gzdopen(fd, \"wb%d\") als Schreib-Callback gesetzt (xmlIO.c Z. 1282/1290, nur bei Kompression 1–9; Relokation 0x13c278), gzclose erreicht gzclose_w nur über diesen Schreib-Handle, das zweite gzdopen (xmlInputFromFd, \"rb\") ist nur lesend. Erreichbar ist das nur über __xmlOutputBufferCreateFilename, xmlOutputBufferCreateFilename(Default) und xmlThrDefOutputBufferCreateFilenameDefault, xmlSaveFile*/xmlSaveFormatFile*/xmlSaveToFilename, htmlSaveFile*, xmlC14NDocSave und xmlNewTextWriterFilename; kein ELF der Hülle importiert eines davon (libxml2 exportiert sie, Gegenprobe), die Importeure schreiben XML nur in den Speicher (xmlNewTextWriterMemory in libpdalcpp/libarchive, xmlNodeDump in libgdal, xmlDocDumpFormatMemory in libspatialite). Der Fehler ist damit nicht ausführbar, nicht bloß durch Netzsperre abgeschirmt. Hinweis: Der Fix-Commit df84af25 nennt im Text auch CVE-2026-85091."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-76844"
+paket = "zlib"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Heap-Überlauf in gz_write (zlib v1.3.2 gzwrite.c Z. 188, Rücksprung ohne Zurücksetzen von strm.next_in Z. 245) nach fehlgeschlagenem write(). Eingang nur über gz-Schreibaufrufe (gzwrite/gzfwrite/gzputc/gzputs; der von VulnCheck genannte gz_vacate-Pfad über gzprintf/gzvprintf ist mitgeprüft) auf einem zum Schreiben geöffneten gzFile. Das Paket zlib liefert nur Entwicklerdateien (u. a. lib/libz.a); kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien), Importe per nm -D --undefined-only, 10.11.2026, enthält eine statische zlib-Kopie (Bytesuche nach den zlib-Kennungen nur in libz.so.1.3.2). In der Hülle importiert nur libxml2 gz-Symbole (gzwrite, gzdopen, gzclose, gzread, gzdirect), kein ELF importiert gzfwrite, gzputc, gzputs, gzprintf, gzvprintf, gzflush, gzsetparams, gzopen. In libxml2 2.15.4 ruft gzwrite einzig xmlGzfileWrite (xmlIO.c Z. 1117), gesetzt nur in __xmlOutputBufferCreateFilename nach gzdopen(fd, \"wb%d\") bei Kompression 1–9 (xmlIO.c Z. 1282/1290); erreichbar nur über __xmlOutputBufferCreateFilename, xmlOutputBufferCreateFilename(Default) und xmlThrDefOutputBufferCreateFilenameDefault, xmlSaveFile*/xmlSaveFormatFile*/xmlSaveToFilename, htmlSaveFile*, xmlC14NDocSave und xmlNewTextWriterFilename, die kein ELF der Hülle importiert; die Importeure schreiben XML nur in den Speicher (xmlNewTextWriterMemory, xmlNodeDump, xmlDocDumpFormatMemory). Hinweis: Der Fix-Commit df84af25 nennt im Text auch CVE-2026-85091."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-58050"
+paket = "libssh2"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Ganzzahlüberlauf bei der Attribut-Allokation im publickey-Subsystem (src/publickey.c, libssh2_publickey_list_fetch; laut Advisory nur auf 32-Bit-Plattformen, die Umgebung ist x86_64). Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins enthält keine Plugins, nur drivers.ini), Importe per nm -D --undefined-only, 10.11.2026 importiert ein libssh2_publickey_*-Symbol. Einziger libssh2-Importeur ist libcurl, mit 63 Symbolen und ohne publickey-Subsystem. Innerhalb von libssh2.so.1.0.1 zeigen laut objdump -d alle 217 Verweise auf libssh2_publickey_*, publickey_packet_receive und publickey_response_success aus dem Subsystem selbst, keiner kommt von außen. Das Subsystem ist also nur über die öffentliche API erreichbar, und die ruft niemand auf. Der Fix ist in 1.11.1 nicht enthalten (OSV: last_affected a312b43), deshalb ist der Code vorhanden und nicht vulnerable_code_not_present."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-58051"
+paket = "libssh2"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Free eines nicht initialisierten Zeigers beim Aufräumen der publickey-Liste (src/publickey.c, libssh2_publickey_list_fetch, danach libssh2_publickey_list_free). Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins enthält keine Plugins, nur drivers.ini), Importe per nm -D --undefined-only, 10.11.2026 importiert ein libssh2_publickey_*-Symbol. Einziger libssh2-Importeur ist libcurl, mit 63 Symbolen und ohne publickey-Subsystem. Innerhalb von libssh2.so.1.0.1 zeigen laut objdump -d alle 217 Verweise auf das Subsystem aus dem Subsystem selbst, keiner kommt von außen. Erreichbar wäre es nur über die öffentliche API, und die ruft niemand auf. Der Fix ist in 1.11.1 nicht enthalten (OSV: last_affected a312b43), der Code ist also vorhanden."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-66034"
+paket = "libssh2"
+status = "not_affected"
+justification = "vulnerable_code_not_in_execute_path"
+impact_statement = "Heap-Lesefehler über die Puffergrenze (comment_len) und Free eines nicht initialisierten Zeigers in libssh2_publickey_list_fetch() (src/publickey.c), behoben in a13bb6c. Kein ELF der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins enthält keine Plugins, nur drivers.ini), Importe per nm -D --undefined-only, 10.11.2026 importiert ein libssh2_publickey_*-Symbol. Einziger libssh2-Importeur ist libcurl, mit 63 Symbolen und ohne publickey-Subsystem. Innerhalb von libssh2.so.1.0.1 zeigen laut objdump -d alle 217 Verweise auf das Subsystem aus dem Subsystem selbst, keiner kommt von außen. Der Fix a13bb6c ist in libssh2-1.11.1 (a312b43) nicht enthalten (GitHub compare: behind), der Code ist also vorhanden, wird aber nie aufgerufen."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2025-15661"
+paket = "libssh2"
+status = "not_affected"
+justification = "inline_mitigations_already_exist"
+impact_statement = "Heap-Lesefehler über die Puffergrenze in sftp_symlink() (src/sftp.c), ausgelöst durch eine präparierte SSH_FXP_NAME-Antwort des SFTP-Servers bei READLINK/REALPATH, behoben in 2dae302. Einziger libssh2-Importeur in der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins ohne Plugins), Importe per nm -D --undefined-only, 10.11.2026 ist libcurl 8.23.0. Es importiert 63 libssh2-Symbole, darunter libssh2_sftp_symlink_ex. Die Fehlerstelle ist damit erreichbar, und zwar nur in einer SFTP-Sitzung über eine sftp://-URL: curl-config --protocols nennt SCP und SFTP, libssh2 liest die Serverantwort per recv() aus dem Socket, den libcurl nach dem Verbindungsaufbau übergibt. Dass eine fremde Eingabedatei libcurl eine solche URL unterschieben kann, ist nicht ausgeschlossen: Die Stufen bekommen nur lokale Pfade, aber Inhalte wie SRS-Zeichenketten gehen an GDAL, und GDAL /vsicurl/ reicht URLs an libcurl weiter. Deshalb lautet die Begründung nicht vulnerable_code_not_in_execute_path. Abschirmung, gültig für den Import-Worker auf dem Server (scanview-import-worker, von einrichten.sh mit SCANVIEW_IMPORT=1 eingerichtet; der am Arbeitsplatz laufen dieselben Builds im Image scanview-pdal (Gleichheit per test_image_lock_gleiche_builds_wie_pdal_umgebung), dort abgeschirmt durch docker run --network none, gemessen nur lo; diese VEX-Aussage ist formal an pixi.lock gebunden und gibt den Image-Inhalt nicht frei, siehe B-SCAN-IMG-PDAL): pdal und untwine laufen als Kind von scanview-import in der transienten Auftrags-Unit, siehe server/src/scanview_worker/laeufer.py:208 (PrivateNetwork=yes), :211 (RestrictAddressFamilies=AF_INET AF_INET6, also kein AF_UNIX) und :216 (PrivatePIDs=yes). Erzwungen statt angenommen, beim Start und je Auftrag: Der Worker startet nur, wenn sein Selbsttest in einer Unit mit denselben Grenzen einen eigenen Netz-Namensraum vorfindet (worker.py selbsttest), und jeder Auftrag startet in seiner eigenen Unit hinter einem Vorspann (laeufer.py VORSPANN, python -I -c, erst danach execv nach scanview-import, das pdal und untwine als Kinder im selben Namensraum startet). Der Vorspann wiederholt die Prüfung fail-closed und endet sonst mit Exit 97, bevor ein Werkzeug läuft; der Auftrag scheitert dann mit „Isolation greift nicht“. Geprüft werden /proc/self/net/dev (Namensraum des Lesers) und /sys/class/net: beide gleich, lo vorhanden, sonst nur die Fallback-Tunnel, die der Kernel in jedem neuen Namensraum ohne Gegenstelle und inaktiv anlegt (tunl0, gre0, sit0, ip6tnl0 u. a.; Kernel-Doku net.core.fb_tunnels_only_for_init_net); jeder Lesefehler zählt als offen (laeufer.py NETZRAUM_QUELLE; Gegenproben ohne PrivateNetwork in test_isolation.py: Selbsttest scheitert an netzraum, Vorspann startet das Werkzeug nicht). Nötig, weil systemd PrivateNetwork im User-Manager sonst still weglässt („proceeding without“) und das bei jedem Unit-Start neu entscheidet. Im eigenen Netz-Namensraum ist nur lo erreichbar, und dort lauscht kein SSH-Server, weil in der Unit nur die Auftragsprozesse laufen. Der Fix 2dae302 ist in libssh2-1.11.1 (a312b43) nicht enthalten (GitHub compare: behind)."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-55199"
+paket = "libssh2"
+status = "not_affected"
+justification = "inline_mitigations_already_exist"
+impact_statement = "CPU-Endlosschleife vor der Authentifizierung im SSH_MSG_EXT_INFO-Handler (src/packet.c, _libssh2_packet_add), ausgelöst durch einen Server, der während des Schlüsseltauschs nr_extensions=0xFFFFFFFF sendet; behoben in 1762685. Einziger libssh2-Importeur in der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins ohne Plugins), Importe per nm -D --undefined-only, 10.11.2026 ist libcurl. Erreichbar ist die Stelle über libssh2_session_handshake (Import von libcurl), und nur in einer SSH-Client-Sitzung über eine scp://- oder sftp://-URL: libssh2 liest die Serverpakete per recv() aus dem Socket, den libcurl verbunden hat. Dass eine Eingabedatei libcurl eine solche URL unterschiebt (z. B. über GDAL /vsicurl/), ist nicht ausgeschlossen, deshalb nicht vulnerable_code_not_in_execute_path. Abschirmung, gültig für den Import-Worker auf dem Server (scanview-import-worker, von einrichten.sh mit SCANVIEW_IMPORT=1 eingerichtet; der am Arbeitsplatz laufen dieselben Builds im Image scanview-pdal (Gleichheit per test_image_lock_gleiche_builds_wie_pdal_umgebung), dort abgeschirmt durch docker run --network none, gemessen nur lo; diese VEX-Aussage ist formal an pixi.lock gebunden und gibt den Image-Inhalt nicht frei, siehe B-SCAN-IMG-PDAL): Auftrags-Unit laeufer.py:208 (PrivateNetwork=yes), :211 (nur AF_INET/AF_INET6) und :216 (PrivatePIDs=yes). Erzwungen statt angenommen, beim Start und je Auftrag: Der Worker startet nur, wenn sein Selbsttest in einer Unit mit denselben Grenzen einen eigenen Netz-Namensraum vorfindet (worker.py selbsttest), und jeder Auftrag startet in seiner eigenen Unit hinter einem Vorspann (laeufer.py VORSPANN, python -I -c, erst danach execv nach scanview-import, das pdal und untwine als Kinder im selben Namensraum startet). Der Vorspann wiederholt die Prüfung fail-closed und endet sonst mit Exit 97, bevor ein Werkzeug läuft; der Auftrag scheitert dann mit „Isolation greift nicht“. Geprüft werden /proc/self/net/dev (Namensraum des Lesers) und /sys/class/net: beide gleich, lo vorhanden, sonst nur die Fallback-Tunnel, die der Kernel in jedem neuen Namensraum ohne Gegenstelle und inaktiv anlegt (tunl0, gre0, sit0, ip6tnl0 u. a.; Kernel-Doku net.core.fb_tunnels_only_for_init_net); jeder Lesefehler zählt als offen (laeufer.py NETZRAUM_QUELLE; Gegenproben ohne PrivateNetwork in test_isolation.py: Selbsttest scheitert an netzraum, Vorspann startet das Werkzeug nicht). Nötig, weil systemd PrivateNetwork im User-Manager sonst still weglässt („proceeding without“) und das bei jedem Unit-Start neu entscheidet. Im Namensraum lauscht kein SSH-Server, weil dort nur die Auftragsprozesse laufen. Zusätzlich begrenzt RuntimeMaxSec die Schleife. Der Fix 1762685 ist in 1.11.1 nicht enthalten (GitHub compare: behind)."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-55200"
+paket = "libssh2"
+status = "not_affected"
+justification = "inline_mitigations_already_exist"
+impact_statement = "Heap-Schreibfehler über die Puffergrenze in der Transportschicht (src/transport.c, _libssh2_transport_read, im Advisory ssh2_transport_read), weil packet_length nach oben nicht begrenzt ist; ausgelöst durch präparierte Pakete des Servers, behoben in 97acf3d. OSV führt 1.11.1 (a312b43) ausdrücklich als last_affected. Einziger libssh2-Importeur in der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins ohne Plugins), Importe per nm -D --undefined-only, 10.11.2026 ist libcurl (libssh2_session_handshake, libssh2_channel_read_ex, libssh2_sftp_read u. a.). Die Stelle ist nur in einer SSH-Client-Sitzung über scp:// oder sftp:// erreichbar: libssh2 liest per recv() aus dem von libcurl verbundenen Socket. Ein Weg von der Eingabedatei zu einer solchen URL (GDAL /vsicurl/) ist nicht ausgeschlossen, deshalb nicht vulnerable_code_not_in_execute_path. Abschirmung, gültig für den Import-Worker auf dem Server (scanview-import-worker, von einrichten.sh mit SCANVIEW_IMPORT=1 eingerichtet; der am Arbeitsplatz laufen dieselben Builds im Image scanview-pdal (Gleichheit per test_image_lock_gleiche_builds_wie_pdal_umgebung), dort abgeschirmt durch docker run --network none, gemessen nur lo; diese VEX-Aussage ist formal an pixi.lock gebunden und gibt den Image-Inhalt nicht frei, siehe B-SCAN-IMG-PDAL): Auftrags-Unit laeufer.py:208 (PrivateNetwork=yes), :211 (nur AF_INET/AF_INET6, kein AF_UNIX) und :216 (PrivatePIDs=yes). Erzwungen statt angenommen, beim Start und je Auftrag: Der Worker startet nur, wenn sein Selbsttest in einer Unit mit denselben Grenzen einen eigenen Netz-Namensraum vorfindet (worker.py selbsttest), und jeder Auftrag startet in seiner eigenen Unit hinter einem Vorspann (laeufer.py VORSPANN, python -I -c, erst danach execv nach scanview-import, das pdal und untwine als Kinder im selben Namensraum startet). Der Vorspann wiederholt die Prüfung fail-closed und endet sonst mit Exit 97, bevor ein Werkzeug läuft; der Auftrag scheitert dann mit „Isolation greift nicht“. Geprüft werden /proc/self/net/dev (Namensraum des Lesers) und /sys/class/net: beide gleich, lo vorhanden, sonst nur die Fallback-Tunnel, die der Kernel in jedem neuen Namensraum ohne Gegenstelle und inaktiv anlegt (tunl0, gre0, sit0, ip6tnl0 u. a.; Kernel-Doku net.core.fb_tunnels_only_for_init_net); jeder Lesefehler zählt als offen (laeufer.py NETZRAUM_QUELLE; Gegenproben ohne PrivateNetwork in test_isolation.py: Selbsttest scheitert an netzraum, Vorspann startet das Werkzeug nicht). Nötig, weil systemd PrivateNetwork im User-Manager sonst still weglässt („proceeding without“) und das bei jedem Unit-Start neu entscheidet. Erreichbar ist nur lo, ohne SSH-Server, also gibt es keinen Gegenüber, der Pakete schicken kann. Der Fix 97acf3d ist nicht in 1.11.1 (GitHub compare: behind)."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-66032"
+paket = "libssh2"
+status = "not_affected"
+justification = "inline_mitigations_already_exist"
+impact_statement = "Doppeltes Free in sftp_open() (src/sftp.c), wenn der Server SSH_FXP_OPEN mit SSH_FXP_STATUS FX_OK beantwortet und sftp_packet_require danach fehlschlägt; behoben in 5e47761. Einziger libssh2-Importeur in der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins ohne Plugins), Importe per nm -D --undefined-only, 10.11.2026 ist libcurl, und es importiert libssh2_sftp_open_ex. Die Stelle ist nur in einer authentisierten SFTP-Sitzung mit einem Server über sftp:// erreichbar. Ein Weg von der Eingabedatei zu einer sftp://-URL (GDAL /vsicurl/) ist nicht ausgeschlossen, deshalb nicht vulnerable_code_not_in_execute_path. Abschirmung, gültig für den Import-Worker auf dem Server (scanview-import-worker, von einrichten.sh mit SCANVIEW_IMPORT=1 eingerichtet; der am Arbeitsplatz laufen dieselben Builds im Image scanview-pdal (Gleichheit per test_image_lock_gleiche_builds_wie_pdal_umgebung), dort abgeschirmt durch docker run --network none, gemessen nur lo; diese VEX-Aussage ist formal an pixi.lock gebunden und gibt den Image-Inhalt nicht frei, siehe B-SCAN-IMG-PDAL): Auftrags-Unit laeufer.py:208 (PrivateNetwork=yes), :211 (nur AF_INET/AF_INET6) und :216 (PrivatePIDs=yes). Erzwungen statt angenommen, beim Start und je Auftrag: Der Worker startet nur, wenn sein Selbsttest in einer Unit mit denselben Grenzen einen eigenen Netz-Namensraum vorfindet (worker.py selbsttest), und jeder Auftrag startet in seiner eigenen Unit hinter einem Vorspann (laeufer.py VORSPANN, python -I -c, erst danach execv nach scanview-import, das pdal und untwine als Kinder im selben Namensraum startet). Der Vorspann wiederholt die Prüfung fail-closed und endet sonst mit Exit 97, bevor ein Werkzeug läuft; der Auftrag scheitert dann mit „Isolation greift nicht“. Geprüft werden /proc/self/net/dev (Namensraum des Lesers) und /sys/class/net: beide gleich, lo vorhanden, sonst nur die Fallback-Tunnel, die der Kernel in jedem neuen Namensraum ohne Gegenstelle und inaktiv anlegt (tunl0, gre0, sit0, ip6tnl0 u. a.; Kernel-Doku net.core.fb_tunnels_only_for_init_net); jeder Lesefehler zählt als offen (laeufer.py NETZRAUM_QUELLE; Gegenproben ohne PrivateNetwork in test_isolation.py: Selbsttest scheitert an netzraum, Vorspann startet das Werkzeug nicht). Nötig, weil systemd PrivateNetwork im User-Manager sonst still weglässt („proceeding without“) und das bei jedem Unit-Start neu entscheidet. Im Namensraum lauscht kein SSH-Server, weil dort nur die Auftragsprozesse laufen. Der Fix 5e47761 ist nicht in 1.11.1 (GitHub compare: behind)."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-66033"
+paket = "libssh2"
+status = "not_affected"
+justification = "inline_mitigations_already_exist"
+impact_statement = "Ganzzahlunterlauf vor der Authentifizierung in ssh2_cipher_crypt() (src/openssl.c), wenn der Server AES-GCM aushandelt; behoben in a2ed82d. Der GCM-Code ist im Build vorhanden: strings libssh2.so.1.0.1 zeigt aes128-gcm@openssh.com, aes256-gcm@openssh.com und EVP_aes_*_gcm. Einziger libssh2-Importeur in der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins ohne Plugins), Importe per nm -D --undefined-only, 10.11.2026 ist libcurl. Erreichbar ist die Stelle über libssh2_session_handshake, nur in einer SSH-Client-Sitzung über scp:// oder sftp://, mit Daten, die per recv() aus dem von libcurl verbundenen Socket kommen. Ein Weg von der Eingabedatei zu einer solchen URL (GDAL /vsicurl/) ist nicht ausgeschlossen, deshalb nicht vulnerable_code_not_in_execute_path. Abschirmung, gültig für den Import-Worker auf dem Server (scanview-import-worker, von einrichten.sh mit SCANVIEW_IMPORT=1 eingerichtet; der am Arbeitsplatz laufen dieselben Builds im Image scanview-pdal (Gleichheit per test_image_lock_gleiche_builds_wie_pdal_umgebung), dort abgeschirmt durch docker run --network none, gemessen nur lo; diese VEX-Aussage ist formal an pixi.lock gebunden und gibt den Image-Inhalt nicht frei, siehe B-SCAN-IMG-PDAL): Auftrags-Unit laeufer.py:208 (PrivateNetwork=yes), :211 (nur AF_INET/AF_INET6) und :216 (PrivatePIDs=yes). Erzwungen statt angenommen, beim Start und je Auftrag: Der Worker startet nur, wenn sein Selbsttest in einer Unit mit denselben Grenzen einen eigenen Netz-Namensraum vorfindet (worker.py selbsttest), und jeder Auftrag startet in seiner eigenen Unit hinter einem Vorspann (laeufer.py VORSPANN, python -I -c, erst danach execv nach scanview-import, das pdal und untwine als Kinder im selben Namensraum startet). Der Vorspann wiederholt die Prüfung fail-closed und endet sonst mit Exit 97, bevor ein Werkzeug läuft; der Auftrag scheitert dann mit „Isolation greift nicht“. Geprüft werden /proc/self/net/dev (Namensraum des Lesers) und /sys/class/net: beide gleich, lo vorhanden, sonst nur die Fallback-Tunnel, die der Kernel in jedem neuen Namensraum ohne Gegenstelle und inaktiv anlegt (tunl0, gre0, sit0, ip6tnl0 u. a.; Kernel-Doku net.core.fb_tunnels_only_for_init_net); jeder Lesefehler zählt als offen (laeufer.py NETZRAUM_QUELLE; Gegenproben ohne PrivateNetwork in test_isolation.py: Selbsttest scheitert an netzraum, Vorspann startet das Werkzeug nicht). Nötig, weil systemd PrivateNetwork im User-Manager sonst still weglässt („proceeding without“) und das bei jedem Unit-Start neu entscheidet. Erreichbar ist nur lo, ohne SSH-Server, also gibt es keinen Gegenüber, der GCM aushandeln kann. Der Fix a2ed82d ist nicht in 1.11.1 (GitHub compare: behind)."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-66035"
+paket = "libssh2"
+status = "not_affected"
+justification = "inline_mitigations_already_exist"
+impact_statement = "Heap-Überlauf vor der Authentifizierung in fullpacket() (src/transport.c) auf dem Encrypt-then-MAC-Pfad, wenn der Server packet_length kleiner als die Blockgröße sendet; behoben in 42e33d8. Der ETM-Code ist im Build vorhanden: strings libssh2.so.1.0.1 zeigt hmac-sha1-etm, hmac-sha2-256-etm und hmac-sha2-512-etm@openssh.com. Einziger libssh2-Importeur in der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins ohne Plugins), Importe per nm -D --undefined-only, 10.11.2026 ist libcurl. Erreichbar ist die Stelle über libssh2_session_handshake, nur in einer SSH-Client-Sitzung über scp:// oder sftp://, mit Paketen per recv() aus dem von libcurl verbundenen Socket. Ein Weg von der Eingabedatei zu einer solchen URL (GDAL /vsicurl/) ist nicht ausgeschlossen, deshalb nicht vulnerable_code_not_in_execute_path. Abschirmung, gültig für den Import-Worker auf dem Server (scanview-import-worker, von einrichten.sh mit SCANVIEW_IMPORT=1 eingerichtet; der am Arbeitsplatz laufen dieselben Builds im Image scanview-pdal (Gleichheit per test_image_lock_gleiche_builds_wie_pdal_umgebung), dort abgeschirmt durch docker run --network none, gemessen nur lo; diese VEX-Aussage ist formal an pixi.lock gebunden und gibt den Image-Inhalt nicht frei, siehe B-SCAN-IMG-PDAL): Auftrags-Unit laeufer.py:208 (PrivateNetwork=yes), :211 (nur AF_INET/AF_INET6) und :216 (PrivatePIDs=yes). Erzwungen statt angenommen, beim Start und je Auftrag: Der Worker startet nur, wenn sein Selbsttest in einer Unit mit denselben Grenzen einen eigenen Netz-Namensraum vorfindet (worker.py selbsttest), und jeder Auftrag startet in seiner eigenen Unit hinter einem Vorspann (laeufer.py VORSPANN, python -I -c, erst danach execv nach scanview-import, das pdal und untwine als Kinder im selben Namensraum startet). Der Vorspann wiederholt die Prüfung fail-closed und endet sonst mit Exit 97, bevor ein Werkzeug läuft; der Auftrag scheitert dann mit „Isolation greift nicht“. Geprüft werden /proc/self/net/dev (Namensraum des Lesers) und /sys/class/net: beide gleich, lo vorhanden, sonst nur die Fallback-Tunnel, die der Kernel in jedem neuen Namensraum ohne Gegenstelle und inaktiv anlegt (tunl0, gre0, sit0, ip6tnl0 u. a.; Kernel-Doku net.core.fb_tunnels_only_for_init_net); jeder Lesefehler zählt als offen (laeufer.py NETZRAUM_QUELLE; Gegenproben ohne PrivateNetwork in test_isolation.py: Selbsttest scheitert an netzraum, Vorspann startet das Werkzeug nicht). Nötig, weil systemd PrivateNetwork im User-Manager sonst still weglässt („proceeding without“) und das bei jedem Unit-Start neu entscheidet. Erreichbar ist nur lo, ohne SSH-Server. Der Fix 42e33d8 ist nicht in 1.11.1 (GitHub compare: behind)."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "CVE-2026-7598"
+paket = "libssh2"
+status = "not_affected"
+justification = "inline_mitigations_already_exist"
+impact_statement = "Ganzzahlüberlauf in userauth_password() (src/userauth.c) über username_len/password_len; behoben in 256d04b. Die Längen kommen von der Client-Seite (bei libcurl aus den Zugangsdaten der URL), nicht vom Server. Der Code läuft aber erst nach einem erfolgreichen Handshake mit einem SSH-Server. Einziger libssh2-Importeur in der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins ohne Plugins), Importe per nm -D --undefined-only, 10.11.2026 ist libcurl, und es importiert libssh2_userauth_password_ex und libssh2_session_handshake. Erreichbar ist die Stelle also nur in einer SSH-Client-Sitzung über scp:// oder sftp://. Ein Weg von der Eingabedatei zu einer solchen URL (GDAL /vsicurl/) ist nicht ausgeschlossen, deshalb nicht vulnerable_code_not_in_execute_path. Abschirmung, gültig für den Import-Worker auf dem Server (scanview-import-worker, von einrichten.sh mit SCANVIEW_IMPORT=1 eingerichtet; der am Arbeitsplatz laufen dieselben Builds im Image scanview-pdal (Gleichheit per test_image_lock_gleiche_builds_wie_pdal_umgebung), dort abgeschirmt durch docker run --network none, gemessen nur lo; diese VEX-Aussage ist formal an pixi.lock gebunden und gibt den Image-Inhalt nicht frei, siehe B-SCAN-IMG-PDAL): Auftrags-Unit laeufer.py:208 (PrivateNetwork=yes), :211 (nur AF_INET/AF_INET6) und :216 (PrivatePIDs=yes). Erzwungen statt angenommen, beim Start und je Auftrag: Der Worker startet nur, wenn sein Selbsttest in einer Unit mit denselben Grenzen einen eigenen Netz-Namensraum vorfindet (worker.py selbsttest), und jeder Auftrag startet in seiner eigenen Unit hinter einem Vorspann (laeufer.py VORSPANN, python -I -c, erst danach execv nach scanview-import, das pdal und untwine als Kinder im selben Namensraum startet). Der Vorspann wiederholt die Prüfung fail-closed und endet sonst mit Exit 97, bevor ein Werkzeug läuft; der Auftrag scheitert dann mit „Isolation greift nicht“. Geprüft werden /proc/self/net/dev (Namensraum des Lesers) und /sys/class/net: beide gleich, lo vorhanden, sonst nur die Fallback-Tunnel, die der Kernel in jedem neuen Namensraum ohne Gegenstelle und inaktiv anlegt (tunl0, gre0, sit0, ip6tnl0 u. a.; Kernel-Doku net.core.fb_tunnels_only_for_init_net); jeder Lesefehler zählt als offen (laeufer.py NETZRAUM_QUELLE; Gegenproben ohne PrivateNetwork in test_isolation.py: Selbsttest scheitert an netzraum, Vorspann startet das Werkzeug nicht). Nötig, weil systemd PrivateNetwork im User-Manager sonst still weglässt („proceeding without“) und das bei jedem Unit-Start neu entscheidet. Im Netz-Namensraum ist nur lo erreichbar, ohne SSH-Server, also findet kein Handshake statt. Der Fix 256d04b ist nicht in 1.11.1 (GitHub compare: behind)."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "OSV-2022-24"
+paket = "libssh2"
+status = "not_affected"
+justification = "inline_mitigations_already_exist"
+impact_statement = "OSS-Fuzz 43419: Null-Dereferenz in session_startup über libssh2_session_handshake, gefunden mit ssh2_client_fuzzer. Das ist der einzige Fuzzer von libssh2 (tests/ossfuzz in libssh2-1.11.1); er schreibt die Eingabe als Serverdaten in ein socketpair und ruft libssh2_session_handshake. Der Absturz entsteht also nur durch Daten des Servers. OSV-Bereich: introduced 64a555d (in 1.11.1 enthalten, compare: ahead), fixed b89858b (nicht in 1.11.1, compare: behind). Einziger libssh2-Importeur in der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins ohne Plugins), Importe per nm -D --undefined-only, 10.11.2026 ist libcurl (libssh2_session_handshake). Erreichbar ist die Stelle nur in einer SSH-Client-Sitzung über scp:// oder sftp://. Ein Weg von der Eingabedatei zu einer solchen URL (GDAL /vsicurl/) ist nicht ausgeschlossen, deshalb nicht vulnerable_code_not_in_execute_path. Abschirmung, gültig für den Import-Worker auf dem Server (scanview-import-worker, von einrichten.sh mit SCANVIEW_IMPORT=1 eingerichtet; der am Arbeitsplatz laufen dieselben Builds im Image scanview-pdal (Gleichheit per test_image_lock_gleiche_builds_wie_pdal_umgebung), dort abgeschirmt durch docker run --network none, gemessen nur lo; diese VEX-Aussage ist formal an pixi.lock gebunden und gibt den Image-Inhalt nicht frei, siehe B-SCAN-IMG-PDAL): Auftrags-Unit laeufer.py:208 (PrivateNetwork=yes), :211 (nur AF_INET/AF_INET6) und :216 (PrivatePIDs=yes). Erzwungen statt angenommen, beim Start und je Auftrag: Der Worker startet nur, wenn sein Selbsttest in einer Unit mit denselben Grenzen einen eigenen Netz-Namensraum vorfindet (worker.py selbsttest), und jeder Auftrag startet in seiner eigenen Unit hinter einem Vorspann (laeufer.py VORSPANN, python -I -c, erst danach execv nach scanview-import, das pdal und untwine als Kinder im selben Namensraum startet). Der Vorspann wiederholt die Prüfung fail-closed und endet sonst mit Exit 97, bevor ein Werkzeug läuft; der Auftrag scheitert dann mit „Isolation greift nicht“. Geprüft werden /proc/self/net/dev (Namensraum des Lesers) und /sys/class/net: beide gleich, lo vorhanden, sonst nur die Fallback-Tunnel, die der Kernel in jedem neuen Namensraum ohne Gegenstelle und inaktiv anlegt (tunl0, gre0, sit0, ip6tnl0 u. a.; Kernel-Doku net.core.fb_tunnels_only_for_init_net); jeder Lesefehler zählt als offen (laeufer.py NETZRAUM_QUELLE; Gegenproben ohne PrivateNetwork in test_isolation.py: Selbsttest scheitert an netzraum, Vorspann startet das Werkzeug nicht). Nötig, weil systemd PrivateNetwork im User-Manager sonst still weglässt („proceeding without“) und das bei jedem Unit-Start neu entscheidet. Erreichbar ist nur lo, ohne SSH-Server."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "OSV-2024-847"
+paket = "libssh2"
+status = "not_affected"
+justification = "inline_mitigations_already_exist"
+impact_statement = "OSS-Fuzz 69234: Null-Dereferenz in _libssh2_packet_add, Stapel _libssh2_packet_add <- fullpacket <- _libssh2_transport_read, gefunden mit ssh2_client_fuzzer. Die Fuzz-Eingabe sind Serverdaten über ein socketpair zum Handshake. OSV-Bereich: introduced d34d925 (in 1.11.1 enthalten, compare: ahead), fixed b89858b (nicht in 1.11.1, compare: behind). Einziger libssh2-Importeur in der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins ohne Plugins), Importe per nm -D --undefined-only, 10.11.2026 ist libcurl. Die Transportschicht liest nur per recv() aus dem von libcurl verbundenen Socket, und zwar nur in einer SSH-Client-Sitzung über scp:// oder sftp://. Ein Weg von der Eingabedatei zu einer solchen URL (GDAL /vsicurl/) ist nicht ausgeschlossen, deshalb nicht vulnerable_code_not_in_execute_path. Abschirmung, gültig für den Import-Worker auf dem Server (scanview-import-worker, von einrichten.sh mit SCANVIEW_IMPORT=1 eingerichtet; der am Arbeitsplatz laufen dieselben Builds im Image scanview-pdal (Gleichheit per test_image_lock_gleiche_builds_wie_pdal_umgebung), dort abgeschirmt durch docker run --network none, gemessen nur lo; diese VEX-Aussage ist formal an pixi.lock gebunden und gibt den Image-Inhalt nicht frei, siehe B-SCAN-IMG-PDAL): Auftrags-Unit laeufer.py:208 (PrivateNetwork=yes), :211 (nur AF_INET/AF_INET6) und :216 (PrivatePIDs=yes). Erzwungen statt angenommen, beim Start und je Auftrag: Der Worker startet nur, wenn sein Selbsttest in einer Unit mit denselben Grenzen einen eigenen Netz-Namensraum vorfindet (worker.py selbsttest), und jeder Auftrag startet in seiner eigenen Unit hinter einem Vorspann (laeufer.py VORSPANN, python -I -c, erst danach execv nach scanview-import, das pdal und untwine als Kinder im selben Namensraum startet). Der Vorspann wiederholt die Prüfung fail-closed und endet sonst mit Exit 97, bevor ein Werkzeug läuft; der Auftrag scheitert dann mit „Isolation greift nicht“. Geprüft werden /proc/self/net/dev (Namensraum des Lesers) und /sys/class/net: beide gleich, lo vorhanden, sonst nur die Fallback-Tunnel, die der Kernel in jedem neuen Namensraum ohne Gegenstelle und inaktiv anlegt (tunl0, gre0, sit0, ip6tnl0 u. a.; Kernel-Doku net.core.fb_tunnels_only_for_init_net); jeder Lesefehler zählt als offen (laeufer.py NETZRAUM_QUELLE; Gegenproben ohne PrivateNetwork in test_isolation.py: Selbsttest scheitert an netzraum, Vorspann startet das Werkzeug nicht). Nötig, weil systemd PrivateNetwork im User-Manager sonst still weglässt („proceeding without“) und das bei jedem Unit-Start neu entscheidet. Erreichbar ist nur lo, ohne SSH-Server."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "OSV-2025-433"
+paket = "libssh2"
+status = "not_affected"
+justification = "inline_mitigations_already_exist"
+impact_statement = "OSS-Fuzz 422217191: Null-Dereferenz in _libssh2_packet_add, Stapel _libssh2_packet_add <- fullpacket <- _libssh2_transport_read, gefunden mit ssh2_client_fuzzer. Die Fuzz-Eingabe sind Serverdaten über ein socketpair zum Handshake. OSV-Bereich: introduced d34d925 (in 1.11.1 enthalten, compare: ahead), kein Fix-Commit bekannt. Einziger libssh2-Importeur in der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins ohne Plugins), Importe per nm -D --undefined-only, 10.11.2026 ist libcurl. Die Transportschicht liest nur per recv() aus dem von libcurl verbundenen Socket, nur in einer SSH-Client-Sitzung über scp:// oder sftp://. Ein Weg von der Eingabedatei zu einer solchen URL (GDAL /vsicurl/) ist nicht ausgeschlossen, deshalb nicht vulnerable_code_not_in_execute_path. Abschirmung, gültig für den Import-Worker auf dem Server (scanview-import-worker, von einrichten.sh mit SCANVIEW_IMPORT=1 eingerichtet; der am Arbeitsplatz laufen dieselben Builds im Image scanview-pdal (Gleichheit per test_image_lock_gleiche_builds_wie_pdal_umgebung), dort abgeschirmt durch docker run --network none, gemessen nur lo; diese VEX-Aussage ist formal an pixi.lock gebunden und gibt den Image-Inhalt nicht frei, siehe B-SCAN-IMG-PDAL): Auftrags-Unit laeufer.py:208 (PrivateNetwork=yes), :211 (nur AF_INET/AF_INET6) und :216 (PrivatePIDs=yes). Erzwungen statt angenommen, beim Start und je Auftrag: Der Worker startet nur, wenn sein Selbsttest in einer Unit mit denselben Grenzen einen eigenen Netz-Namensraum vorfindet (worker.py selbsttest), und jeder Auftrag startet in seiner eigenen Unit hinter einem Vorspann (laeufer.py VORSPANN, python -I -c, erst danach execv nach scanview-import, das pdal und untwine als Kinder im selben Namensraum startet). Der Vorspann wiederholt die Prüfung fail-closed und endet sonst mit Exit 97, bevor ein Werkzeug läuft; der Auftrag scheitert dann mit „Isolation greift nicht“. Geprüft werden /proc/self/net/dev (Namensraum des Lesers) und /sys/class/net: beide gleich, lo vorhanden, sonst nur die Fallback-Tunnel, die der Kernel in jedem neuen Namensraum ohne Gegenstelle und inaktiv anlegt (tunl0, gre0, sit0, ip6tnl0 u. a.; Kernel-Doku net.core.fb_tunnels_only_for_init_net); jeder Lesefehler zählt als offen (laeufer.py NETZRAUM_QUELLE; Gegenproben ohne PrivateNetwork in test_isolation.py: Selbsttest scheitert an netzraum, Vorspann startet das Werkzeug nicht). Nötig, weil systemd PrivateNetwork im User-Manager sonst still weglässt („proceeding without“) und das bei jedem Unit-Start neu entscheidet. Erreichbar ist nur lo, ohne SSH-Server."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "OSV-2025-90"
+paket = "libssh2"
+status = "not_affected"
+justification = "inline_mitigations_already_exist"
+impact_statement = "OSS-Fuzz 393411531: Null-Dereferenz. Der Absturzzustand liegt in der UBSan-Laufzeit (ubsan_GetStackTrace), die eigentliche Fehlerfunktion in libssh2 ist deshalb nicht benannt. Fest steht der Fuzz-Pfad: libssh2 hat nur einen Fuzzer, ssh2_client_fuzzer (tests/ossfuzz in libssh2-1.11.1); er schreibt die Eingabe als Serverdaten in ein socketpair und ruft libssh2_session_handshake. Der Fehler wird also nur durch Daten eines SSH-Servers in einer Client-Sitzung ausgelöst. OSV-Bereich: introduced 64a555d (in 1.11.1, compare: ahead), fixed 631e2f8 („Fix a NULL dereference of kex->exchange_keys during key exchange“, nicht in 1.11.1, compare: behind). Einziger libssh2-Importeur in der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins ohne Plugins), Importe per nm -D --undefined-only, 10.11.2026 ist libcurl (libssh2_session_handshake), nur über scp:// oder sftp://. Ein Weg von der Eingabedatei zu einer solchen URL (GDAL /vsicurl/) ist nicht ausgeschlossen, deshalb nicht vulnerable_code_not_in_execute_path. Abschirmung, gültig für den Import-Worker auf dem Server (scanview-import-worker, von einrichten.sh mit SCANVIEW_IMPORT=1 eingerichtet; der am Arbeitsplatz laufen dieselben Builds im Image scanview-pdal (Gleichheit per test_image_lock_gleiche_builds_wie_pdal_umgebung), dort abgeschirmt durch docker run --network none, gemessen nur lo; diese VEX-Aussage ist formal an pixi.lock gebunden und gibt den Image-Inhalt nicht frei, siehe B-SCAN-IMG-PDAL): Auftrags-Unit laeufer.py:208 (PrivateNetwork=yes), :211 (nur AF_INET/AF_INET6) und :216 (PrivatePIDs=yes). Erzwungen statt angenommen, beim Start und je Auftrag: Der Worker startet nur, wenn sein Selbsttest in einer Unit mit denselben Grenzen einen eigenen Netz-Namensraum vorfindet (worker.py selbsttest), und jeder Auftrag startet in seiner eigenen Unit hinter einem Vorspann (laeufer.py VORSPANN, python -I -c, erst danach execv nach scanview-import, das pdal und untwine als Kinder im selben Namensraum startet). Der Vorspann wiederholt die Prüfung fail-closed und endet sonst mit Exit 97, bevor ein Werkzeug läuft; der Auftrag scheitert dann mit „Isolation greift nicht“. Geprüft werden /proc/self/net/dev (Namensraum des Lesers) und /sys/class/net: beide gleich, lo vorhanden, sonst nur die Fallback-Tunnel, die der Kernel in jedem neuen Namensraum ohne Gegenstelle und inaktiv anlegt (tunl0, gre0, sit0, ip6tnl0 u. a.; Kernel-Doku net.core.fb_tunnels_only_for_init_net); jeder Lesefehler zählt als offen (laeufer.py NETZRAUM_QUELLE; Gegenproben ohne PrivateNetwork in test_isolation.py: Selbsttest scheitert an netzraum, Vorspann startet das Werkzeug nicht). Nötig, weil systemd PrivateNetwork im User-Manager sonst still weglässt („proceeding without“) und das bei jedem Unit-Start neu entscheidet. Erreichbar ist nur lo, ohne SSH-Server."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"
+
+[[vex]]
+schwachstelle = "OSV-2025-92"
+paket = "libssh2"
+status = "not_affected"
+justification = "inline_mitigations_already_exist"
+impact_statement = "OSS-Fuzz 393523566: Null-Dereferenz in session_startup über libssh2_session_handshake, gefunden mit ssh2_client_fuzzer. Die Fuzz-Eingabe sind Serverdaten über ein socketpair. OSV-Bereich: introduced 64a555d (in 1.11.1, compare: ahead), fixed 631e2f8 (NULL-Dereferenz von kex->exchange_keys im Schlüsseltausch, nicht in 1.11.1, compare: behind). Einziger libssh2-Importeur in der Hülle = ldd von bin/pdal, bin/untwine und lib/libpdal_plugin_*.so der installierten Umgebung (70 ELF-Dateien; lib/gdalplugins ohne Plugins), Importe per nm -D --undefined-only, 10.11.2026 ist libcurl (libssh2_session_handshake). Erreichbar ist die Stelle nur in einer SSH-Client-Sitzung über scp:// oder sftp://. Ein Weg von der Eingabedatei zu einer solchen URL (GDAL /vsicurl/) ist nicht ausgeschlossen, deshalb nicht vulnerable_code_not_in_execute_path. Abschirmung, gültig für den Import-Worker auf dem Server (scanview-import-worker, von einrichten.sh mit SCANVIEW_IMPORT=1 eingerichtet; der am Arbeitsplatz laufen dieselben Builds im Image scanview-pdal (Gleichheit per test_image_lock_gleiche_builds_wie_pdal_umgebung), dort abgeschirmt durch docker run --network none, gemessen nur lo; diese VEX-Aussage ist formal an pixi.lock gebunden und gibt den Image-Inhalt nicht frei, siehe B-SCAN-IMG-PDAL): Auftrags-Unit laeufer.py:208 (PrivateNetwork=yes), :211 (nur AF_INET/AF_INET6) und :216 (PrivatePIDs=yes). Erzwungen statt angenommen, beim Start und je Auftrag: Der Worker startet nur, wenn sein Selbsttest in einer Unit mit denselben Grenzen einen eigenen Netz-Namensraum vorfindet (worker.py selbsttest), und jeder Auftrag startet in seiner eigenen Unit hinter einem Vorspann (laeufer.py VORSPANN, python -I -c, erst danach execv nach scanview-import, das pdal und untwine als Kinder im selben Namensraum startet). Der Vorspann wiederholt die Prüfung fail-closed und endet sonst mit Exit 97, bevor ein Werkzeug läuft; der Auftrag scheitert dann mit „Isolation greift nicht“. Geprüft werden /proc/self/net/dev (Namensraum des Lesers) und /sys/class/net: beide gleich, lo vorhanden, sonst nur die Fallback-Tunnel, die der Kernel in jedem neuen Namensraum ohne Gegenstelle und inaktiv anlegt (tunl0, gre0, sit0, ip6tnl0 u. a.; Kernel-Doku net.core.fb_tunnels_only_for_init_net); jeder Lesefehler zählt als offen (laeufer.py NETZRAUM_QUELLE; Gegenproben ohne PrivateNetwork in test_isolation.py: Selbsttest scheitert an netzraum, Vorspann startet das Werkzeug nicht). Nötig, weil systemd PrivateNetwork im User-Manager sonst still weglässt („proceeding without“) und das bei jedem Unit-Start neu entscheidet. Erreichbar ist nur lo, ohne SSH-Server."
+zeit = 2026-11-10T10:52:04Z
+pruefer = "Claude (Release 0.12.3, Master-Session; je Gruppe zwei unabhängige Prüfer)"

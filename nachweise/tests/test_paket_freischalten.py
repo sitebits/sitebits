@@ -62,7 +62,9 @@ GROUP = (
     f"deploy:x:{UID_DEPLOY}:\n"
     f"scanview-deploy:x:{GID_DEPLOYGRUPPE}:deploy\n"
 )
-STUB = "#!/bin/sh\nprintf '%s %s\\n' \"$(basename \"$0\")\" \"$*\" >>/tmp/aufrufe\n"
+#: Protokolliert jeden Aufruf; liegt /tmp/systemctl-scheitert, endet er mit Fehler (Probe).
+STUB = ("#!/bin/sh\nprintf '%s %s\\n' \"$(basename \"$0\")\" \"$*\" >>/tmp/aufrufe\n"
+        "[ ! -e \"/tmp/$(basename \"$0\")-scheitert\" ]\n")
 PYTHON_SHIM = "#!/bin/sh\nexec /usr/local/bin/python3 \"$@\"\n"
 
 #: Stubs für den Ende-zu-Ende-Lauf von paket-bereitstellen.sh im selben Container: ssh führt den
@@ -194,7 +196,8 @@ class Lauf:
 
 
 def _grundbefehl(tmp_path: Path, *, nutzer: str, eigenes_eingang_fs: bool = False,
-                 group: str = GROUP, nofile: int | None = None) -> list[str]:
+                 group: str = GROUP, nofile: int | None = None,
+                 zusatz: dict[Path, str] | None = None) -> list[str]:
     """Gehärteter `docker run` für die Probe (Begründung der Abweichung: Modul-Docstring)."""
     acl_bin = deploy_probe.bereit()
     assert acl_bin is not None
@@ -233,6 +236,7 @@ def _grundbefehl(tmp_path: Path, *, nutzer: str, eigenes_eingang_fs: bool = Fals
     einhaengen[BEREITSTELLEN] = "/probe/paket-bereitstellen.sh"
     einhaengen[acl_bin / "setfacl"] = "/usr/bin/setfacl"
     einhaengen[acl_bin / "getfacl"] = "/usr/bin/getfacl"
+    einhaengen.update(zusatz or {})
     for quelle, ziel in einhaengen.items():
         # --mount statt -v: eine fehlende Quelle ist ein Fehler, statt dass docker (als root)
         # dort einen leeren Ordner anlegt.
@@ -243,9 +247,10 @@ def _grundbefehl(tmp_path: Path, *, nutzer: str, eigenes_eingang_fs: bool = Fals
 
 def _probe(tmp_path: Path, vorbereitung: str, *argumente: str,
            eigenes_eingang_fs: bool = False, aufruf: tuple[str, ...] = (ZIEL_SKRIPT,),
-           group: str = GROUP, nofile: int | None = None) -> Lauf:
+           group: str = GROUP, nofile: int | None = None,
+           zusatz: dict[Path, str] | None = None) -> Lauf:
     befehl = _grundbefehl(tmp_path, nutzer="0:0", eigenes_eingang_fs=eigenes_eingang_fs,
-                          group=group, nofile=nofile)
+                          group=group, nofile=nofile, zusatz=zusatz)
     ergebnis = subprocess.run(
         [*befehl, "/usr/local/bin/python3", "/probe/treiber.py", vorbereitung, *aufruf,
          *argumente],
@@ -732,3 +737,225 @@ def test_einrichten_installiert_skript_eingang_und_sudoers() -> None:
     aktivieren = text.index("/etc/sudoers.d/scanview-deploy\n")
     assert pruefen < aktivieren
     assert "/etc/sudoers.d/.scanview-deploy.neu" in text
+
+
+# --- ersetzen <id> / pruefen-ersetzen <id> -------------------------------------------------------
+
+#: Ein freigeschaltetes altes Paket am Ziel (root:scanview, 0750/0640), Inhalt „alt“.
+ALTES_PAKET = (f"paket {DATEN}/{PID} {PID}; printf 'alt\\n' >{DATEN}/{PID}/unter/punkte.bin; "
+               f"chown -R 0:{GID_SCANVIEW} {DATEN}/{PID}; chmod -R u=rwX,g=rX,o= {DATEN}/{PID}")
+ERSETZT = f"{DATEN}/.ersetzt-{PID}"
+KOPIE = f"{DATEN}/.freischalten-{PID}.kopie"
+
+#: Ersatz für /usr/bin/mv (nur `mv -T -- <quelle> <ziel>`, wie im Skript): verschiebt per
+#: rename(2). Liegt /tmp/mv-scheitert, scheitert das Verschieben der Kopie an den Zielnamen (das
+#: zweite mv beim Ersetzen); liegt zusätzlich /tmp/mv-rueckweg-scheitert, auch der Rückweg.
+MV_STUB = (
+    "#!/usr/local/bin/python3\n"
+    "import os, sys\n"
+    "a = sys.argv[1:]\n"
+    "if len(a) != 4 or a[:2] != ['-T', '--']:\n"
+    "    sys.exit('mv-stub: unerwarteter Aufruf ' + repr(a))\n"
+    "quelle, ziel = a[2], a[3]\n"
+    "if quelle.endswith('.kopie') and os.path.exists('/tmp/mv-scheitert'):\n"
+    "    sys.exit('mv: Verschieben der Kopie scheitert (Probe)')\n"
+    "if '/.ersetzt-' in quelle and os.path.exists('/tmp/mv-rueckweg-scheitert'):\n"
+    "    sys.exit('mv: Rückweg scheitert (Probe)')\n"
+    "os.rename(quelle, ziel)\n"
+)
+
+
+def _mv_stub(tmp_path: Path) -> dict[Path, str]:
+    stub = tmp_path / "mv"
+    stub.write_text(MV_STUB, encoding="utf-8")
+    stub.chmod(0o755)
+    return {stub: "/usr/bin/mv"}
+
+
+def _teilbaum(zustand: dict[str, Any], wurzel: str) -> dict[str, Any]:
+    """Einträge unter `wurzel`, relativ dazu (zum Vergleich altes Ziel ↔ .ersetzt-<id>)."""
+    return {p[len(wurzel):]: v for p, v in zustand.items()
+            if p == wurzel or p.startswith(wurzel + "/")}
+
+
+@pytest.mark.docker
+@probe_da
+def test_ersetzen_tauscht_und_legt_altes_paket_beiseite(tmp_path: Path) -> None:
+    lauf = _probe(tmp_path, f"{ALTES_PAKET}; paket {EINGANG}/{PID} {PID}; "
+                            f"echo 'cat {DATEN}/{PID}/unter/punkte.bin "
+                            f"{ERSETZT}/unter/punkte.bin' >/tmp/nach.sh", "ersetzen", PID)
+    assert lauf.rc == 0, lauf.stderr
+    ziel = f"{DATEN}/{PID}"
+    # Neu am Ziel, alt unverändert (Eigentümer, Rechte, Inhalt) unter .ersetzt-<id>.
+    assert lauf.nach == "punkte\nalt\n"
+    assert _teilbaum(lauf.nachher, ERSETZT) == _teilbaum(lauf.vorher, ziel)
+    acl = ["system.posix_acl_access"]
+    assert lauf.nachher[ziel] == ["d", 0, GID_SCANVIEW, "0o750", acl]
+    assert lauf.nachher[f"{ziel}/unter/punkte.bin"] == ["f", 0, GID_SCANVIEW, "0o640", acl]
+    assert f"{EINGANG}/{PID}" not in lauf.nachher
+    assert not any(".freischalten" in p for p in lauf.nachher)
+    assert lauf.aufrufe == ["systemctl reload scanview-server"]
+    assert f"rm -r -- '{ERSETZT}'" in lauf.stdout
+
+
+@pytest.mark.docker
+@probe_da
+def test_ersetzen_rueckweg_nach_gescheitertem_zweiten_mv(tmp_path: Path) -> None:
+    """Scheitert das zweite mv (Kopie → Ziel), liegt das alte Paket wieder unverändert am Ziel,
+    nichts ist ersetzt, kein Reload; die geprüfte Kopie bleibt als Rest (nur root)."""
+    lauf = _probe(tmp_path, f"{ALTES_PAKET}; paket {EINGANG}/{PID} {PID}; touch /tmp/mv-scheitert",
+                  "ersetzen", PID, zusatz=_mv_stub(tmp_path))
+    assert lauf.rc == 1
+    assert "altes Paket zurückgelegt, nichts ersetzt" in lauf.stderr
+    ziel = f"{DATEN}/{PID}"
+    assert _teilbaum(lauf.nachher, ziel) == _teilbaum(lauf.vorher, ziel)
+    assert ERSETZT not in lauf.nachher
+    assert lauf.nachher[KOPIE][:4] == ["d", 0, GID_SCANVIEW, "0o750"]
+    assert lauf.aufrufe == []
+
+
+@pytest.mark.docker
+@probe_da
+def test_ersetzen_rueckweg_gescheitert_nennt_beide_pfade(tmp_path: Path) -> None:
+    lauf = _probe(tmp_path, f"{ALTES_PAKET}; paket {EINGANG}/{PID} {PID}; "
+                            "touch /tmp/mv-scheitert /tmp/mv-rueckweg-scheitert",
+                  "ersetzen", PID, zusatz=_mv_stub(tmp_path))
+    assert lauf.rc == 1
+    assert "Rückweg gescheitert" in lauf.stderr
+    assert f"mv -T -- '{ERSETZT}' '{DATEN}/{PID}'" in lauf.stderr
+    assert f"{DATEN}/{PID}" not in lauf.nachher
+    assert ERSETZT in lauf.nachher and KOPIE in lauf.nachher
+    assert lauf.aufrufe == []
+
+
+@pytest.mark.docker
+@probe_da
+def test_ersetzen_reload_gescheitert_meldet_den_tausch(tmp_path: Path) -> None:
+    """Scheitert der Reload nach dem Tausch, ist das Paket trotzdem ersetzt: Exit 1, aber die
+    Meldung sagt das und nennt .ersetzt-<id> — sonst liefe der nächste Versuch blind in RESTE."""
+    lauf = _probe(tmp_path, f"{ALTES_PAKET}; paket {EINGANG}/{PID} {PID}; "
+                            "touch /tmp/systemctl-scheitert", "ersetzen", PID)
+    assert lauf.rc == 1
+    assert "ist ersetzt, aber der Katalog wurde nicht neu geladen" in lauf.stderr
+    assert f"rm -r -- '{ERSETZT}'" in lauf.stderr
+    assert _teilbaum(lauf.nachher, ERSETZT) == _teilbaum(lauf.vorher, f"{DATEN}/{PID}")
+    assert lauf.aufrufe == ["systemctl reload scanview-server"]
+
+
+@pytest.mark.parametrize(("vorbereitung", "text"), [
+    (f"paket {EINGANG}/{PID} {PID}", "nichts zu ersetzen"),
+    (f"paket {EINGANG}/{PID} {PID}; ln -s /tmp {DATEN}/{PID}", "nie ersetzen"),
+    (f"{ALTES_PAKET}; paket {EINGANG}/{PID} {PID}; install -d -m 0700 {ERSETZT}", ".ersetzt-"),
+    (f"{ALTES_PAKET}; paket {EINGANG}/{PID} {PID}; install -d -m 0700 {KOPIE}", ".freischalten-"),
+    (ALTES_PAKET, "fehlt"),
+], ids=["ziel-fehlt", "ziel-symlink", "rest-ersetzt", "rest-kopie", "eingang-fehlt"])
+@pytest.mark.docker
+@probe_da
+def test_ersetzen_bricht_ohne_aenderung_ab(tmp_path: Path, vorbereitung: str, text: str) -> None:
+    lauf = _probe(tmp_path, vorbereitung, "ersetzen", PID)
+    assert lauf.rc == 1
+    assert text in lauf.stderr
+    lauf.unveraendert()
+
+
+@pytest.mark.docker
+@probe_da
+def test_ersetzen_eingangspruefung_vor_dem_zielcheck(tmp_path: Path) -> None:
+    """Eigene Zustandsfolge: Ein Eingang als Symlink wird gemeldet, auch wenn das Ziel fehlt —
+    nicht hinter ZIEL_FEHLT versteckt. (Beim Freischalten gilt die alte Folge: Ziel zuerst.)"""
+    vorbereitung = (f"paket /srv/scanview/anderswo {PID}; "
+                    f"ln -s /srv/scanview/anderswo {EINGANG}/{PID}")
+    lauf = _probe(tmp_path, vorbereitung, "pruefen-ersetzen", PID)
+    assert lauf.stdout == "EINGANG_SYMLINK\n"
+    lauf.unveraendert()
+    (tmp_path / "lauf").mkdir()  # eigener Ordner je Containerlauf (Stubs, Kontendateien)
+    lauf = _probe(tmp_path / "lauf", vorbereitung, "ersetzen", PID)
+    assert lauf.rc == 1
+    assert "Symlink" in lauf.stderr and "nichts zu ersetzen" not in lauf.stderr
+    lauf.unveraendert()
+
+
+@pytest.mark.docker
+@probe_da
+def test_eingang_vor_ziel_nur_beim_ersetzen(tmp_path: Path) -> None:
+    """Dieselbe Lage (Ziel vorhanden, Eingang ist ein Symlink): `pruefen` meldet wie bisher das
+    Ziel zuerst, `pruefen-ersetzen` den Eingang."""
+    vorbereitung = f"{ALTES_PAKET}; ln -s /tmp {EINGANG}/{PID}"
+    assert _probe(tmp_path, vorbereitung, "pruefen", PID).stdout == "VORHANDEN\n"
+    (tmp_path / "zwei").mkdir()
+    assert (_probe(tmp_path / "zwei", vorbereitung, "pruefen-ersetzen", PID).stdout
+            == "EINGANG_SYMLINK\n")
+
+
+@pytest.mark.parametrize(("vorbereitung", "antwort"), [
+    ("", "ZIEL_FEHLT"),
+    (ALTES_PAKET, "OK"),
+    (f"{ALTES_PAKET}; paket {EINGANG}/{PID} {PID}", "OK"),
+    (f"ln -s /tmp {DATEN}/{PID}", "ZIEL_KEIN_ORDNER"),
+    (f"echo x >{DATEN}/{PID}", "ZIEL_KEIN_ORDNER"),
+    (f"{ALTES_PAKET}; echo x >{EINGANG}/{PID}", "EINGANG_KEIN_ORDNER"),
+    (f"echo x >{EINGANG}/{PID}", "EINGANG_KEIN_ORDNER"),
+    (f"{ALTES_PAKET}; install -d {ERSETZT}", "RESTE"),
+    (f"{ALTES_PAKET}; install -d {DATEN}/.freischalten-{PID}", "RESTE"),
+    (f"mv {DATEN} /srv/scanview/echt; ln -s /srv/scanview/echt {DATEN}", "WURZEL"),
+    (f"rmdir {EINGANG}; ln -s /tmp {EINGANG}", "EINGANG_WURZEL"),
+], ids=["leer", "ziel-ohne-upload", "fortsetzen", "ziel-symlink", "ziel-datei",
+        "eingang-datei", "eingang-datei-ohne-ziel", "rest-ersetzt", "rest-freischalten",
+        "wurzel", "eingang-wurzel"])
+@pytest.mark.docker
+@probe_da
+def test_pruefen_ersetzen_antwortet_ohne_aenderung(tmp_path: Path, vorbereitung: str,
+                                                   antwort: str) -> None:
+    lauf = _probe(tmp_path, vorbereitung, "pruefen-ersetzen", PID)
+    assert lauf.rc == 0, lauf.stderr
+    assert lauf.stdout == f"{antwort}\n"
+    lauf.unveraendert()
+
+
+@pytest.mark.docker
+@probe_da
+def test_pruefen_kennt_ersetzt_rest_nicht(tmp_path: Path) -> None:
+    """Das Freischalten neuer Pakete (Übergabe, Worker) bleibt unverändert: ein .ersetzt-Rest
+    sperrt nur das nächste Ersetzen."""
+    lauf = _probe(tmp_path, f"install -d {ERSETZT}", "pruefen", PID)
+    assert lauf.stdout == "OK\n"
+
+
+@pytest.mark.parametrize("argumente", [
+    ("ersetzen",), ("pruefen-ersetzen",), ("ersetzen", PID, "mehr"),
+    ("pruefen-ersetzen", PID, "mehr"), ("--ersetzen", PID),
+], ids=["ersetzen-allein", "pruefen-ersetzen-allein", "ersetzen-drei", "pruefen-ersetzen-drei",
+        "option"])
+@pytest.mark.docker
+@probe_da
+def test_ersetzen_falsche_argumente(tmp_path: Path, argumente: tuple[str, ...]) -> None:
+    lauf = _probe(tmp_path, f"{ALTES_PAKET}; paket {EINGANG}/{PID} {PID}", *argumente)
+    assert lauf.rc == 2
+    assert "Aufruf" in lauf.stderr
+    lauf.unveraendert()
+
+
+@pytest.mark.docker
+@probe_da
+def test_bereitstellen_ersetzen_ende_zu_ende(tmp_path: Path) -> None:
+    lauf = _probe(tmp_path, f"{ALTES_PAKET}; paket {QUELLE} {PID}", "--ersetzen", QUELLE, "ziel",
+                  aufruf=("/probe/paket-bereitstellen.sh",))
+    assert lauf.rc == 0, lauf.stdout + lauf.stderr
+    sudo = [a for a in lauf.aufrufe if a.startswith("sudo ")]
+    assert sudo == [f"sudo -l {ZIEL_SKRIPT}", f"sudo {ZIEL_SKRIPT} pruefen-ersetzen {PID}",
+                    f"sudo {ZIEL_SKRIPT} ersetzen {PID}"]
+    assert _teilbaum(lauf.nachher, ERSETZT) == _teilbaum(lauf.vorher, f"{DATEN}/{PID}")
+    assert lauf.nachher[f"{DATEN}/{PID}/project.json"][:4] == ["f", 0, GID_SCANVIEW, "0o640"]
+    assert lauf.aufrufe[-1] == "systemctl reload scanview-server"
+    assert ".ersetzt-" in lauf.stdout
+
+
+@pytest.mark.docker
+@probe_da
+def test_bereitstellen_ersetzen_ohne_ziel_bricht_vor_dem_upload_ab(tmp_path: Path) -> None:
+    lauf = _probe(tmp_path, f"paket {QUELLE} {PID}", "--ersetzen", QUELLE, "ziel",
+                  aufruf=("/probe/paket-bereitstellen.sh",))
+    assert lauf.rc != 0
+    assert "nichts zu ersetzen" in lauf.stderr
+    assert not any(a.startswith("rsync ") for a in lauf.aufrufe)
+    assert lauf.nachher == lauf.vorher

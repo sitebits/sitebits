@@ -15,6 +15,9 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from . import fehlercodes, genauigkeit
+from .teilen import Profil
+
 
 class _Streng(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -27,10 +30,17 @@ class _Offen(BaseModel):
 # --- Fehler ---------------------------------------------------------------------------------
 
 class Fehler(_Streng):
-    """Jede Fehlerantwort (4xx): Dienstkennung und ein Satz für Menschen."""
+    """Jede Fehlerantwort (4xx): Dienstkennung, ein Satz für Menschen, ein fester Code und,
+    wo vorhanden, ein Hinweis, was stattdessen ginge."""
 
     dienst: str
-    fehler: str
+    fehler: str = Field(description="Satz für Menschen; der Wortlaut kann sich ändern.")
+    code: str = Field(
+        description="Fester Fehlercode, auf den ein Programm verzweigen kann. Codes werden nur "
+                    "ergänzt, nie umbenannt; Liste: docs/public/fehlercodes.md.",
+        json_schema_extra={"enum": [c.name for c in fehlercodes.alle()]},
+    )
+    hinweis: str | None = Field(default=None, description="Was stattdessen ginge.")
     aktuell: Any = Field(
         default=None,
         description="Nur bei 409 nach Bearbeitungskonflikt: der aktuelle Stand des Objekts.",
@@ -79,6 +89,8 @@ class Einstellungen(_Streng):
     nurLeseLinks: bool
     panoramenNurFreigegeben: bool
     benachrichtigung: bool
+    ansichtsprofil: Profil = Field(
+        description="Standardprofil neuer Nur-Lese-Links (ansehen, messen, arbeiten)")
 
 
 class Kategorie(_Streng):
@@ -100,6 +112,7 @@ class ProjektBasis(_Streng):
     groesseBytes: int
     einheit: str = Field(description="Koordinaten- und Höhensystem wie im CSV-Kopf")
     draufsicht: bool
+    vorschau: bool = Field(description="Vorschaubild vorschau.webp im Paket (sonst Draufsicht)")
     rolle: str = Field(description="Eigene Rolle im Projekt")
     genauigkeit: list[Genauigkeit]
     version: int = Field(description="Version der Metadaten (für PATCH)")
@@ -167,6 +180,14 @@ class _Eintrag(_Streng):
     herkunft: str = Field(description="mensch oder ki")
     pruefstand: str = Field(description="gueltig, vorschlag oder verworfen")
     loeschenVorgeschlagen: int | None
+    grundlage: str | None = Field(
+        default=None,
+        description="Worauf die Koordinaten beruhen: gemessen (von einem Menschen im Viewer in "
+                    "einer Ebene des Pakets gewählt, Maßstab geprüft), ungeprueft (wie gemessen, "
+                    "Maßstab einer Quell-Ebene nicht geprüft), angegeben (ohne Punktquelle oder "
+                    "über ein Token gesetzt), unbekannt (Quell-Ebene nicht mehr im Paket).",
+        json_schema_extra={"enum": list(genauigkeit.GRUNDLAGEN)},
+    )
 
 
 class Poi(_Eintrag):

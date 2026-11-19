@@ -5,7 +5,7 @@ import { zuPruefenLink } from './projektAktionen';
 import { ApiFehler, post, type Projekt, type Sitzung } from './api';
 import { zeigeApiZugaenge } from './apiZugaenge';
 import { zeigeBenachrichtigung } from './benachrichtigung';
-import { draufsichtUrl, filtere, formatAusdehnung, formatGroesse, formatPunkte, formatStandpunkte, trefferText, viewerLink } from './karten';
+import { draufsichtUrl, filtere, kartenBild, formatAusdehnung, formatGroesse, formatPunkte, formatStandpunkte, trefferText, viewerLink } from './karten';
 import { ueberfaelligText } from '../fadenModell';
 import { bearbeitenKnopf, befundeLink, einstellungenLink, exportLinks, verlaufLink } from './projektAktionen';
 import { rechteImPortal } from './rechte';
@@ -215,14 +215,15 @@ function baueKarte(p: Projekt): HTMLElement {
   const karte = el('article', 'sv-karte');
 
   const bild = el('div', 'sv-karte-bild');
-  if (p.draufsicht) {
+  const b = kartenBild(p);
+  if (b) {
     const img = document.createElement('img');
-    img.src = draufsichtUrl(p.id);
-    img.alt = `Draufsicht: ${p.titel}`;
+    img.src = b.src;
+    img.alt = b.alt;
     img.loading = 'lazy';
     bild.appendChild(img);
   } else {
-    bild.appendChild(el('span', undefined, 'keine Draufsicht'));
+    bild.appendChild(el('span', undefined, 'keine Vorschau'));
   }
   karte.appendChild(bild);
 

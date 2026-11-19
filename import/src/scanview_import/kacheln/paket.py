@@ -140,8 +140,10 @@ def pruefen(pkg: Path, manifest: dict[str, Any] | None = None) -> dict[str, Any]
 
 class Packschritt:
     def __init__(self, pkg: Path, crs: str | None, height: str | None, *,
-                 vorhanden: bool = False):
+                 vorhanden: bool = False, quelloptionen: dict[str, Any] | None = None):
         self.pkg, self.crs, self.height = pkg, crs, height
+        # Nachweis der Umrechnung (Blöcke hoehe/lage wie bei add), nur wenn umgerechnet wurde.
+        self.quelloptionen = copy.deepcopy(quelloptionen) if quelloptionen else None
         self.dest = pkg / "layers/kacheln"
         self.dest.mkdir(parents=True, exist_ok=vorhanden)
         self.steps: list[float] = []
@@ -222,7 +224,7 @@ class Packschritt:
 
         box = np.asarray(ts["root"]["boundingVolume"]["box"])
         extent = np.abs(box[3:].reshape(3, 3)).sum(axis=0)
-        manifest = {
+        manifest: dict[str, Any] = {
             "schemaVersion": 2,
             "projectId": "mesh-kacheln",
             "revision": 1,
@@ -260,6 +262,8 @@ class Packschritt:
                 }
             ],
         }
+        if self.quelloptionen is not None:
+            manifest["layers"][0]["sourceOptions"] = self.quelloptionen
         # Derselbe Einstieg wie bei anderen Mesh-Importen, ohne Docker beim Rücklesen.
         from ..mesh_verify import verify_mesh
 

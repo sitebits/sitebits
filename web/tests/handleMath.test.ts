@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HANDLE_HIT_PX, nearestHandle, SCHLIESSEN_PX, schliesstFlaeche } from '../src/handleMath';
+import { amLetztenPunkt, HANDLE_HIT_PX, klickAusgang, nearestHandle, SCHLIESSEN_PX, schliesstFlaeche } from '../src/handleMath';
 import type { Handle } from '../src/handleMath';
 
 const h = (id: string, index: number, kind: Handle['kind'], x: number, y: number): Handle => ({ id, index, kind, x, y });
@@ -46,5 +46,35 @@ describe('schliesstFlaeche', () => {
     expect(schliesstFlaeche(start, 100, 100 + SCHLIESSEN_PX.maus + 1, 3, true)).toBe(true);
     expect(schliesstFlaeche(start, 100, 100 + SCHLIESSEN_PX.touch + 1, 5, true)).toBe(false);
     expect(schliesstFlaeche(null, 100, 100, 5, true)).toBe(false);
+  });
+});
+
+describe('amLetztenPunkt', () => {
+  const letzter = { x: 100, y: 100 };
+  it('16 px Maus ja, 17 px nein; mit dem Finger bis 36 px', () => {
+    expect(amLetztenPunkt(letzter, 116, 100, false)).toBe(true);
+    expect(amLetztenPunkt(letzter, 117, 100, false)).toBe(false);
+    expect(amLetztenPunkt(letzter, 100, 136, true)).toBe(true);
+    expect(amLetztenPunkt(letzter, 100, 137, true)).toBe(false);
+  });
+  it('hinter der Kamera (null) nie', () => expect(amLetztenPunkt(null, 100, 100, true)).toBe(false));
+});
+
+describe('klickAusgang', () => {
+  it('letzter Punkt der Polylinie beendet ab zwei Punkten, bei einem wird verworfen', () => {
+    expect(klickAusgang('polyline', { openIndex: 2, beenden: true }, 3)).toBe('beenden');
+    expect(klickAusgang('polyline', { openIndex: 1, beenden: true }, 2)).toBe('beenden');
+    expect(klickAusgang('polyline', { openIndex: 0, beenden: true }, 1)).toBe('zu-wenig-linie');
+  });
+  it('inzwischen angekommener Punkt: der angeklickte ist nicht mehr der letzte → Eckpunkt-Fang', () =>
+    expect(klickAusgang('polyline', { openIndex: 1, beenden: true }, 3)).toBe('setzen'));
+  it('erster Eckpunkt der Fläche schließt ab drei Punkten', () => {
+    expect(klickAusgang('area', { openIndex: 0 }, 3)).toBe('schliessen');
+    expect(klickAusgang('area', { openIndex: 0 }, 2)).toBe('zu-wenig-flaeche');
+  });
+  it('sonst setzen (auch Eckpunkt-Fang ohne beenden, auch ohne Ziel)', () => {
+    expect(klickAusgang('polyline', { openIndex: 0 }, 3)).toBe('setzen');
+    expect(klickAusgang('polyline', null, 0)).toBe('setzen');
+    expect(klickAusgang('distance', { openIndex: 0, beenden: true }, 1)).toBe('setzen');
   });
 });

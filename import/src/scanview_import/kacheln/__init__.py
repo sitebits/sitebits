@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import resource
 import sys
 import time
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -576,8 +577,153 @@ def _budgets(max_dreiecke: int, blatt_dreiecke: int, blatt_texel: int,
         raise ValueError("Texturcache muss mindestens 0 Bytes haben")
 
 
+# Billiges Tor gegen die Wolke (--lage-von): Höhenüberlappung und Abstand der Mesh-Mitte (Lage)
+# zur Wolkenhülle. Fängt ein falsches Höhensystem (Quasigeoid rund 40 m) und ein falsches CRS; eine
+# fehlende Lageanpassung im Meterbereich misst erst frameCheck (mesh_frame), der für Kacheln noch
+# nicht läuft.
+HUELLE_MAX_M = 10.0
+
+
+@dataclass(frozen=True, eq=False)
+class Rahmen:
+    """Vor dem Lesen festgelegt: Höhenumrechnung, Etiketten der Ausgabe, Wolke und Lagematrix."""
+
+    quelle: str | None
+    ziel: str | None
+    crs: str | None
+    hoehe: str | None
+    cloud: dict[str, Any] | None = None
+    matrix: np.ndarray | None = None
+
+    def quelloptionen(self) -> dict[str, Any]:
+        """``sourceOptions`` der Ebene wie bei ``add``: Blöcke ``hoehe`` und ``lage``."""
+        from .. import hoehen
+
+        optionen: dict[str, Any] = {}
+        if self.quelle is not None and self.ziel is not None:
+            optionen["hoehe"] = hoehen.quellblock(self.quelle, self.ziel)
+        if self.matrix is not None and self.cloud is not None:
+            optionen["lage"] = copy.deepcopy(self.cloud["sourceOptions"]["lage"])
+        return optionen
+
+
+def _rahmen_festlegen(
+    crs: str | None, hoehe: str | None, umrechnen: tuple[str | None, str | None],
+    lage_von: Path | None, ohne_lage: bool,
+) -> Rahmen:
+    """Optionen prüfen, bevor das OBJ gelesen wird; mit ``lage_von`` bestimmt das Paket das Ziel.
+
+    Ohne Paket gilt ``hoehen.festlegen`` wie bei ``convert`` (Standardziel DHHN2016). ``hoehe``
+    bleibt ein Etikett für bereits umgerechnete Quellen und schließt eine Umrechnung aus; mit
+    ``lage_von`` nur bei einer Wolke ohne Lagematrix (``ohne_lage``), sonst wirkte die Matrix
+    womöglich doppelt.
+    """
+    from .. import hoehen, lage
+    from ..mesh_convert import _add_hoehe
+
+    if hoehe is not None and umrechnen[0] is not None:
+        raise ValueError("--hoehe ist ein Etikett ohne Umrechnung; nicht mit --quell-hoehensystem")
+    if ohne_lage and lage_von is None:
+        raise ValueError("--ohne-lage gilt nur zusammen mit --lage-von")
+    if lage_von is None:
+        quelle, ziel = hoehen.festlegen(*umrechnen)
+        if quelle != ziel and crs is None:
+            raise ValueError("Höhenumrechnung braucht ein Koordinatensystem (--crs)")
+        return Rahmen(quelle, ziel, crs, ziel if quelle is not None else hoehe)
+    wkt, datum, cloud = _paketrahmen(lage_von, crs)
+    quelle, ziel = _add_hoehe(umrechnen, datum)
+    if quelle is None and hoehe is None:
+        raise ValueError("--lage-von benötigt --quell-hoehensystem oder --hoehe")
+    if quelle is None and hoehen.normiere(hoehe) != hoehen.normiere(datum):
+        raise ValueError("--hoehe widerspricht dem Paket")
+    matrix = lage.aus_paket(cloud)
+    if quelle is None and matrix is not None:
+        # Ein Etikett sagt nicht, ob die Lagematrix schon in der Quelle steckt (etwa wenn ein
+        # vorgelagertes Werkzeug Höhe und Lage angewandt hat). Sie noch einmal anzuwenden versetzt
+        # das Mesh um die Matrix, ohne dass das Hüllentor es sieht; deshalb hier kein Raten.
+        raise ValueError(
+            "--hoehe mit --lage-von: Die Wolke trägt eine Lagematrix, ein Etikett sagt nicht, ob "
+            "sie schon angewandt ist. Rohes OBJ: --quell-hoehensystem (auch gleich dem Paket); "
+            "Höhe und Lage schon angewandt: ohne --lage-von"
+        )
+    if matrix is None and not ohne_lage:
+        raise ValueError("Paket ohne Lagematrix (sourceOptions.lage): ausdrücklich --ohne-lage")
+    if matrix is not None and ohne_lage:
+        raise ValueError("--ohne-lage widerspricht dem Paket: die Wolke trägt eine Lagematrix")
+    return Rahmen(quelle, ziel, wkt, datum, cloud, matrix)
+
+
+def _paketrahmen(lage_von: Path, crs: str | None) -> tuple[str, str, dict[str, Any]]:
+    """CRS und Höhensystem (wörtlich) und Wolke des Pakets; Lücken brechen ab wie bei add."""
+    from .. import hoehen
+    from ..manifest_io import cloud_of, read_manifest
+    from ..point_source import _same_crs
+
+    m = read_manifest(lage_von)
+    try:
+        if m.get("schemaVersion") != 2:
+            raise ValueError("--lage-von benötigt ein Schema-2-Paket")
+        rahmen, unit, cloud = m["frame"]["crs"], m["frame"].get("unit"), cloud_of(m)
+    except (KeyError, TypeError, AttributeError) as exc:
+        raise ValueError(f"--lage-von: Paket ohne Rahmen oder Wolke ({exc})") from exc
+    # null statt Objekt (frame.crs, sourceOptions) bricht als Paketfehler ab, nicht als Absturz.
+    if not isinstance(rahmen, dict):
+        raise ValueError("--lage-von: Paket ohne Koordinatensystem")
+    if not isinstance(cloud.get("sourceOptions", {}), dict):
+        raise ValueError("--lage-von: Wolke mit ungültigen sourceOptions")
+    wkt, datum = rahmen.get("wkt"), rahmen.get("verticalDatum")
+    if not isinstance(wkt, str) or not wkt.strip():
+        raise ValueError("--lage-von: Paket ohne Koordinatensystem")
+    if not isinstance(datum, str) or hoehen.normiere(datum) is None:
+        raise ValueError("Paket-Höhensystem unbekannt; Mesh-Höhen nicht zuordenbar")
+    if not _same_crs(crs, wkt):
+        raise ValueError("Mesh-CRS widerspricht dem Paketrahmen (--crs angeben)")
+    if unit != "m" or cloud.get("sourceOptions", {}).get("unit", "m") != "m":
+        raise ValueError("Paketeinheit muss metrisch sein (Kacheln rechnen in m)")
+    bounds = np.asarray(cloud.get("boundsWorld", []), dtype=np.float64)
+    if bounds.shape != (2, 3) or not np.isfinite(bounds).all() or np.any(bounds[0] > bounds[1]):
+        raise ValueError("Wolke ohne gültige boundsWorld: Hüllentor nicht möglich")
+    return wkt, datum, cloud
+
+
+def _huellentor(positions: np.ndarray, bounds_world: list[list[float]]) -> None:
+    """Mesh-Hülle gegen die Wolkenhülle: z-Bereiche überlappen, Mitte höchstens 10 m daneben.
+
+    Die Mitte zählt räumlich (x, y und z): Ein falsches Höhensystem verschiebt das Mesh in z,
+    auch wenn die Wolke so hoch reicht, dass sich die z-Bereiche noch überlappen.
+    """
+    lo, hi = positions.min(axis=0), positions.max(axis=0)
+    w_lo, w_hi = np.asarray(bounds_world, dtype=np.float64)
+    if hi[2] < w_lo[2] or lo[2] > w_hi[2]:
+        raise ValueError(
+            f"Hüllentor: Mesh-Höhen {lo[2]:.1f} bis {hi[2]:.1f} m überlappen die Wolke "
+            f"({w_lo[2]:.1f} bis {w_hi[2]:.1f} m) nicht; Höhensystem prüfen"
+        )
+    mitte = (lo + hi) / 2
+    aussen = np.maximum(0.0, np.maximum(w_lo - mitte, mitte - w_hi))
+    abstand = float(np.linalg.norm(aussen))
+    if abstand > HUELLE_MAX_M:
+        raise ValueError(
+            f"Hüllentor: Mesh-Mitte liegt {abstand:.1f} m außerhalb der Wolkenhülle "
+            f"(> {HUELLE_MAX_M:g} m); CRS, Höhensystem und Lage prüfen"
+        )
+
+
+def _rahmen_angleichen(mesh: Mesh, rahmen: Rahmen) -> Mesh:
+    """Wie ``add_mesh``: erst die Höhe an der Originallage, dann die Lagematrix der Wolke."""
+    from .. import lage
+    from ..mesh_convert import _mesh_hoehe
+
+    mesh = _mesh_hoehe(mesh, rahmen.quelle, rahmen.ziel)
+    if rahmen.matrix is not None:
+        mesh = replace(mesh, positions=lage.wende_an(mesh.positions, rahmen.matrix))
+    if rahmen.cloud is not None:
+        _huellentor(mesh.positions, rahmen.cloud["boundsWorld"])
+    return mesh
+
+
 def _packen(
-    basis: Path, ausgabe: Path, crs: str | None, hoehe: str | None,
+    basis: Path, ausgabe: Path, rahmen: Rahmen,
     auftraege: Auftraege, jobs: int, pack_plan: list[tuple[str, np.ndarray, bool]],
     tileset: dict[str, Any], mesh: Mesh,
 ) -> None:
@@ -587,7 +733,8 @@ def _packen(
     # Die vollständige Prüffassung bleibt auch bei einem Encoderfehler verfügbar.
     from .parallel import packauftrag
 
-    packer = Packschritt(basis / "paket", crs, hoehe)
+    packer = Packschritt(basis / "paket", rahmen.crs, rahmen.hoehe,
+                         quelloptionen=rahmen.quelloptionen())
     packed = []
     for uri, origin, is_root in pack_plan:
         if auftraege.parallel:
@@ -619,20 +766,26 @@ def kacheln(
     hoehe: str | None = None,
     packen: bool = False,
     jobs: int = min(8, os.cpu_count() or 1),
+    umrechnen: tuple[str | None, str | None] = (None, None),
+    lage_von: Path | None = None,
+    ohne_lage: bool = False,
 ) -> dict[str, Any]:
     """OBJ räumlich halbieren, dann die Anzeigehierarchie von unten aufbauen.
 
     Nichtleere Ausgabeordner werden abgelehnt. Messpunkte enthalten Wanduhr und
     Prozess-Höchststand (Linux ru_maxrss), keine isolierte Speicherzuweisung.
+    ``umrechnen`` (Quell-, Zielhöhensystem) und ``lage_von`` (Paket mit Wolke) bringen das Mesh
+    wie ``add`` in den Paketrahmen; ``hoehe`` ist nur das Etikett bereits umgerechneter Quellen.
     """
     _budgets(max_dreiecke, blatt_dreiecke, blatt_texel, jobs, textur_cache_bytes)
-    cache = BildCache(textur_cache_bytes if jobs == 1 else 0)
     if eingabe.suffix.lower() != ".obj":
         raise ValueError("Kacheln unterstützt nur OBJ in metrischen Projektkoordinaten")
     if ausgabe.exists() and any(ausgabe.iterdir()):
         raise ValueError("Ausgabeordner muss leer sein")
-    if packen and (not crs or not hoehe):
-        raise ValueError("--packen benötigt --crs und --hoehe")
+    if packen and (not crs or not (hoehe or umrechnen[0])):
+        raise ValueError("--packen benötigt --crs und --hoehe oder --quell-hoehensystem")
+    rahmen = _rahmen_festlegen(crs, hoehe, umrechnen, lage_von, ohne_lage)
+    cache = BildCache(textur_cache_bytes if jobs == 1 else 0)
     start = time.monotonic()
     points: list[dict[str, Any]] = []
 
@@ -649,7 +802,7 @@ def kacheln(
 
     auftraege = Auftraege(jobs, textur_cache_bytes // jobs)
     try:
-        mesh = read_mesh(eingabe, crs=crs, unit="m", up="z")
+        mesh = _rahmen_angleichen(read_mesh(eingabe, crs=crs, unit="m", up="z"), rahmen)
         messen("lesen", triangles=len(mesh.triangles), vertices=len(mesh.positions))
         ausgabe.mkdir(parents=True, exist_ok=True)
         basis = ausgabe
@@ -706,20 +859,20 @@ def kacheln(
             "geometricError": error,
             "root": root,
             "extras": {
-                "coordinateReferenceSystem": crs,
-                "heightSystem": hoehe,
+                "coordinateReferenceSystem": rahmen.crs,
+                "heightSystem": rahmen.hoehe,
                 "axis": "Z",
                 "unit": "m",
             },
         }
         (ausgabe / "tileset.json").write_text(json.dumps(tileset, indent=2, allow_nan=False))
         if packen:
-            _packen(basis, ausgabe, crs, hoehe, auftraege, jobs, pack_plan, tileset, mesh)
+            _packen(basis, ausgabe, rahmen, auftraege, jobs, pack_plan, tileset, mesh)
         auftraege.schliessen()
         messen("fertig", triangles=len(mesh.triangles), tiles=len(tile_points))
         report = {
             "measurements": points, "sourceTriangles": len(mesh.triangles),
-            "tiles": len(tile_points),
+            "tiles": len(tile_points), "sourceOptions": rahmen.quelloptionen(),
         }
         (ausgabe / "kacheln-log.json").write_text(json.dumps(report, indent=2, allow_nan=False))
         return report

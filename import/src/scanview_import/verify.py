@@ -24,6 +24,7 @@ from scipy.spatial import cKDTree
 from .convert import CLOUD_NAME
 from .inventory import pruefe_e57_genauigkeit, read_inventory
 from .manifest_io import cloud_of
+from .verweise import pruefe_paket
 
 # 1 mm Spezifikation + halber Quantisierungsschritt (0,5 mm) — wie TOL in test_convert.py.
 MAX_ERROR_M = 0.0015
@@ -240,6 +241,8 @@ def verify(
     float32_zulassen: bool = False,
 ) -> dict[str, Any]:
     manifest = json.loads((pkg / "project.json").read_text())
+    # Erst die Verweise (ADR 0016, Nachtrag 2026-11), dann irgendeine Datei des Pakets öffnen.
+    pruefe_paket(pkg, manifest)
     cloud = cloud_of(manifest)
     if "sourceOptions" in cloud:
         from .point_verify import verify_points

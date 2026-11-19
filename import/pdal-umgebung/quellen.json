@@ -1,0 +1,1637 @@
+{
+  "lockSha256": "8a303273e89ffc40693a3f00c47ac45d6534eeb9d7294170d719784407431a3c",
+  "pakete": [
+    {
+      "name": "_openmp_mutex",
+      "version": "4.5",
+      "build": "20_gnu",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda",
+      "sha256": "1dd3fffd892081df9726d7eb7e0dea6198962ba775bd88842135a4ddb4deb3c9",
+      "md5": "a9f577daf3de00bca7c3c76c0ecbd1de",
+      "lizenz": "BSD-3-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/ctng-compilers-feedstock",
+        "commit": "14a57afe05d9db64add1754ce28198e5e8d4d7b6"
+      },
+      "upstream": {
+        "home": "https://github.com/conda-forge/ctng-compilers-feedstock",
+        "dev": "",
+        "url": "https://mirrors.ocf.berkeley.edu/gnu/gcc/gcc-13.4.0/gcc-13.4.0.tar.gz",
+        "sha256": "bf0baf3e570c9c74c17c8201f0196c6924b4bd98c90e69d6b2ac0cd823f33bbc"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "blosc",
+      "version": "1.21.6",
+      "build": "he440d0b_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/blosc-1.21.6-he440d0b_1.conda",
+      "sha256": "e7af5d1183b06a206192ff440e08db1c4e8b2ca1f8376ee45fb2f3a85d4ee45d",
+      "md5": "2c2fae981fd2afd00812c92ac47d023d",
+      "lizenz": "BSD-3-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/blosc-feedstock",
+        "commit": "c57a4e59b3cf26bb7c87a9950ff57e0c4ed1b7b3"
+      },
+      "upstream": {
+        "home": "https://github.com/Blosc/c-blosc",
+        "dev": "",
+        "url": "https://github.com/Blosc/c-blosc/archive/v1.21.6.tar.gz",
+        "sha256": "9fcd60301aae28f97f1301b735f966cc19e7c49b6b4321b839b4579a0c156f38"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE.txt"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "bzip2",
+      "version": "1.0.8",
+      "build": "hda65f42_10",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/bzip2-1.0.8-hda65f42_10.conda",
+      "sha256": "1a0d382c515ebf55f8ee1f38c8b81bc95af5c2acc42ad53b66bc5df932032f96",
+      "md5": "e675fabcf81499adc7edf58124fb1e01",
+      "lizenz": "bzip2-1.0.6",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/bzip2-feedstock",
+        "commit": "f0f345e062aed39aa7f500c0746efed2dcea6971"
+      },
+      "upstream": {
+        "home": "https://gitlab.com/bzip2/bzip2",
+        "dev": "https://gitlab.com/bzip2/bzip2",
+        "url": "https://gitlab.com/bzip2/bzip2/-/archive/bzip2-1.0.8/bzip2-bzip2-1.0.8.tar.gz",
+        "sha256": "db106b740252669664fd8f3a1c69fe7f689d5cd4b132f82ba82b9afba27627df"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "c-ares",
+      "version": "1.34.9",
+      "build": "hebe6cf0_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/c-ares-1.34.9-hebe6cf0_0.conda",
+      "sha256": "bd95dd25b80b5c4faf5349542377bf89b2794e23d0f7aa7f1c431e4f3b633f3c",
+      "md5": "78b505af04bf7a87ca957ef0cb5946f5",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/c-ares-feedstock",
+        "commit": "cd39e23d24f4af77a8d8405d40df155c3d94d0af"
+      },
+      "upstream": {
+        "home": "https://c-ares.haxx.se/",
+        "dev": "",
+        "url": "https://github.com/c-ares/c-ares/releases/download/v1.34.9/c-ares-1.34.9.tar.gz",
+        "sha256": "9364b70a12eb59a06830fb488d9357f90100dff0d98b23ea3593a183d43e6f2f"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE.md"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "freexl",
+      "version": "2.0.0",
+      "build": "h1f12c17_3",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/freexl-2.0.0-h1f12c17_3.conda",
+      "sha256": "2be93e21acabadd6f32a830f328d23e4c6369898df0f69396c2c37be6ef0d15e",
+      "md5": "4a0a8fd87ee4767db791047546f56501",
+      "lizenz": "MPL-1.1",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/freexl-feedstock",
+        "commit": "a98812cc53490d1828badba6bca14e91912b85fb"
+      },
+      "upstream": {
+        "home": "https://www.gaia-gis.it/fossil/freexl/index",
+        "dev": "",
+        "url": "http://www.gaia-gis.it/gaia-sins/freexl-2.0.0.tar.gz",
+        "sha256": "176705f1de58ab7c1eebbf5c6de46ab76fcd8b856508dbd28f5648f7c6e1a7f0"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "geos",
+      "version": "3.14.1",
+      "build": "h55b0958_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/geos-3.14.1-h55b0958_0.conda",
+      "sha256": "dc9f03bef913c8b3c94e93a61318b7437bd5e4f7136ef841e68df8de082405d5",
+      "md5": "5f856b72ca9cd5b5b4a1c43551804622",
+      "lizenz": "LGPL-2.1-only",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/geos-feedstock",
+        "commit": "ade0f35c7f0fd90c9b6fad897f97fd436dabc7fa"
+      },
+      "upstream": {
+        "home": "https://libgeos.org/",
+        "dev": "https://github.com/libgeos/geos",
+        "url": "https://download.osgeo.org/geos/geos-3.14.1.tar.bz2",
+        "sha256": "3c20919cda9a505db07b5216baa980bacdaa0702da715b43f176fb07eff7e716"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "geotiff",
+      "version": "1.7.4",
+      "build": "h0e19ed7_7",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/geotiff-1.7.4-h0e19ed7_7.conda",
+      "sha256": "67e33018f957e76bf76a4a2b028d9fc95c23fe0bac826d99fabfcccb32d21a06",
+      "md5": "16bbe7fb7c82abd73bbad6f849801fcf",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/geotiff-feedstock",
+        "commit": "c4637c78368c6026eb77975cfbdb152da988320d"
+      },
+      "upstream": {
+        "home": "https://trac.osgeo.org/geotiff",
+        "dev": "",
+        "url": "http://download.osgeo.org/geotiff/libgeotiff/libgeotiff-1.7.4.tar.gz",
+        "sha256": "c598d04fdf2ba25c4352844dafa81dde3f7fd968daa7ad131228cd91e9d3dc47"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "giflib",
+      "version": "6.1.3",
+      "build": "hebe6cf0_2",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/giflib-6.1.3-hebe6cf0_2.conda",
+      "sha256": "917c3a622c3870f822d25a882f1856e757d91e31a3dd52a499849a392ca865d2",
+      "md5": "07bdd65afe03df3fb5dbcaa8257c64a3",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/giflib-feedstock",
+        "commit": "00b90daa45b74b49a9fc221dca24778d680997e0"
+      },
+      "upstream": {
+        "home": "https://giflib.sourceforge.net/",
+        "dev": "",
+        "url": "https://downloads.sourceforge.net/project/giflib/giflib-6.x/giflib-6.1.3.tar.gz",
+        "sha256": "b65b66b99f0424b93525f987386f22fc5efb9da2bfc92ad4a532249aaffbab0e"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "icu",
+      "version": "78.3",
+      "build": "py310h44b86e0_2",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/icu-78.3-py310h44b86e0_2.conda",
+      "sha256": "9f07834f0c546ab14d885ce0366285f61f44e326c0edd1fc63b8294e113ae432",
+      "md5": "72a381cbad04f24b1c2a43ef707f45b4",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/icu-feedstock",
+        "commit": "72c98272513977fda6ffa2dd7a4e6f67a77976c9"
+      },
+      "upstream": {
+        "home": "https://icu.unicode.org/",
+        "dev": "https://github.com/unicode-org/icu",
+        "url": "https://github.com/unicode-org/icu/releases/download/release-78.3/icu4c-78.3-sources.tgz",
+        "sha256": "3a2e7a47604ba702f345878308e6fefeca612ee895cf4a5f222e7955fabfe0c0"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "json-c",
+      "version": "0.18",
+      "build": "hebe6cf0_2",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/json-c-0.18-hebe6cf0_2.conda",
+      "sha256": "78ec5a672acc8a6bf9c74268b88a72230809517aebe75a11acf959d3f9a63fe0",
+      "md5": "9aa77c4e7f9a988df94da18a7b9b90fe",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/json-c-feedstock",
+        "commit": "c8243e3f629c4db215bdd0d2eb874f834906821d"
+      },
+      "upstream": {
+        "home": "https://github.com/json-c/json-c",
+        "dev": "https://github.com/json-c/json-c",
+        "url": "https://s3.amazonaws.com/json-c_releases/releases/json-c-0.18.tar.gz",
+        "sha256": "876ab046479166b869afc6896d288183bbc0e5843f141200c677b3e8dfb11724"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "keyutils",
+      "version": "1.6.3",
+      "build": "h7cc23a3_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/keyutils-1.6.3-h7cc23a3_1.conda",
+      "sha256": "dd053c96dcb0dcfd59422aefea9d2fe937a190167f34fba7893ec1e10a7e8963",
+      "md5": "ba55d1b89fd7775e67de8291029b4059",
+      "lizenz": "LGPL-2.1-or-later",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/keyutils-feedstock",
+        "commit": "42ba6a5b07dc968ff22743db1f52fb8500181e3a"
+      },
+      "upstream": {
+        "home": "https://git.kernel.org/pub/scm/linux/kernel/git/dhowells/keyutils.git/",
+        "dev": "",
+        "url": "https://git.kernel.org/pub/scm/linux/kernel/git/dhowells/keyutils.git/snapshot/keyutils-1.6.3.tar.gz",
+        "sha256": "a61d5706136ae4c05bd48f86186bcfdbd88dd8bd5107e3e195c924cfc1b39bb4"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENCE.LGPL"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "krb5",
+      "version": "1.22.2",
+      "build": "hbc21106_2",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/krb5-1.22.2-hbc21106_2.conda",
+      "sha256": "2a5c38c85e63df84c4e69ee71439841ce570d259ae3060627bb9a49a938d66f4",
+      "md5": "53318d715316929a574f83591308b1f8",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/krb5-feedstock",
+        "commit": "39e6b3c27e0762e320d9518e069c3df9f26b5bf9"
+      },
+      "upstream": {
+        "home": "http://web.mit.edu/kerberos/",
+        "dev": "https://github.com/krb5/krb5",
+        "url": "https://github.com/krb5/krb5/archive/krb5-1.22.2-final.tar.gz",
+        "sha256": "289f5bb81d1f2f8d5eecebe56a056aeed95d35fd9bb4a7071c5dd7ad4b3fe888"
+      },
+      "lizenzdateien": [
+        "info/licenses/doc/notice.rst"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "lerc",
+      "version": "4.2.0",
+      "build": "hdb68285_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/lerc-4.2.0-hdb68285_0.conda",
+      "sha256": "bf9fdebf55d8bc99d83531cdffda00703f4dc5f93a1a956768c147362c72feda",
+      "md5": "fb9d356b1a57d6d54768be7ebd5fce09",
+      "lizenz": "Apache-2.0",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/lerc-feedstock",
+        "commit": "11a9b9cedb32ef23cd0dc48743e0a354fc4f7342"
+      },
+      "upstream": {
+        "home": "https://github.com/Esri/lerc",
+        "dev": "",
+        "url": "https://github.com/Esri/lerc/archive/v4.2.0.tar.gz",
+        "sha256": "a1fb593ed1fcb5b38800caf3c4454f872745202e961d00d745e53d81447e17c9"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libarchive",
+      "version": "3.8.9",
+      "build": "lgpl_hee3b6c9_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libarchive-3.8.9-lgpl_hee3b6c9_1.conda",
+      "sha256": "bdc47bef106f99a49461c7056bc180c7157ab038b48da6756e8c4c8daff1f802",
+      "md5": "0c32339e51a173bbd2a89beead481013",
+      "lizenz": "BSD-2-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libarchive-feedstock",
+        "commit": "8702d4c08d57d3251ba945b6af3b230f6a714ce2"
+      },
+      "upstream": {
+        "home": "http://www.libarchive.org/",
+        "dev": "",
+        "url": "https://github.com/libarchive/libarchive/archive/v3.8.9.tar.gz",
+        "sha256": "744346f6bca195c8f894f847bb32a16e9bcae6002624a58fadc81e80f595b3cb"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libbrotlicommon",
+      "version": "1.2.1",
+      "build": "h39a168f_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libbrotlicommon-1.2.1-h39a168f_0.conda",
+      "sha256": "8eccfbfdb8ecba32eabfb6ee92f70e818e5f3a35a01c507f7b6bd56e00e4c617",
+      "md5": "9460bdde20bcdf9e6bbef0232b14ad2d",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/brotli-feedstock",
+        "commit": "1d1a72cf503c033e0c30ceb58b91f01e0098d274"
+      },
+      "upstream": {
+        "home": "http://github.com/google/brotli",
+        "dev": "http://github.com/google/brotli",
+        "url": "https://github.com/google/brotli/archive/v1.2.1.tar.gz",
+        "sha256": "98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libbrotlidec",
+      "version": "1.2.1",
+      "build": "ha411449_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libbrotlidec-1.2.1-ha411449_0.conda",
+      "sha256": "4b4bda6f70ad511bdff95fdd958dca74b6e0534ae335ddcb1d8c6569774d2429",
+      "md5": "6d934e235f4d452ebec720ec7c3638a6",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/brotli-feedstock",
+        "commit": "1d1a72cf503c033e0c30ceb58b91f01e0098d274"
+      },
+      "upstream": {
+        "home": "http://github.com/google/brotli",
+        "dev": "http://github.com/google/brotli",
+        "url": "https://github.com/google/brotli/archive/v1.2.1.tar.gz",
+        "sha256": "98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libbrotlienc",
+      "version": "1.2.1",
+      "build": "h018ffa1_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libbrotlienc-1.2.1-h018ffa1_0.conda",
+      "sha256": "61974cf9bb07115ed6725dacf83d0d985443d78dd123cc4f2758856fda5376ec",
+      "md5": "8f3078564b4a4cd9602ebaafe78e0b87",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/brotli-feedstock",
+        "commit": "1d1a72cf503c033e0c30ceb58b91f01e0098d274"
+      },
+      "upstream": {
+        "home": "http://github.com/google/brotli",
+        "dev": "http://github.com/google/brotli",
+        "url": "https://github.com/google/brotli/archive/v1.2.1.tar.gz",
+        "sha256": "98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libcurl",
+      "version": "8.23.0",
+      "build": "ha042cf0_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libcurl-8.23.0-ha042cf0_0.conda",
+      "sha256": "d2db14d80efb4f2e76e76561c633f1767f7543987f2bcb54a067a9d264d432ab",
+      "md5": "0ad16151226df493aed967f0efce0e80",
+      "lizenz": "curl",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/curl-feedstock",
+        "commit": "d770c46d773d7e2c81555d606720c3d6435b216f"
+      },
+      "upstream": {
+        "home": "http://curl.haxx.se/",
+        "dev": "https://github.com/curl/curl",
+        "url": "http://curl.haxx.se/download/curl-8.23.0.tar.bz2",
+        "sha256": "95b22eb32bf6d1fa6e3e9463bdb61cece3efc56d86576a9b3cbd428246a6d854"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libdeflate",
+      "version": "1.25",
+      "build": "hd45a770_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libdeflate-1.25-hd45a770_1.conda",
+      "sha256": "82e134c8a08b1eed9a2ed8ab578b89aa1730dcde3dea8dd87645ed0637878e54",
+      "md5": "40f9b31aa9cf007789867df0decd0492",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libdeflate-feedstock",
+        "commit": "995dda5e8253e79324b87cb9b2fcf8cd40357ed2"
+      },
+      "upstream": {
+        "home": "https://github.com/ebiggers/libdeflate",
+        "dev": "",
+        "url": "https://github.com/ebiggers/libdeflate/archive/v1.25.tar.gz",
+        "sha256": "d11473c1ad4c57d874695e8026865e38b47116bbcb872bfc622ec8f37a86017d"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libedit",
+      "version": "3.1.20260512",
+      "build": "pl5321h373387f_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libedit-3.1.20260512-pl5321h373387f_0.conda",
+      "sha256": "45301f14f4eb66da57cfaf2d265f3eeee73f8b07e99614ee3afc5b26eea91126",
+      "md5": "27dbd7e2984b8fe48e069379636ccfdd",
+      "lizenz": "BSD-2-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libedit-feedstock",
+        "commit": "68b86ed3628cf5ad0cc67e821c733d3729525c85"
+      },
+      "upstream": {
+        "home": "http://thrysoee.dk/editline/",
+        "dev": "",
+        "url": "http://thrysoee.dk/editline/libedit-20260512-3.1.tar.gz",
+        "sha256": "432d5e7ea8b0116dd39f2eca7bc11d0eed77faa6b77ea526ace89907c23ea4a0"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libev",
+      "version": "4.33",
+      "build": "h280c20c_3",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libev-4.33-h280c20c_3.conda",
+      "sha256": "e4418f68d01a6307c4431b585c71b584f40189877364e542ee87deb777f5e85b",
+      "md5": "7bc31538d6e3fb349e897353969237ec",
+      "lizenz": "BSD-2-Clause OR GPL-2.0-or-later",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libev-feedstock",
+        "commit": "865d6e94ceab52b90efb1658293f4d63f3cc6e69"
+      },
+      "upstream": {
+        "home": "https://software.schmorp.de/pkg/libev.html",
+        "dev": "",
+        "url": "https://dist.schmorp.de/libev/Attic/libev-4.33.tar.gz",
+        "sha256": "507eb7b8d1015fbec5b935f34ebed15bf346bed04a11ab82b8eee848c4205aea"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libexpat",
+      "version": "2.9.0",
+      "build": "hd2095e1_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libexpat-2.9.0-hd2095e1_0.conda",
+      "sha256": "7b930a8b6bc6553cb754b4977a11f9c862c719a652fc2d128d89270992ce8beb",
+      "md5": "317ecabe4a58b3068c7958dc5eb89e43",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/expat-feedstock",
+        "commit": "526798d77bd4c62b7e83a139a6b5f86db26d1e30"
+      },
+      "upstream": {
+        "home": "https://libexpat.github.io",
+        "dev": "https://github.com/libexpat/libexpat",
+        "url": "https://github.com/libexpat/libexpat/releases/download/R_2_9_0/expat-2.9.0.tar.xz",
+        "sha256": "1e6371862cc31999b368c3b89b49994f0677e1bab5f1b2b85ae3741f5d803051"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libgcc",
+      "version": "16.2.0",
+      "build": "ha9f2e26_7",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libgcc-16.2.0-ha9f2e26_7.conda",
+      "sha256": "e031634c3a928f9594eba868bc46ef5230d6571a364a0c63215b06c4563bfcea",
+      "md5": "735629b400b70eeab21a2ba8f5b1c2ce",
+      "lizenz": "GPL-3.0-only WITH GCC-exception-3.1",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/ctng-compilers-feedstock",
+        "commit": "9130f5e7a99ff6de8041ce7b9542d5454e863689"
+      },
+      "upstream": {
+        "home": "https://gcc.gnu.org/onlinedocs/gccint/Libgcc.html",
+        "dev": "",
+        "url": "https://ftp.gnu.org/gnu/gcc/gcc-16.2.0/gcc-16.2.0.tar.gz",
+        "sha256": "071d00a097579e5ef7ce97fc4a9e58e73fd3503c0a013c765c970370a5a53b9b"
+      },
+      "lizenzdateien": [
+        "share/licenses/gcc-libs/RUNTIME.LIBRARY.EXCEPTION"
+      ],
+      "ergaenzungen": [
+        {
+          "paket": "readline",
+          "datei": "info/licenses/COPYING",
+          "erklaerung": "GPL-3.0-Text, auf den sich die Laufzeitausnahme bezieht (wortgleich aus readline)"
+        }
+      ]
+    },
+    {
+      "name": "libgcc-ng",
+      "version": "16.2.0",
+      "build": "h69a702a_7",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libgcc-ng-16.2.0-h69a702a_7.conda",
+      "sha256": "03b54d7008de080a17cc2174b0e4acd6d06e1c981b2eb19846f46d8f59966034",
+      "md5": "2005515ac9340f816fb2ac7e83afe553",
+      "lizenz": "GPL-3.0-only WITH GCC-exception-3.1",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/ctng-compilers-feedstock",
+        "commit": "9130f5e7a99ff6de8041ce7b9542d5454e863689"
+      },
+      "upstream": {
+        "home": "https://gcc.gnu.org/onlinedocs/gccint/Libgcc.html",
+        "dev": "",
+        "url": "https://ftp.gnu.org/gnu/gcc/gcc-16.2.0/gcc-16.2.0.tar.gz",
+        "sha256": "071d00a097579e5ef7ce97fc4a9e58e73fd3503c0a013c765c970370a5a53b9b"
+      },
+      "lizenzdateien": [],
+      "ergaenzungen": [
+        {
+          "paket": "libgcc",
+          "datei": "share/licenses/gcc-libs/RUNTIME.LIBRARY.EXCEPTION",
+          "erklaerung": "Metapaket ohne eigene Dateien, Lizenz wie libgcc"
+        },
+        {
+          "paket": "readline",
+          "datei": "info/licenses/COPYING",
+          "erklaerung": "GPL-3.0-Text, auf den sich die Laufzeitausnahme bezieht (wortgleich aus readline)"
+        }
+      ]
+    },
+    {
+      "name": "libgdal-core",
+      "version": "3.13.3",
+      "build": "h7fa801c_4",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libgdal-core-3.13.3-h7fa801c_4.conda",
+      "sha256": "03caa0d547a9a193390c4ca67b1738a290c02fdeaf9b4623f2c469fb35b767a2",
+      "md5": "d3f9c391d9e990be5aff3bfe8aacfd0b",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/gdal-feedstock",
+        "commit": "d85b965ffdb2781d5304386cc04f18ff81c2710f"
+      },
+      "upstream": {
+        "home": "http://www.gdal.org/",
+        "dev": "",
+        "url": "http://download.osgeo.org/gdal/3.13.3/gdal-3.13.3.tar.xz",
+        "sha256": "a3348c2102dd91962290007d7c293b467bb1b0cd89f086f24bb97b9b653a9804"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE.TXT",
+        "info/licenses/LICENSE_libgeotiff.txt",
+        "info/licenses/LICENSE_libtiff.txt"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libgomp",
+      "version": "16.2.0",
+      "build": "he0feb66_7",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libgomp-16.2.0-he0feb66_7.conda",
+      "sha256": "92a0bb350c7be6a4eedcb4e111c60aefd176018e6b1c009a6e025dbe9bbcd758",
+      "md5": "d904c7ddd95e026254b4b80808ee9e12",
+      "lizenz": "GPL-3.0-only WITH GCC-exception-3.1",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/ctng-compilers-feedstock",
+        "commit": "9130f5e7a99ff6de8041ce7b9542d5454e863689"
+      },
+      "upstream": {
+        "home": "https://gcc.gnu.org/onlinedocs/gccint/Libgcc.html",
+        "dev": "",
+        "url": "https://ftp.gnu.org/gnu/gcc/gcc-16.2.0/gcc-16.2.0.tar.gz",
+        "sha256": "071d00a097579e5ef7ce97fc4a9e58e73fd3503c0a013c765c970370a5a53b9b"
+      },
+      "lizenzdateien": [
+        "share/licenses/gcc-libs/RUNTIME.LIBRARY.EXCEPTION.gomp_copy"
+      ],
+      "ergaenzungen": [
+        {
+          "paket": "readline",
+          "datei": "info/licenses/COPYING",
+          "erklaerung": "GPL-3.0-Text, auf den sich die Laufzeitausnahme bezieht (wortgleich aus readline)"
+        }
+      ]
+    },
+    {
+      "name": "libhwy",
+      "version": "1.4.0",
+      "build": "h57c4cff_2",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libhwy-1.4.0-h57c4cff_2.conda",
+      "sha256": "06ab9eb5db305b29f0f671dced4a43eca4b0c1990351bad963d25341057f74d4",
+      "md5": "145497b38fe581a7760dd88b7377c96b",
+      "lizenz": "Apache-2.0 OR BSD-3-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libhwy-feedstock",
+        "commit": "93e7c60279fe99082fd01e2eaa94679ccfec7c6b"
+      },
+      "upstream": {
+        "home": "https://github.com/google/highway",
+        "dev": "",
+        "url": "https://github.com/google/highway/archive/refs/tags/1.4.0.tar.gz",
+        "sha256": "e72241ac9524bb653ae52ced768b508045d4438726a303f10181a38f764a453c"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libiconv",
+      "version": "1.18",
+      "build": "h0cb94f2_3",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libiconv-1.18-h0cb94f2_3.conda",
+      "sha256": "f943117edb9cd4d9c61cc972eee5a34291dc55ea7a6e9e38da104995841cbcb6",
+      "md5": "f92233bf33e24a25668bb2119e2c51f9",
+      "lizenz": "LGPL-2.1-only",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libiconv-feedstock",
+        "commit": "c7fdcb1b68d6579a08d0c5dc5f34cbbf38780538"
+      },
+      "upstream": {
+        "home": "https://www.gnu.org/software/libiconv/",
+        "dev": "",
+        "url": "http://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.18.tar.gz",
+        "sha256": "3b08f5f4f9b4eb82f151a7040bfd6fe6c6fb922efe4b1659c66ea933276965e8"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING.LIB"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libjpeg-turbo",
+      "version": "3.2.1",
+      "build": "h7cc23a3_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libjpeg-turbo-3.2.1-h7cc23a3_0.conda",
+      "sha256": "2f7d092a3212884825c43814575225fde8a9190611bc0e38c55e0dae45e329ac",
+      "md5": "5fd2b2218f7c28c71e95738a4fffaf78",
+      "lizenz": "IJG AND BSD-3-Clause AND Zlib",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libjpeg-turbo-feedstock",
+        "commit": "eaba022619084e71822b47c9c65316045c6efc65"
+      },
+      "upstream": {
+        "home": "http://www.libjpeg-turbo.org/",
+        "dev": "https://github.com/libjpeg-turbo/libjpeg-turbo",
+        "url": "https://github.com/libjpeg-turbo/libjpeg-turbo/archive/3.2.1.tar.gz",
+        "sha256": "6f5819c51649bce2571a23b1b0cd41eae2f57fc3f8908c7ec9e7047efb65ca13"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE.md"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libjxl",
+      "version": "0.12.0",
+      "build": "heb2dce7_4",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libjxl-0.12.0-heb2dce7_4.conda",
+      "sha256": "e7f83c4aeb118ce0f532c9853bc904f73a876cb6de9046f6da46434f47735b9b",
+      "md5": "8770a39fd4c5559357efc7cdb8f0c742",
+      "lizenz": "BSD-3-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libjxl-split-feedstock",
+        "commit": "a308dccbc16355d0844eebd3e4a08d76e3686560"
+      },
+      "upstream": {
+        "home": "https://jpeg.org/jpegxl/",
+        "dev": "https://github.com/libjxl/libjxl",
+        "url": "https://github.com/libjxl/libjxl/archive/v0.12.0.tar.gz",
+        "sha256": "03e9be69a30be4011f559da75328b6d7cea8ad921fabfbd551ce10bf45cdc992"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE",
+        "info/licenses/third_party/skcms/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libkml",
+      "version": "1.3.0",
+      "build": "haa4a5bd_1023",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libkml-1.3.0-haa4a5bd_1023.conda",
+      "sha256": "f6348ac9cebbc03f765ea6d2da88d57d19531585c8f3a963b98635b208e8bef1",
+      "md5": "953b7cca897e21215302dbfe2af5cd0c",
+      "lizenz": "BSD-3-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libkml-feedstock",
+        "commit": "f5dc905564c1c65f6c24916fb772ed8d31182cb9"
+      },
+      "upstream": {
+        "home": "https://github.com/libkml/libkml",
+        "dev": "",
+        "url": "https://github.com/libkml/libkml/archive/1.3.0.tar.gz",
+        "sha256": "8892439e5570091965aaffe30b08631fdf7ca7f81f6495b4648f0950d7ea7963"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "liblzma",
+      "version": "5.8.3",
+      "build": "hb03c661_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/liblzma-5.8.3-hb03c661_1.conda",
+      "sha256": "9787df8c22a59c9a70d3e5a10db9ad663485e75e9ccc3f09bd092cb7b95e0dab",
+      "md5": "1390b7c5ac0b1d8e447bc5efa6d3c8c2",
+      "lizenz": "0BSD",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/xz-feedstock",
+        "commit": "bc37fbf54469221332fc589c1404294a159f403b"
+      },
+      "upstream": {
+        "home": "http://tukaani.org/xz/",
+        "dev": "http://git.tukaani.org/",
+        "url": "https://github.com/tukaani-project/xz/releases/download/v5.8.3/xz-5.8.3.tar.gz",
+        "sha256": "3d3a1b973af218114f4f889bbaa2f4c037deaae0c8e815eec381c3d546b974a0"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING",
+        "info/licenses/COPYING.0BSD"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libnghttp2",
+      "version": "1.70.0",
+      "build": "hc5e5977_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libnghttp2-1.70.0-hc5e5977_0.conda",
+      "sha256": "9756c04ea017f18a3b0dfd8580564e6e6c13273191eb41a0e9f20a0fd3a9ec05",
+      "md5": "1a2439373d982a874d6e3a50702099bd",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/nghttp2-feedstock",
+        "commit": "b584ecdee6c1e0f802f49328202dadf690021430"
+      },
+      "upstream": {
+        "home": "https://github.com/nghttp2/nghttp2",
+        "dev": "https://github.com/nghttp2/nghttp2",
+        "url": "https://github.com/nghttp2/nghttp2/releases/download/v1.70.0/nghttp2-1.70.0.tar.gz",
+        "sha256": "aa317e2cf9dca6afa0aed68f8fad6ff303ec6982e25a78c75c0b65e2b9b3ded5"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libnsl",
+      "version": "2.0.1",
+      "build": "hb9d3cd8_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libnsl-2.0.1-hb9d3cd8_1.conda",
+      "sha256": "927fe72b054277cde6cb82597d0fcf6baf127dcbce2e0a9d8925a68f1265eef5",
+      "md5": "d864d34357c3b65a4b731f78c0801dc4",
+      "lizenz": "LGPL-2.1-only",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libnsl-feedstock",
+        "commit": "d113b13e81067a67222231e8ca8d4b3445103c4f"
+      },
+      "upstream": {
+        "home": "https://github.com/thkukuk/libnsl",
+        "dev": "",
+        "url": "https://github.com/thkukuk/libnsl/archive/v2.0.1.tar.gz",
+        "sha256": "59048b53be8d3904bf939313debf13956a881b0de79da40f7719a77bcd1e9c53"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libpdal-core",
+      "version": "2.10.2",
+      "build": "he6b862a_5",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libpdal-core-2.10.2-he6b862a_5.conda",
+      "sha256": "8b31fb486e70cd6a24557f3c6203dd5898acbd87710a97758e4580ac7480165b",
+      "md5": "f0cbb5f1feda42ce3a9b7021ce2c95c6",
+      "lizenz": "BSD-3-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libpdal-feedstock",
+        "commit": "21d285b81e0f8014f10e1a85bf841ba40b1a55d8"
+      },
+      "upstream": {
+        "home": "https://www.pdal.io/",
+        "dev": "https://github.com/pdal/pdal",
+        "url": "https://github.com/PDAL/PDAL/releases/download/2.10.2/PDAL-2.10.2-src.tar.bz2",
+        "sha256": "882b97aa3ae5db682c3b2dc8edef4e29bcc7ecea51c70592e71bc1f34112ad00"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE.txt"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libpdal-e57",
+      "version": "2.10.2",
+      "build": "h7f38c2f_5",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libpdal-e57-2.10.2-h7f38c2f_5.conda",
+      "sha256": "b2acb14d62c739f9ca10f62c757fb9860dc075bd84bd663fb0ba72ac08bd09aa",
+      "md5": "f9aa5598750cbcdab0b8344dd113c792",
+      "lizenz": "BSD-3-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libpdal-feedstock",
+        "commit": "21d285b81e0f8014f10e1a85bf841ba40b1a55d8"
+      },
+      "upstream": {
+        "home": "https://www.pdal.io/",
+        "dev": "https://github.com/pdal/pdal",
+        "url": "https://github.com/PDAL/PDAL/releases/download/2.10.2/PDAL-2.10.2-src.tar.bz2",
+        "sha256": "882b97aa3ae5db682c3b2dc8edef4e29bcc7ecea51c70592e71bc1f34112ad00"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE.txt"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libpng",
+      "version": "1.6.59",
+      "build": "h922cc85_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libpng-1.6.59-h922cc85_0.conda",
+      "sha256": "c7381be8ef713501f6cd2f5ad473e401f2edeaec3c46788296b8dbf0de165e15",
+      "md5": "8c9caf742a485ac688ffa88bbadbf0be",
+      "lizenz": "zlib-acknowledgement",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libpng-feedstock",
+        "commit": "fb861d8ff886d5bfe7fc4f01c6545d59779798ff"
+      },
+      "upstream": {
+        "home": "http://www.libpng.org/pub/png/libpng.html",
+        "dev": "https://sourceforge.net/p/libpng/code/ci/libpng16/tree/",
+        "url": "https://downloads.sourceforge.net/project/libpng/libpng16/1.6.59/libpng-1.6.59.tar.gz",
+        "sha256": "86a3e4b501f7f50e392c4e456ea158893e9a595b1c63eb88c7bb9f6cf8772dad"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libpsl",
+      "version": "0.23.1",
+      "build": "hd9e3e90_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libpsl-0.23.1-hd9e3e90_1.conda",
+      "sha256": "09e8effdc89bc5d021349318d32b85594f5b8d8e3ab8f90a85b81f8fe695a566",
+      "md5": "77be60417aa572afcb48cbe0f967401d",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libpsl-feedstock",
+        "commit": "d93d163e4ace3c8de663d880c0381630b65d4590"
+      },
+      "upstream": {
+        "home": "https://github.com/rockdaboot/libpsl",
+        "dev": "https://github.com/rockdaboot/libpsl",
+        "url": "https://github.com/rockdaboot/libpsl/releases/download/0.23.1/libpsl-0.23.1.tar.gz",
+        "sha256": "8fbb03054556498ba9c4cc48fcaa36a4483748c6504a65bdb9ba348f555b0e56"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "librttopo",
+      "version": "1.1.0",
+      "build": "h55b0958_21",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/librttopo-1.1.0-h55b0958_21.conda",
+      "sha256": "1a3c7f637bfac44e7afee097f08b5ae0c367194f9608daea314ab616dc7757e0",
+      "md5": "6c639697369e9669032ca08d0a566282",
+      "lizenz": "GPL-2.0-or-later",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/librttopo-feedstock",
+        "commit": "56dac192899787e042f7b758b8c52dbdb7a28e52"
+      },
+      "upstream": {
+        "home": "https://git.osgeo.org/gitea/rttopo/librttopo",
+        "dev": "https://git.osgeo.org/gitea/rttopo/librttopo",
+        "url": "http://www.gaia-gis.it/gaia-sins/librttopo-1.1.0.tar.gz",
+        "sha256": "5b4002b2b6be1fe59a487cff6edbc81db773dd1e437beb966fac6ac68e849f19"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libspatialite",
+      "version": "5.1.0",
+      "build": "gpl_h2988700_122",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libspatialite-5.1.0-gpl_h2988700_122.conda",
+      "sha256": "d4e6bb1a10f4f97d60ce534a3313d268f50ba1fd7772d35121043dc166596305",
+      "md5": "2f88d147c5cf80d3f4e8f019fa6cbfed",
+      "lizenz": "MPL-1.1",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libspatialite-feedstock",
+        "commit": "4aa5243b6a449ff4e1810437f7d378fcb81c0c63"
+      },
+      "upstream": {
+        "home": "https://www.gaia-gis.it/fossil/libspatialite/index",
+        "dev": "",
+        "url": "https://www.gaia-gis.it/gaia-sins/libspatialite-sources/libspatialite-5.1.0.tar.gz",
+        "sha256": "43be2dd349daffe016dd1400c5d11285828c22fea35ca5109f21f3ed50605080"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libsqlite",
+      "version": "3.54.1",
+      "build": "h13e7031_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libsqlite-3.54.1-h13e7031_0.conda",
+      "sha256": "07b3c98282022f05781122d073f84e944bfb4299946e8457ece3ce6c384ff78e",
+      "md5": "8f15f0ec9b69344df5c3bb5cce1751a1",
+      "lizenz": "blessing",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/sqlite-feedstock",
+        "commit": "4ea447cf7266e0bb8b1e24b3f708e72806902156"
+      },
+      "upstream": {
+        "home": "http://www.sqlite.org/",
+        "dev": "https://www.sqlite.org/src/dir?ci=trunk",
+        "url": "https://www.sqlite.org/2026/sqlite-autoconf-3540100.tar.gz",
+        "sha256": "926ef8d3eab93fbf6e06011901273eec076b25594a4e1cdadd50c987f4f6d64e"
+      },
+      "lizenzdateien": [],
+      "ergaenzungen": [
+        {
+          "paket": "libsqlite",
+          "datei": "include/sqlite3.h",
+          "erklaerung": "Segenstext (Kopf von sqlite3.h)"
+        }
+      ]
+    },
+    {
+      "name": "libssh2",
+      "version": "1.11.1",
+      "build": "h6154650_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libssh2-1.11.1-h6154650_1.conda",
+      "sha256": "7e463000fa1cba3f3a6597b776f6ab301d425a96e3bc20d0d9d76a3b9f237aa3",
+      "md5": "5c526561e1d2a2e071941174eae84557",
+      "lizenz": "BSD-3-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libssh2-feedstock",
+        "commit": "e5701cd76588f38d76a9fd704185ffc88184c102"
+      },
+      "upstream": {
+        "home": "https://www.libssh2.org/",
+        "dev": "https://github.com/libssh2/libssh2",
+        "url": "https://www.libssh2.org/download/libssh2-1.11.1.tar.gz",
+        "sha256": "d9ec76cbe34db98eec3539fe2c899d26b0c837cb3eb466a56b0f109cabf658f7"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libstdcxx",
+      "version": "16.2.0",
+      "build": "h934c35e_7",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-16.2.0-h934c35e_7.conda",
+      "sha256": "fa7018298629fc429971fffd6ecba3d27a7b02e4e890d6a93ea01ffebe8cb745",
+      "md5": "9b6707e0caca917fa6ea9ee473f37a5d",
+      "lizenz": "GPL-3.0-only WITH GCC-exception-3.1",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/ctng-compilers-feedstock",
+        "commit": "9130f5e7a99ff6de8041ce7b9542d5454e863689"
+      },
+      "upstream": {
+        "home": "https://gcc.gnu.org/",
+        "dev": "",
+        "url": "https://ftp.gnu.org/gnu/gcc/gcc-16.2.0/gcc-16.2.0.tar.gz",
+        "sha256": "071d00a097579e5ef7ce97fc4a9e58e73fd3503c0a013c765c970370a5a53b9b"
+      },
+      "lizenzdateien": [
+        "share/licenses/libstdc++/RUNTIME.LIBRARY.EXCEPTION"
+      ],
+      "ergaenzungen": [
+        {
+          "paket": "readline",
+          "datei": "info/licenses/COPYING",
+          "erklaerung": "GPL-3.0-Text, auf den sich die Laufzeitausnahme bezieht (wortgleich aus readline)"
+        }
+      ]
+    },
+    {
+      "name": "libstdcxx-ng",
+      "version": "16.2.0",
+      "build": "hdf11a46_7",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libstdcxx-ng-16.2.0-hdf11a46_7.conda",
+      "sha256": "337f481db36cc357884f05f404ccd1b3a7e0fc1ee48ec5c884e4281d213bc863",
+      "md5": "25a23bde5e26d548374f3e02b4669670",
+      "lizenz": "GPL-3.0-only WITH GCC-exception-3.1",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/ctng-compilers-feedstock",
+        "commit": "9130f5e7a99ff6de8041ce7b9542d5454e863689"
+      },
+      "upstream": {
+        "home": "https://gcc.gnu.org/",
+        "dev": "",
+        "url": "https://ftp.gnu.org/gnu/gcc/gcc-16.2.0/gcc-16.2.0.tar.gz",
+        "sha256": "071d00a097579e5ef7ce97fc4a9e58e73fd3503c0a013c765c970370a5a53b9b"
+      },
+      "lizenzdateien": [],
+      "ergaenzungen": [
+        {
+          "paket": "libstdcxx",
+          "datei": "share/licenses/libstdc++/RUNTIME.LIBRARY.EXCEPTION",
+          "erklaerung": "Metapaket ohne eigene Dateien, Lizenz wie libstdcxx"
+        },
+        {
+          "paket": "readline",
+          "datei": "info/licenses/COPYING",
+          "erklaerung": "GPL-3.0-Text, auf den sich die Laufzeitausnahme bezieht (wortgleich aus readline)"
+        }
+      ]
+    },
+    {
+      "name": "libtiff",
+      "version": "4.7.2",
+      "build": "hcc2c06a_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libtiff-4.7.2-hcc2c06a_1.conda",
+      "sha256": "10e125da82ca93e09191e66e5a94d566b2cf8d4024e2a0db3a9114297447e0d9",
+      "md5": "0907d876f460ebc941ae590338b6102f",
+      "lizenz": "HPND",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libtiff-feedstock",
+        "commit": "69b00df993d8c9571dbd2aa423e50a10f1adfeda"
+      },
+      "upstream": {
+        "home": "http://www.libtiff.org/",
+        "dev": "",
+        "url": "https://download.osgeo.org/libtiff/tiff-4.7.2.tar.gz",
+        "sha256": "672bd7d10aee4606171afb864f3570b83340f6a33e2c186dc0512f7145ffdf6a"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE.md"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libwebp-base",
+      "version": "1.6.0",
+      "build": "hd42ef1d_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libwebp-base-1.6.0-hd42ef1d_1.conda",
+      "sha256": "8415001414f488c85b72b9d8cc2071dfb3981a47bc3c8eb56ef91a57d12eae7f",
+      "md5": "9332b53d0ea93c5d39e33be03a0c611a",
+      "lizenz": "BSD-3-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libwebp-base-feedstock",
+        "commit": "b8a54ec0653ea0ac18e509fc889f1fc8f0b90233"
+      },
+      "upstream": {
+        "home": "https://developers.google.com/speed/webp",
+        "dev": "https://chromium.googlesource.com/webm/libwebp",
+        "url": "http://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-1.6.0.tar.gz",
+        "sha256": "e4ab7009bf0629fd11982d4c2aa83964cf244cffba7347ecd39019a9e38c4564"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libxml2-16",
+      "version": "2.15.4",
+      "build": "hf3af7cc_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libxml2-16-2.15.4-hf3af7cc_1.conda",
+      "sha256": "d1906463070c21f3215cd5de93164f31c44d5bac6ae9b5d8f5adf42b1e304039",
+      "md5": "046d9eada488e1a1657c80b55c23da52",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libxml2-feedstock",
+        "commit": "2aea8424bab23ebc32ac1493984e90e73cda28dd"
+      },
+      "upstream": {
+        "home": "http://xmlsoft.org/",
+        "dev": "https://git.gnome.org/browse/libxml2/",
+        "url": "https://gitlab.gnome.org/GNOME/libxml2/-/archive/v2.15.4/libxml2-v2.15.4.tar.gz",
+        "sha256": "a569ee9c59eabb197a0d5047046d757ee14c86fb2d4a734555b633cb5584ad25"
+      },
+      "lizenzdateien": [
+        "info/licenses/Copyright"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libxml2",
+      "version": "2.15.4",
+      "build": "h7df9aa5_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libxml2-2.15.4-h7df9aa5_1.conda",
+      "sha256": "8c32be9e8720bc413d2b4267517459d7d71fad4a5f398a2aa8319b6d7b8a00e6",
+      "md5": "51e5162f95bd6840f6b2b3169125fff5",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libxml2-feedstock",
+        "commit": "2aea8424bab23ebc32ac1493984e90e73cda28dd"
+      },
+      "upstream": {
+        "home": "http://xmlsoft.org/",
+        "dev": "https://git.gnome.org/browse/libxml2/",
+        "url": "https://gitlab.gnome.org/GNOME/libxml2/-/archive/v2.15.4/libxml2-v2.15.4.tar.gz",
+        "sha256": "a569ee9c59eabb197a0d5047046d757ee14c86fb2d4a734555b633cb5584ad25"
+      },
+      "lizenzdateien": [
+        "info/licenses/Copyright"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libxml2-devel",
+      "version": "2.15.4",
+      "build": "h7df9aa5_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libxml2-devel-2.15.4-h7df9aa5_1.conda",
+      "sha256": "0475554ae72a9c28e86c7f461a120c8a237df6811dcfbdf1aa5e9ce5cfd15d63",
+      "md5": "c6f14f767cbfe20fa03a324beb6cd7eb",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/libxml2-feedstock",
+        "commit": "2aea8424bab23ebc32ac1493984e90e73cda28dd"
+      },
+      "upstream": {
+        "home": "http://xmlsoft.org/",
+        "dev": "https://git.gnome.org/browse/libxml2/",
+        "url": "https://gitlab.gnome.org/GNOME/libxml2/-/archive/v2.15.4/libxml2-v2.15.4.tar.gz",
+        "sha256": "a569ee9c59eabb197a0d5047046d757ee14c86fb2d4a734555b633cb5584ad25"
+      },
+      "lizenzdateien": [
+        "info/licenses/Copyright"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "libzlib",
+      "version": "1.3.2",
+      "build": "h25fd6f3_3",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/libzlib-1.3.2-h25fd6f3_3.conda",
+      "sha256": "eb8a0db0aa570124f7d2a93d7c7f596e3390df5e047818d873baad32985fc736",
+      "md5": "0de0122d9570a8ab637c6b73db268389",
+      "lizenz": "Zlib",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/zlib-feedstock",
+        "commit": "044fc2361e1c5f1a35c8f417f1434a585e627297"
+      },
+      "upstream": {
+        "home": "http://zlib.net/",
+        "dev": "https://github.com/madler/zlib",
+        "url": "http://zlib.net/zlib-1.3.2.tar.gz",
+        "sha256": "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "lz4-c",
+      "version": "1.10.0",
+      "build": "hee9eb32_2",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/lz4-c-1.10.0-hee9eb32_2.conda",
+      "sha256": "b8c0e930183e6b7f83cd35ace102f2b8c2f0faae41dc05255dc72f247dfc556a",
+      "md5": "e38a3253d72ab07d471483f24947e2a2",
+      "lizenz": "BSD-2-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/lz4-c-feedstock",
+        "commit": "7739afba01c0c2ec6ce7d9c9fab6c9818d7d6f22"
+      },
+      "upstream": {
+        "home": "https://www.lz4.org/",
+        "dev": "https://github.com/lz4/lz4",
+        "url": "https://github.com/lz4/lz4/archive/v1.10.0.tar.gz",
+        "sha256": "537512904744b35e232912055ccf8ec66d768639ff3abe5788d90d792ec5f48b"
+      },
+      "lizenzdateien": [
+        "info/licenses/lib/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "minizip",
+      "version": "4.2.2",
+      "build": "haac24f3_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/minizip-4.2.2-haac24f3_1.conda",
+      "sha256": "75384c7e6ea3cd72969c0163ec52ddaed08590bb292e959d1afd2a6ffcc237a6",
+      "md5": "3fee8d11b0d8a54fb899749052accb4f",
+      "lizenz": "Zlib",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/minizip-feedstock",
+        "commit": "c5d0d25d3bc2aff85865d3b06828b77b3d4d0b89"
+      },
+      "upstream": {
+        "home": "https://github.com/zlib-ng/minizip-ng",
+        "dev": "https://github.com/zlib-ng/minizip-ng",
+        "url": "https://github.com/zlib-ng/minizip-ng/archive/4.2.2/minizip-4.2.2.tar.gz",
+        "sha256": "71af7b9799856d8b03619df3949e9c1be9703f8de0795af71399ba283cb27aac"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "muparser",
+      "version": "2.3.5",
+      "build": "hee9eb32_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/muparser-2.3.5-hee9eb32_1.conda",
+      "sha256": "c9322797c769560e96025d294f0daacbcf7ed95ae68903dd2e398ffb87fa2c73",
+      "md5": "7de84fd76ec2bdb7ac617507de3d3052",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/muparser-feedstock",
+        "commit": "fdebda657df993c323a7b17dc1e453e25768ca5f"
+      },
+      "upstream": {
+        "home": "http://muparser.beltoforion.de/",
+        "dev": "",
+        "url": "https://github.com/beltoforion/muparser/archive/v2.3.5.tar.gz",
+        "sha256": "20b43cc68c655665db83711906f01b20c51909368973116dfc8d7b3c4ddb5dd4"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "ncurses",
+      "version": "6.6",
+      "build": "hdb14827_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.6-hdb14827_1.conda",
+      "sha256": "5d46557214ed184381dafe835b7c94a474a1c3b307a08a250b1ea4779b44ffb3",
+      "md5": "ee6c0cd80a60961a1f48aa3e0b91f986",
+      "lizenz": "X11 AND BSD-3-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/ncurses-feedstock",
+        "commit": "105562343d06a3180e8d44a25762fdcb97f80aea"
+      },
+      "upstream": {
+        "home": "http://www.gnu.org/software/ncurses/",
+        "dev": "http://invisible-island.net/ncurses/",
+        "url": "https://invisible-island.net/archives/ncurses/ncurses-6.6.tar.gz",
+        "sha256": "355b4cbbed880b0381a04c46617b7656e362585d52e9cf84a67e2009b749ff11"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "openssl",
+      "version": "3.6.5",
+      "build": "h781a0a9_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/openssl-3.6.5-h781a0a9_0.conda",
+      "sha256": "9c1533f1cf784f0e250919c0c9762d0b0e6bc727a79290ffb7cea1ceca1d038c",
+      "md5": "5a51a2ea653f120240b1a9bf76e0aae9",
+      "lizenz": "Apache-2.0",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/openssl-feedstock",
+        "commit": "f0c4979996e075ca6fb7efbd6b65d4fe2cc1fe6f"
+      },
+      "upstream": {
+        "home": "https://www.openssl.org/",
+        "dev": "https://github.com/openssl/openssl",
+        "url": "https://github.com/openssl/openssl/releases/download/openssl-3.6.5/openssl-3.6.5.tar.gz",
+        "sha256": "a2157c2830efdec3788939b00c9b0638306d3f0bbb76dc4832ee503bb397df98"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE.txt"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "pcre2",
+      "version": "10.47",
+      "build": "h8b3dc9c_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/pcre2-10.47-h8b3dc9c_1.conda",
+      "sha256": "9ebb10a4eb3be51ae67d85c679f5a7a50cb040ed25c783e6331a225ea09991d4",
+      "md5": "06f6113cf1ff4a54b65f87ead132a5f1",
+      "lizenz": "BSD-3-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/pcre2-feedstock",
+        "commit": "1036df63759c1365071c7531a6e01fcca90f28a1"
+      },
+      "upstream": {
+        "home": "http://www.pcre.org/",
+        "dev": "https://github.com/PCRE2Project/pcre2",
+        "url": "https://github.com/PCRE2Project/pcre2/archive/refs/tags/pcre2-10.47.tar.gz",
+        "sha256": "409c443549b13b216da40049850a32f3e6c57d4224ab11553ab5a786878a158e"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "proj",
+      "version": "9.9.0",
+      "build": "h3767062_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/proj-9.9.0-h3767062_0.conda",
+      "sha256": "ac7ee6aa0c5b8c4b6ef23840f511b660ec878b7c61469c4f84eb9587afad95dd",
+      "md5": "29e9221e3a2122d57234d424b94649b6",
+      "lizenz": "MIT",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/proj.4-feedstock",
+        "commit": "97f8f6bd84b46693ed336db6aaeaa1860a5e8f23"
+      },
+      "upstream": {
+        "home": "https://proj.org/",
+        "dev": "",
+        "url": "https://download.osgeo.org/proj/proj-9.9.0.tar.gz",
+        "sha256": "791a0610547eeabb17006cfd49cdbd2034f3240f47ed5e88a1031811f4e2bcf3"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "readline",
+      "version": "8.3",
+      "build": "hd6e31c0_1",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/readline-8.3-hd6e31c0_1.conda",
+      "sha256": "01b3fe073a66e321970d09e04b388708f8cbdca5cdfbfcb7c9eeb470ad10383d",
+      "md5": "69c01c781e7c8190bbdaf79e3848c5ca",
+      "lizenz": "GPL-3.0-only",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/readline-feedstock",
+        "commit": "440893a6f2242959f9cd7297064a2148659305e6"
+      },
+      "upstream": {
+        "home": "https://cnswww.cns.cwru.edu/php/chet/readline/rltop.html",
+        "dev": "",
+        "url": "https://ftp.gnu.org/gnu/readline/readline-8.3.tar.gz",
+        "sha256": "fe5383204467828cd495ee8d1d3c037a7eba1389c22bc6a041f627976f9061cc"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "snappy",
+      "version": "1.2.2",
+      "build": "h34e00bb_2",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/snappy-1.2.2-h34e00bb_2.conda",
+      "sha256": "8635d10c7f127808b09c0c8e77b21a255829e0934e49326548c949f7e0551f09",
+      "md5": "2b7e31ffbd476eecf33b3b833692339c",
+      "lizenz": "BSD-3-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/snappy-feedstock",
+        "commit": "a9057b8bdbb9a3a602a0805a3943bca5d738f4c2"
+      },
+      "upstream": {
+        "home": "https://github.com/google/snappy",
+        "dev": "https://github.com/google/snappy",
+        "url": "https://github.com/google/snappy/archive/1.2.2.tar.gz",
+        "sha256": "90f74bc1fbf78a6c56b3c4a082a05103b3a56bb17bca1a27e052ea11723292dc"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "sqlite",
+      "version": "3.54.1",
+      "build": "h9ffa6c4_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/sqlite-3.54.1-h9ffa6c4_0.conda",
+      "sha256": "75d479f5eef99880e81f4502376ace68b6920c02b28212e318f1b5c017c71f1a",
+      "md5": "3a2bfdc9f738f803c8f075915bd24701",
+      "lizenz": "blessing",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/sqlite-feedstock",
+        "commit": "4ea447cf7266e0bb8b1e24b3f708e72806902156"
+      },
+      "upstream": {
+        "home": "http://www.sqlite.org/",
+        "dev": "https://www.sqlite.org/src/dir?ci=trunk",
+        "url": "https://www.sqlite.org/2026/sqlite-autoconf-3540100.tar.gz",
+        "sha256": "926ef8d3eab93fbf6e06011901273eec076b25594a4e1cdadd50c987f4f6d64e"
+      },
+      "lizenzdateien": [],
+      "ergaenzungen": [
+        {
+          "paket": "libsqlite",
+          "datei": "include/sqlite3.h",
+          "erklaerung": "Segenstext (Kopf von sqlite3.h)"
+        }
+      ]
+    },
+    {
+      "name": "untwine",
+      "version": "1.5.1",
+      "build": "h419fb5e_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/untwine-1.5.1-h419fb5e_0.conda",
+      "sha256": "52cb345770103ed4998f2d3aff0a4c4a798f8624e6a7e72ea3bc64ff2a0d18e3",
+      "md5": "e5b8ff7e6ac8488db7e60002dfdf1ecb",
+      "lizenz": "GPL-3.0-or-later",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/untwine-feedstock",
+        "commit": "6a793e51875e153a87371fc35f8a3d9bca2a0e57"
+      },
+      "upstream": {
+        "home": "https://github.com/hobuinc/untwine",
+        "dev": "",
+        "url": "https://github.com/hobuinc/untwine/archive/refs/tags/1.5.1.tar.gz",
+        "sha256": "69b5ef26a28c514b1a8459440f32faccc4fb2d3b835aa9733bf4d8c31a5f7022"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "uriparser",
+      "version": "0.9.8",
+      "build": "hac33072_0",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/uriparser-0.9.8-hac33072_0.conda",
+      "sha256": "2aad2aeff7c69a2d7eecd7b662eef756b27d6a6b96f3e2c2a7071340ce14543e",
+      "md5": "d71d3a66528853c0a1ac2c02d79a0284",
+      "lizenz": "BSD-3-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/uriparser-feedstock",
+        "commit": "3904f95b32e3e4ac2c5bdb2b140012ed0156210c"
+      },
+      "upstream": {
+        "home": "https://uriparser.github.io/",
+        "dev": "https://github.com/uriparser/uriparser",
+        "url": "https://github.com/uriparser/uriparser/archive/uriparser-0.9.8.tar.gz",
+        "sha256": "d6289387eaf2495e38ed80d709ad673fe04d63fad707badfee96f3d2dabc7c35"
+      },
+      "lizenzdateien": [
+        "info/licenses/COPYING"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "xerces-c",
+      "version": "3.3.0",
+      "build": "h78fed68_2",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/xerces-c-3.3.0-h78fed68_2.conda",
+      "sha256": "1acbd62b33b6efc985f70e0b9f0013ca18fcef2df5a18edb1c81a6b63ad20dc0",
+      "md5": "f2ff0de6c209e90c53b3a195c2708f5f",
+      "lizenz": "Apache-2.0",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/xerces-c-feedstock",
+        "commit": "dd55be470b125a4c787f5ad1a1df3807730a4abb"
+      },
+      "upstream": {
+        "home": "http://xerces.apache.org/xerces-c/",
+        "dev": "",
+        "url": "https://archive.apache.org/dist/xerces/c/3/sources/xerces-c-3.3.0.tar.gz",
+        "sha256": "9555f1d06f82987fbb4658862705515740414fd34b4db6ad2ed76a2dc08d3bde"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "zlib",
+      "version": "1.3.2",
+      "build": "h25fd6f3_3",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.2-h25fd6f3_3.conda",
+      "sha256": "16080a1c7724f7d25727cdc23c7658e0cec2db52448c1dc0c33467ee2c6e1c62",
+      "md5": "6acb86426229f96f93e5468d1df3a5e8",
+      "lizenz": "Zlib",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/zlib-feedstock",
+        "commit": "044fc2361e1c5f1a35c8f417f1434a585e627297"
+      },
+      "upstream": {
+        "home": "http://zlib.net/",
+        "dev": "https://github.com/madler/zlib",
+        "url": "http://zlib.net/zlib-1.3.2.tar.gz",
+        "sha256": "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "zstd",
+      "version": "1.5.7",
+      "build": "hb78ec9c_7",
+      "subdir": "linux-64",
+      "url": "https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_7.conda",
+      "sha256": "47d682b9f6d6ec9eb1a6e6c3e75ea6273e899e78fb7fc59f81d39745009fbc60",
+      "md5": "aa459086047c0e5e27023ab19f8cb86a",
+      "lizenz": "BSD-3-Clause",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/zstd-feedstock",
+        "commit": "24c0f94340c0875e1a3bb815611276850f7cd7ca"
+      },
+      "upstream": {
+        "home": "http://www.zstd.net/",
+        "dev": "https://github.com/facebook/zstd",
+        "url": "https://github.com/facebook/zstd/archive/v1.5.7.tar.gz",
+        "sha256": "37d7284556b20954e56e1ca85b80226768902e2edabd3b649e9e72c0c9012ee3"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    },
+    {
+      "name": "ca-certificates",
+      "version": "2026.10.23",
+      "build": "hbd8a1cb_0",
+      "subdir": "noarch",
+      "url": "https://conda.anaconda.org/conda-forge/noarch/ca-certificates-2026.10.23-hbd8a1cb_0.conda",
+      "sha256": "95619b9c1184be7175392eeb0ee7eeb5ccf25d280951f4225f2d62e725790be3",
+      "md5": "3fd02989038a1e1cee627c14c2d73f29",
+      "lizenz": "ISC",
+      "rezept": {
+        "feedstock": "https://github.com/conda-forge/ca-certificates-feedstock",
+        "commit": "2c33c4c7dd086bfd6af8ebbfca4bd60fcf7fb303"
+      },
+      "upstream": {
+        "home": "https://github.com/conda-forge/ca-certificates-feedstock",
+        "dev": "",
+        "url": "https://files.pythonhosted.org/packages/source/c/certifi/certifi-2026.10.23.tar.gz",
+        "sha256": "a9895e6e2758b371e0545e321a3a8fd1fcfd9829ada8824a936dfb16aaaf36cd"
+      },
+      "lizenzdateien": [
+        "info/licenses/LICENSE"
+      ],
+      "ergaenzungen": []
+    }
+  ]
+}

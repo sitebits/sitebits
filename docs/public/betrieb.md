@@ -317,7 +317,8 @@ Prüfskripte.
           "Abschluss gehört nicht zu diesem Manifest")
    soll = {"scanview-release-manifest/1": ["mcp", "server", "web"],
            "scanview-release-manifest/2": ["mcp", "server", "web"],
-           "scanview-release-manifest/3": ["import", "mcp", "server", "web"]}.get(m["schema"])
+           "scanview-release-manifest/3": ["import", "mcp", "server", "web"],
+           "scanview-release-manifest/4": ["import", "mcp", "server", "web"]}.get(m["schema"])
    pruefe(soll is not None, "Schema unbekannt (neueres Bootstrap-Skript aus der Anleitung nehmen)")
    geliefert = [x for x in m["artefakte"] if x["ausgeliefert"] is True]
    pruefe(sorted(x["name"] for x in geliefert) == soll, "Artefakte")
@@ -357,7 +358,10 @@ Prüfskripte.
    aufrufen. Ändert ein Schema die Menge der ausgelieferten Archive (`/3`: dazu import), muss
    vorher das Bootstrap-Skript selbst aus der aktuellen Fassung dieser Anleitung erneuert werden
    (Schritt 2) — ein älteres bricht mit `Abbruch: Artefakte` bzw. `Abbruch: Schema unbekannt` ab,
-   ohne etwas zu verändern.
+   ohne etwas zu verändern. `/4` (Upgrade-Prüfung im Release-Lauf) kennt der Prüfer ab dem
+   Release, das diesen Vorlauf enthält, bevor ein Release es trägt: wer dieses Release eingespielt
+   hat, braucht für das erste `/4`-Release weder Bootstrap noch eine neue Skriptkopie; sonst gilt
+   der Bootstrap-Weg oben.
 
 **Release-Ordner** — genau diese Einträge, jede weitere oder fehlende Datei bricht ab. Auf der
 Release-Workstation stellt `scanview-nachweise deploy-ordner --version X.Y.Z --ziel <ordner>` ihn
@@ -517,8 +521,26 @@ Eingangsordner auf dem Host, prüft es dort und schaltet es frei.
   Befehl zum Entfernen (root).
 
 - Nur Pakete im Schema 2; Zielname ist die `projectId` aus `project.json`.
-- Ein vorhandenes Paket wird nie überschrieben; Ersetzen heißt: altes Paket entfernen, dann neu
-  bereitstellen.
+- Ein vorhandenes Paket wird nie überschrieben. Austauschen geht ohne Ausfall mit
+  `deploy/platform/paket-bereitstellen.sh --ersetzen <paketordner> <ssh-ziel>`: Upload und
+  Prüfung laufen wie beim Freischalten, das alte Paket bleibt bis zum Schluss sichtbar. Erst dann
+  legt das Freischalt-Skript (`ersetzen <projekt>`) das alte Paket nach
+  `/srv/scanview/data/.ersetzt-<projekt>` und das neue an seinen Platz (zwei Umbenennungen in der
+  Datenwurzel). Scheitert die zweite, kommt das alte Paket zurück, nichts ist ersetzt. Die
+  Vorabfrage `pruefen-ersetzen <projekt>` prüft Eingang und Reste vor dem Ziel; ohne vorhandenes
+  Ziel bricht `--ersetzen` vor der Übertragung ab. Platzbedarf wie beim Freischalten (zweimal die
+  Paketgröße plus 10 GiB), dazu bleibt das alte Paket liegen.
+- `.ersetzt-<projekt>` ist für Caddy und Katalog unsichtbar und bleibt liegen, bis root es nach
+  einer Sichtprüfung des neuen Pakets entfernt (`sudo rm -r -- /srv/scanview/data/.ersetzt-<projekt>`).
+  Bis dahin verweigert das Skript ein weiteres Ersetzen derselben ID. Die sudoers-Regel bleibt
+  unverändert (sie erlaubt das Freischalt-Skript, das seine Argumente selbst prüft); das
+  geänderte Skript kommt beim Update per `install -o root -g root -m 0755` nach
+  `/usr/local/sbin/`.
+- Nach dem Ersetzen gelten die Dateien unter denselben Namen neu: Freigaben einzelner Panoramen
+  und Fotos hängen am Dateiinhalt, geänderte Bilder bleiben für Betrachter gesperrt, bis sie in den
+  Projekt-Einstellungen erneut freigegeben sind (Abschnitt „Panoramen und Fotos freigeben“). Browser halten Datendateien (außer `.json`) bis zu einer
+  Stunde im Zwischenspeicher; wer das Projekt während des Tauschs offen hatte, lädt es nach
+  dieser Zeit oder mit geleertem Zwischenspeicher neu.
 - Symlinks werden beim Übertragen aufgelöst und auf dem Host abgelehnt.
 - Ein abgebrochener Upload bleibt im Eingang (außerhalb der ausgelieferten Daten) liegen und wird
   beim nächsten Lauf fortgesetzt.
@@ -1014,10 +1036,80 @@ beendet) oder `aus` (nie gestartet bzw. Auftragsdatenbank nicht lesbar). Bei `st
 gescheiterter Selbsttest (Isolation greift nicht) beendet den Dienst ohne Neustart; erst die Ursache
 beheben, dann `systemctl restart scanview-import-worker`.
 
+**„Isolation greift nicht: netzraum“:** Jeder Auftrag braucht einen eigenen Netz-Namensraum
+(`PrivateNetwork=yes`). Darf der User-Manager keinen anlegen, lässt systemd die Property still weg
+(Journal des Nutzers: „PrivateNetwork=yes is configured, but network namespace setup not permitted,
+proceeding without“), und der Auftrag sähe Netz, LAN und Loopback des Hosts. Das prüft der Worker
+zweimal: beim Start im Selbsttest (Dienst endet mit Exit 3, die Meldung nennt die gefundenen
+Geräte) und vor jedem Auftrag in dessen Unit, bevor das Werkzeug startet (Auftrag scheitert mit
+„Isolation greift nicht (kein eigener Netz-Namensraum) …“, die Geräte stehen im Journal des
+Workers). Als eigen gilt der Namensraum nur, wenn `/proc/self/net/dev` und `/sys/class/net` darin
+übereinstimmen, `lo` enthalten und sonst nur Fallback-Tunnel des Kernels (`tunl0`, `gre0`,
+`gretap0`, `erspan0`, `sit0`, `ip6tnl0`, `ip6gre0`, `ip6gretap0`, `ip6erspan0`, `ip_vti0`,
+`ip6_vti0`). Auswege:
+
+- Unprivilegierte User-Namensräume zulassen. Zu prüfen, soweit vorhanden:
+  `sysctl user.max_user_namespaces` (größer als 0), `kernel.unprivileged_userns_clone` (`1`) und
+  `kernel.apparmor_restrict_unprivileged_userns` (`0`, oder ein AppArmor-Profil erlaubt es).
+  Dauerhaft per Datei in `/etc/sysctl.d/`.
+- Stehen in der Meldung neben `lo` nur Tunnelgeräte, die ein geladenes Kernel-Modul in jedem
+  neuen Namensraum anlegt: `sysctl -w net.core.fb_tunnels_only_for_init_net=1` (dauerhaft in
+  `/etc/sysctl.d/`) legt Fallback-Tunnel nur noch im Namensraum des Hosts an; neue
+  Namensräume enthalten dann nur `lo`.
+
+Danach `systemctl restart scanview-import-worker`; `journalctl -u scanview-import-worker` zeigt
+„Selbsttest bestanden“.
+
 **Ausschalten:** `SCANVIEW_JOBLAEUFER=0` und `einrichten.sh` erneut: Der Dienst wird angehalten,
 Unit, Drop-ins und Linger entfernt; die Auswertungsrouten antworten wieder 404. Nutzer,
 Auftragsdatenbank und Berichte bleiben liegen; sie zu löschen ist ein bewusster eigener Schritt
 (Berichte können Ort und Lage eines Projekts nennen).
+
+### Punktwolken importieren: PDAL-Umgebung
+
+Neue Projekte aus einer Punktwolke (LAS, LAZ, E57; Auftragstyp `neu_wolke`) rechnet der Worker
+mit PDAL 2.10.2 und untwine 1.5.1 — **ohne Docker**: `einrichten.sh` installiert dafür bei
+`SCANVIEW_IMPORT=1` eine gelockte conda-forge-Umgebung nach `/opt/scanview/pdal`
+(`import/pdal-umgebung/pixi.lock`, SHA-256 je Paket, rund 300 MB). Gebaut wird als `nobody`
+direkt am Zielort, danach gehört alles root; Aufträge starten `pdal` und `untwine` nur als
+Prozess im gesperrten Auftrag ohne Netz. Den Ort nennt der Drop-in
+`scanview-import-worker.service.d/import.conf` (`SCANVIEW_PDAL_UMGEBUNG`, nicht in der
+Umgebungsdatei setzen).
+
+**Voraussetzung:** `pixi` im `PATH` von root, bewusst installiert wie `uv` — gepinnte Version mit
+Prüfsumme, mindestens 0.82.0 (steht als `requires-pixi` in `pixi.toml`), z. B.:
+
+```sh
+curl -fsSLo /usr/local/bin/pixi \
+  https://github.com/prefix-dev/pixi/releases/download/v0.82.0/pixi-x86_64-unknown-linux-musl
+echo "1dff1db704884f078c44b4c7fb3c5bc6f946fc3d1fa679edf214ad79187a9c64  /usr/local/bin/pixi" \
+  | sha256sum -c && chmod 0755 /usr/local/bin/pixi
+```
+
+Die Prüfsumme ist das SHA-256, das GitHub für dieses Release-Asset angibt (Feld `digest` von
+`GET /repos/prefix-dev/pixi/releases/tags/v0.82.0`, nachgesehen am 05.11.2026). Wer eine andere
+Version installiert, nimmt deren Prüfsumme von derselben Stelle.
+
+Beim Einrichten lädt pixi die Pakete einmal von conda-forge (Netz nur in diesem Schritt) und bricht
+ab, wenn eine Prüfsumme nicht zum Lock passt; dann startet der Jobläufer nicht.
+
+**Lizenzen:** Die Umgebung enthält neben permissiven Paketen GPL-Programme und -Bibliotheken
+(untwine, librttopo, readline) und MPL-1.1 (libspatialite, freexl). Sie laufen ausschließlich als
+eigene Prozesse; siteBits linkt und importiert nichts davon. Version, Build, Prüfsumme sowie Rezept und
+Upstream-Quelle jedes Pakets stehen in `import/pdal-umgebung/quellen.json` (Übersicht in
+[THIRD_PARTY](../THIRD_PARTY.md), Abschnitt `import/pdal-umgebung`). Die vollständigen Lizenztexte
+erzeugt `einrichten.sh` beim Einrichten aus den installierten Paketen als
+`/opt/scanview/pdal/LIZENZEN.txt`; gelingt das nicht, bricht `einrichten.sh` ab und startet den
+Jobläufer nicht. Geprüft wird das nur bei diesem Durchlauf, nicht beim Start eines Auftrags: Wer
+die Datei danach löscht, bemerkt es erst beim nächsten `einrichten.sh`. Wer die Umgebung
+weitergibt, gibt diese Beilage mit.
+
+**Budget:** `neu_wolke` rechnet mit 4 GB Arbeitsspeicher, höchstens 6 Stunden und bis zu 512
+Prozessen/Threads (untwine startet je Kern Threads); vor dem Start müssen frei sein: Reserve plus
+das Sechsfache der Quelldatei (gemessen: 5,1-GB-LAZ mit 340 Mio. Punkten auf 16 Kernen — Umwandeln
+41 min, Prüfen 14 min, Arbeitsordner bis 28,9 GB). Mit `SCANVIEW_IMPORT=1` verlangt `einrichten.sh`
+`SCANVIEW_JOBS_RAM_GB` ≥ 4 (alle Importaufträge rechnen mit 4 GB), der Host braucht also mindestens
+5 GB Arbeitsspeicher; kleinere Hosts können neue Projekte nicht importieren.
 
 ## Panoramen und Fotos freigeben
 
@@ -1033,12 +1125,21 @@ sondern an einen eigenen Ort mit Löschfrist.
   <manifest.json>` (siehe `import/README.md`), danach im Portal „freigeben (anonymisiert)“.
 - **Ohne Personen** (Altbestand, Innenräume ohne Menschen): ein Admin erklärt die Ebene als
   „personenfrei“. Die Erklärung steht mit Namen im Verlauf.
-- **Übergang für Altpakete:** Panoramen ohne Anonymisierungsblock bleiben sichtbar, bis die
-  Projektleitung „Panoramen nur freigegeben zeigen“ einschaltet. Neu eingerichtete Projekte haben
-  den Schalter an. Fotos waren schon vorher gesperrt; eine Freigabe über `images.json` allein gilt
-  nicht mehr.
-- „Dateien jetzt prüfen“ hasht alle freigegebenen Dateien (Sekunden je GB) und zeigt, ob welche
-  seit der Freigabe verändert wurden.
+- **Altpakete ohne Anonymisierungsblock** sind ab 0.13 gesperrt, bis sie freigegeben sind: Das
+  Update schaltet „Panoramen nur freigegeben zeigen“ für jedes Projekt ein, auch für Projekte, die
+  nie eingerichtet wurden. Die Projektleitung kann den Schalter bewusst abschalten; das steht im
+  Verlauf, und das Portal zeigt dann eine Warnung. Fotos waren schon vorher gesperrt; eine Freigabe
+  über `images.json` allein gilt nicht.
+- **Betreiberhinweis zum Update auf 0.13:** Bestandsprojekte zeigen Panoramen ohne Freigabe nicht
+  mehr an Betrachter und Rückmelder. Wer das nicht will, gibt die Panoramen **vor** dem Update frei
+  (nach Durchsicht bzw. Anonymisierung). Gast-Links betrifft das nicht: Sie liefern nie Panoramen
+  oder Fotos.
+- „Dateien prüfen“ hasht alle freigegebenen Dateien (Sekunden je GB) und zeigt, ob welche seit der
+  Freigabe verändert wurden. Das Ergebnis bleibt mit Zeitpunkt gespeichert.
+- **Nicht gegatet** sind Punktwolke (RGB/Intensität), Mesh-Texturen und die Draufsicht der
+  Minikarte. Vor dem Teilen von Daten aus dem öffentlichen Raum diese Ebenen an den Stellen mit
+  Passanten selbst ansehen (Sichtprüfung, Betreiberpflicht; Einzelheiten in `fotos.md`,
+  „Was das Tor nicht abdeckt“).
 
 ## Fotos und PDFs am Befund-Faden (optional)
 

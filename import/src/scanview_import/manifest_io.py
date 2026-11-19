@@ -235,9 +235,37 @@ def migrate(pkg: Path) -> str:
     return "migriert"
 
 
+def _als_startebene_zeigbar(lay: dict[str, Any]) -> bool:
+    """Ebenen, die der Viewer in ``initialView.layers`` annimmt: die er als unterstützt einliest
+    (web/src/manifest.ts ``parseLayerV2``); sonst lehnt er das ganze Manifest ab.
+
+    Wie im Viewer: ``mesh`` nur mit ``format: "gltf"`` (jedes andere oder fehlende Format ist
+    „nicht unterstützt“). ``mesh-tiles`` und ``splats`` prüft er, sobald der Schlüssel ``format``
+    da ist, auch mit ``null``; nur ``3dtiles`` bzw. ``ply``/``spz``/``rad`` bestehen, alles andere
+    bricht das Manifest. Ohne ``format`` sind sie „nicht unterstützt“. Gemeinsame Fälle mit dem
+    Viewer-Test: ``web/tests/fixtures/startebenen.json``."""
+    art, fmt = lay.get("kind"), lay.get("format")
+    if art in ("pointcloud", "panoramas", "images"):
+        return True
+    if art == "mesh":
+        return fmt == "gltf"
+    if art == "mesh-tiles":
+        return fmt == "3dtiles"
+    if art == "splats":
+        return fmt in ("ply", "spz", "rad")
+    return False
+
+
 def start_sichtbar(pkg: Path, ebene: str, an: bool) -> dict[str, Any]:
     """Setzt ``startVisible`` einer Ebene (Viewer-Voreinstellung ohne ``ly=``): ``an`` entfernt das
-    Feld (Standard sichtbar), sonst ``false``. Nur Schema 2; unbekannte Ebene → ``KeyError``."""
+    Feld (Standard sichtbar), sonst ``false``. Nur Schema 2; unbekannte Ebene → ``KeyError``.
+
+    Nennt das Paket Startebenen (``initialView.layers``, z. B. von ``add-splats --startebene``), hat
+    diese Liste im Viewer Vorrang vor ``startVisible``. Sie wird deshalb mitgeführt: ``an`` hängt
+    die Ebene an (falls sie fehlt), ``aus`` nimmt sie heraus. Wird sie leer, bleibt ``[]`` stehen:
+    Der Viewer startet dann mit allen Ebenen aus (web/src/layers.ts ``initialVisibility``); ohne
+    den Schlüssel fiele er auf ``startVisible`` zurück und zeigte Ebenen, die vorher aus waren.
+    Nur dann nennt die Rückgabe zusätzlich ``startebenen`` (die neue Liste, auch ``[]``)."""
     m = read_manifest(pkg)
     if m.get("schemaVersion") != 2:
         raise ValueError("startVisible braucht Schema 2; Paket zuerst migrieren")
@@ -248,5 +276,17 @@ def start_sichtbar(pkg: Path, ebene: str, an: bool) -> dict[str, Any]:
         treffer[0].pop("startVisible", None)
     else:
         treffer[0]["startVisible"] = False
+    ergebnis: dict[str, Any] = {"ebene": ebene, "startVisible": an}
+    iv = m.get("initialView")
+    if isinstance(iv, dict) and isinstance(iv.get("layers"), list):
+        alt = iv["layers"]
+        if an and ebene not in alt and not _als_startebene_zeigbar(treffer[0]):
+            raise ValueError(f"Ebene {ebene} kann der Viewer nicht als Startebene zeigen")
+        if an:
+            rest = alt if ebene in alt else [*alt, ebene]
+        else:
+            rest = [i for i in alt if i != ebene]
+        iv["layers"] = rest
+        ergebnis["startebenen"] = rest
     write_manifest(pkg, m)
-    return {"ebene": ebene, "startVisible": an}
+    return ergebnis

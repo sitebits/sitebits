@@ -15,7 +15,7 @@ import pytest
 
 from scanview_server import auftraege as A
 from scanview_worker import worker as W
-from scanview_worker.laeufer import Ergebnis, Lauf, TestLaeufer
+from scanview_worker.laeufer import NETZRAUM_VERSTOSS, Ergebnis, Lauf, TestLaeufer
 
 ANHANG = "ab" * 16
 
@@ -168,6 +168,7 @@ def test_ablehnung_des_decoders_ohne_pfade(umgebung) -> None:  # type: ignore[no
     (Ergebnis("speicher", None, 1.0), "512 MB"),
     (Ergebnis("zeit", None, 1.0), "60 s"),
     (Ergebnis("exit", 1, 0.1), W.F_ANHANG_KAPUTT),
+    (Ergebnis("exit", NETZRAUM_VERSTOSS, 0.1), W.F_ISOLATION),
 ])
 def test_grenzen(umgebung, ergebnis: Ergebnis, text: str) -> None:  # type: ignore[no-untyped-def]
     s, conn = umgebung

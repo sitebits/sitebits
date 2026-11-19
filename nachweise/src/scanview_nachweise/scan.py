@@ -36,6 +36,7 @@ from .werkzeuge import Werkzeug, ausfuehren, docker_befehl
 
 if TYPE_CHECKING:
     from .osv import OsvStand
+    from .pdal_scan import PdalStand, ScanBlind
 
 #: Cache der trivy-DB — bewusst außerhalb des Repos.
 STANDARD_CACHE = Path.home() / ".cache" / "scanview-nachweise" / "trivy"
@@ -51,12 +52,19 @@ SCHWERE = {"CRITICAL": "kritisch", "HIGH": "hoch", "MEDIUM": "mittel", "LOW": "n
            "UNKNOWN": "hoch"}
 
 #: bom-ref-Präfixe des Image-Inhalts im Nachweis-SBOM der Werkzeug-Images (`sbom.erzeuge_bilder`):
-#: die beiden Container-Images selbst (`image:…`) und ihr Paketinhalt (`pdal|…`, `untwine|…`).
-IMAGE_PRAEFIXE = ("pdal|", "untwine|", "image:")
+#: die Container-Images selbst (`image:…`) und ihr Paketinhalt (`pdal|…` für scanview-pdal,
+#: `meshtools|…` für scanview-meshtools; je Kennung in `sbom._IMPORT_BILDER`).
+IMAGE_PRAEFIXE = ("pdal|", "meshtools|", "image:")
 #: Name dieses SBOMs (wie `sbom.BILDER`; drift-getestet). Nur hier gilt die Image-Ausnahme der
 #: Abdeckung — im ausgelieferten Import-SBOM muss jede Komponente gescannt sein.
 BILDER = "importbilder"
 
+#: PURL-Typen, die trivy annimmt und als Paket auflistet, für die es aber keine
+#: Schwachstellendaten führt — „gelistet“ hieße hier nicht „geprüft“. Gegenprobe 22.10.2026
+#: (trivy-Image aus werkzeuge.json, DB vom selben Tag): `pkg:conda/openssl@3.0.0` und
+#: `pkg:conda/libcurl@7.50.0` als conda-pkg gelistet, 0 Treffer. Solche Komponenten zählen nie
+#: als gescannt (fail-closed); prüfen kann sie nur eine Ersatzprüfung (`ersatz`).
+BLINDE_PURL_TYPEN = ("pkg:conda/",)
 _CACHE_IM_CONTAINER = "/cache"
 _SBOM_IM_CONTAINER = "/eingabe/sbom.cdx.json"
 _VEX_IM_CONTAINER = "/eingabe/vex.openvex.json"
@@ -90,7 +98,7 @@ class Treffer:
     """Ein Schwachstellen-Treffer. `paket` ist die PURL (ohne PURL: `name@version`),
     `status_vex` der Status, mit dem trivy den Treffer per VEX unterdrückt hat (nur Auskunft —
     freigeben entscheidet das Gate), `artefakt` das Release-Artefakt des SBOMs, `bom_ref` die
-    Komponente im SBOM (Image-Inhalt beginnt mit `pdal|`/`untwine|`)."""
+    Komponente im SBOM (Image-Inhalt beginnt mit einem der `IMAGE_PRAEFIXE`)."""
 
     id: str
     paket: str
@@ -364,9 +372,9 @@ def scanne(sbom: Path, cache: Path, vex: Path, werkzeuge: dict[str, Werkzeug], *
 
 def je_komponente(treffer: list[Treffer], bom: dict[str, Any]) -> list[Treffer]:
     """Treffer je SBOM-Komponente mit derselben PURL vervielfachen (bom-refs sortiert). trivy
-    fasst gleiche PURLs zusammen und nennt nur eine, nicht stabile bom-ref — steckt ein Paket in
-    beiden Images des Imports, gehört der Treffer zu beiden. Treffer ohne PURL-Treffer im SBOM
-    bleiben unverändert."""
+    fasst gleiche PURLs zusammen und nennt nur eine, nicht stabile bom-ref — steckt ein Paket
+    in mehreren Komponenten (z. B. zwei Images), gehört der Treffer zu allen. Treffer ohne
+    PURL-Treffer im SBOM bleiben unverändert."""
     refs: dict[str, list[str]] = {}
     for k in _komponenten(bom.get("components")):
         if isinstance(k.get("purl"), str) and isinstance(k.get("bom-ref"), str):
@@ -390,7 +398,8 @@ def _komponenten(liste: object) -> Iterator[dict[str, Any]]:
 
 
 def abdeckung(bom: dict[str, Any], daten: dict[str, Any], artefakt: str,
-              ersatz: dict[str, str] | None = None) -> dict[str, Any]:
+              ersatz: dict[str, str] | None = None,
+              restrisiko: set[str] | None = None) -> dict[str, Any]:
     """Welche SBOM-Komponenten hat trivy überhaupt geprüft? Eine Komponente gilt als gescannt,
     wenn ihre `bom-ref` oder ihre PURL in `Results[].Packages` auftaucht (trivy fasst gleiche
     PURLs verschiedener Images zusammen). Dateikomponenten zählen nicht mit. „0 Treffer“ heißt
@@ -398,14 +407,17 @@ def abdeckung(bom: dict[str, Any], daten: dict[str, Any], artefakt: str,
     bzw. „ohne PURL“; `ungescannt_pflicht` nennt die bom-refs, die gescannt sein müssen (die
     CLI bricht dann ab): im Nachweis-SBOM der Werkzeug-Images (`BILDER`) alles außer dem
     Image-Inhalt, in jedem Artefakt-SBOM (web, server, mcp, import) jede ungescannte Komponente —
-    dort gibt es keinen Image-Inhalt, ein `pdal|`-Präfix ist dort keine Ausnahme. `ersatz`
+    dort gibt es keinen Image-Inhalt, ein `IMAGE_PRAEFIXE`-Präfix ist dort keine Ausnahme. `ersatz`
     (bom-ref → PURL) deckt eine Ersatzprüfung ab (Eigenbauten über
     OSV, `osv.ersatz_fuer`): Eine Komponente mit genau dieser bom-ref **und** PURL bleibt in
     `ungescannt` gezählt und steht in `ersatz`, fällt aber aus `ungescannt_pflicht`.
     Komponenten `type: machine-learning-model` (unverändert übernommene Modelle, per SHA-256 im
     SBOM festgelegt) führt keine Schwachstellen-Datenbank; sie bleiben in `ungescannt` gezählt und
     stehen offen in `modelle`, fallen aber aus `ungescannt_pflicht`. Der Parser, der sie lädt, ist
-    eine gewöhnliche (gescannte) Paketkomponente."""
+    eine gewöhnliche (gescannte) Paketkomponente. `restrisiko` (bom-refs aus
+    `pdal_scan.blind_refs`: genau gelistete blinde Pakete der PDAL-Umgebung, deren Befund im
+    Register akzeptiert ist) bleiben ebenfalls gezählt und stehen in `restrisiko`, fallen aber aus
+    `ungescannt_pflicht`."""
     refs: set[str] = set()
     purls: set[str] = set()
     nach_typ: dict[str, int] = {}
@@ -426,9 +438,13 @@ def abdeckung(bom: dict[str, Any], daten: dict[str, Any], artefakt: str,
     ersatz_refs = dict(ersatz or {})
     ersetzt: list[str] = []
     modelle: list[str] = []
+    akzeptiert = restrisiko or set()
+    blind_akzeptiert: list[str] = []
     for k in komponenten:
         purl = k.get("purl")
-        if k.get("bom-ref") in refs or (isinstance(purl, str) and purl_schluessel(purl) in purls):
+        blind = isinstance(purl, str) and purl.startswith(BLINDE_PURL_TYPEN)
+        if not blind and (k.get("bom-ref") in refs
+                          or (isinstance(purl, str) and purl_schluessel(purl) in purls)):
             continue
         ungescannt[purl.split("/", 1)[0] if isinstance(purl, str) and purl else "ohne PURL"] += 1
         ref = str(k.get("bom-ref", k.get("name", "?")))
@@ -436,6 +452,8 @@ def abdeckung(bom: dict[str, Any], daten: dict[str, Any], artefakt: str,
             ersetzt.append(ref)
         elif k.get("type") == "machine-learning-model":
             modelle.append(ref)
+        elif ref in akzeptiert:
+            blind_akzeptiert.append(ref)
         elif artefakt != BILDER or not ref.startswith(IMAGE_PRAEFIXE):
             eigene.append(ref)
     return {"komponenten": len(komponenten),
@@ -444,6 +462,7 @@ def abdeckung(bom: dict[str, Any], daten: dict[str, Any], artefakt: str,
             "ungescannt_pflicht": eigene,
             "ersatz": sorted(ersetzt),
             "modelle": sorted(modelle),
+            "restrisiko": sorted(blind_akzeptiert),
             "nach_typ": dict(sorted(nach_typ.items()))}
 
 
@@ -487,15 +506,19 @@ class ScanErgebnis:
 
 
 def scanne_alle(sboms: dict[str, Path], cache: Path, vex: Path, werkzeuge: dict[str, Werkzeug],
-                *, uhr: datetime, osv: OsvStand | None = None) -> ScanErgebnis:
+                *, uhr: datetime, osv: OsvStand | None = None, pdal: PdalStand | None = None,
+                blind: ScanBlind | None = None) -> ScanErgebnis:
     """DB-Frische gegen `uhr` (die echte Uhr, nie ein Stichtag), dann je Artefakt-SBOM trivy
     ohne Netz. Fail-closed: ohne Prüfung hieße „0 Treffer“ nur „nicht geprüft“ — ein SBOM ohne
     Komponenten oder eine ungescannte Pflichtkomponente bricht mit `scan-abdeckung` ab.
     Ausgenommen ist allein der Image-Inhalt des Imports (conda ohne PURL); er steht offen in der
     Abdeckung und als Sammelbefund B-SCAN-IMG-* im Register. Eigenbauten prüft statt trivy der
     OSV-Stand (`osv`, ohne Netz geladen); fehlt er oder deckt eine Eigenbau-Komponente nicht
-    genau ab, bleibt sie Pflicht und der Lauf bricht ab. OSV-Funde kommen zu den Treffern."""
+    genau ab, bleibt sie Pflicht und der Lauf bricht ab. OSV-Funde kommen zu den Treffern.
+    Pakete der PDAL-Umgebung prüft ebenso der PDAL-OSV-Stand (`pdal`); blinde Restpakete nimmt
+    nur `blind` aus der Pflicht (`pdal_scan.blind_ausnahme`: Liste plus akzeptierter Befund)."""
     from . import osv as osv_modul  # zur Laufzeit: osv importiert Treffer aus diesem Modul
+    from . import pdal_scan
     stand = db_pruefen(cache, uhr)
     treffer: list[Treffer] = []
     artefakte: dict[str, Any] = {}
@@ -506,10 +529,10 @@ def scanne_alle(sboms: dict[str, Path], cache: Path, vex: Path, werkzeuge: dict[
             bom = json.loads(roh.decode("utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as e:
             raise NachweisFehler("scan-sbom", f"{pfad.name}: nicht lesbar ({e})") from None
-        ersatz = osv_modul.ersatz_fuer(bom, osv)
+        ersatz = {**osv_modul.ersatz_fuer(bom, osv), **pdal_scan.ersatz_fuer(bom, pdal)}
         eigene = [*je_komponente(werte_trivy_aus(daten, name), bom),
-                  *osv_modul.treffer(bom, osv, name)]
-        abd = abdeckung(bom, daten, name, ersatz)
+                  *osv_modul.treffer(bom, osv, name), *pdal_scan.treffer(bom, pdal, name)]
+        abd = abdeckung(bom, daten, name, ersatz, pdal_scan.blind_refs(bom, blind))
         if abd["komponenten"] == 0:
             raise NachweisFehler("scan-abdeckung", f"{pfad.name}: SBOM ohne Komponenten — "
                                                    "nichts, was trivy prüfen könnte")

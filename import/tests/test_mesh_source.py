@@ -135,3 +135,18 @@ def test_gltf_node_transform_and_material_color(tmp_path):
     np.testing.assert_allclose(m.colors, np.tile([0.2, 0.4, 0.6], (3, 1)))
     with pytest.raises(ValueError, match="Achsen"):
         read_mesh(p, up="z")
+
+
+def test_obj_ueber_symlink_liest_material_neben_dem_link(tmp_path):
+    # Arbeitskopie: Geometrie nur verlinkt, Material und (z. B. verkleinerte) Texturen daneben.
+    original, arbeit = tmp_path / "original", tmp_path / "arbeit"
+    original.mkdir()
+    arbeit.mkdir()
+    quelle = obj(original / "a.obj")
+    kopf = "mtllib a.mtl\nvt 0 0\nvt 1 0\nvt 0 1\nusemtl stein\n"
+    quelle.write_text(kopf + quelle.read_text().replace("f 1 2 3", "f 1/1 2/2 3/3"))
+    (arbeit / "a.obj").symlink_to(quelle)
+    (arbeit / "a.mtl").write_text("newmtl stein\nmap_Kd t.png\n")
+    (arbeit / "t.png").write_bytes(b"")
+    mesh = read_mesh(arbeit / "a.obj", unit="m")
+    assert mesh.textures[1] == arbeit / "t.png"

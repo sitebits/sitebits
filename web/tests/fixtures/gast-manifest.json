@@ -1,0 +1,543 @@
+{
+ "_hinweis": "Synthetisch. voll = Ebenen und Draufsicht mit internen Metadaten wie im Paket; gast = dieselben nach teilen.gast_felder bzw. teilen.gast_draufsicht (server/tests/test_teilen.py prüft die Ableitung, web/tests/gastManifest.test.ts, dass der Viewer aus beiden dasselbe liest).",
+ "voll": {
+  "schemaVersion": 2,
+  "projectId": "gast-pruefung",
+  "revision": 3,
+  "title": "Prüfpaket Gast",
+  "frame": {
+   "crs": {
+    "wkt": null,
+    "verticalDatum": null,
+    "declaredBy": "cli"
+   },
+   "unit": "m",
+   "originWorld": [
+    2,
+    2,
+    1
+   ]
+  },
+  "initialView": {
+   "target": [
+    2,
+    2,
+    1
+   ],
+   "distance": 9,
+   "layers": [
+    "splats",
+    "mesh"
+   ]
+  },
+  "layers": [
+   {
+    "id": "punkte",
+    "kind": "pointcloud",
+    "title": "Punktwolke",
+    "startVisible": false,
+    "url": "cloud.copc.laz",
+    "pointCount": 5000,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "attributes": [
+     "rgb",
+     "classification"
+    ],
+    "scale": 0.001,
+    "offset": [
+     1,
+     1,
+     0
+    ],
+    "pointSourceIsScan": true,
+    "classes": {
+     "2": 4000,
+     "6": 1000
+    },
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    },
+    "source": {
+     "filename": "aufnahme-intern.e57",
+     "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "sourceOptions": {
+     "lage": "intern",
+     "hoehe": "intern"
+    },
+    "verify": {
+     "ok": true,
+     "report": "layers/x/conversion-report.json"
+    },
+    "conversion": {
+     "seconds": 1
+    },
+    "readerPointCount": 10,
+    "invalidDropped": 0
+   },
+   {
+    "id": "mesh",
+    "kind": "mesh",
+    "title": "Mesh",
+    "format": "gltf",
+    "url": "layers/mesh/model.glb",
+    "previewUrl": "layers/mesh/preview.glb",
+    "previewColor": "vertex",
+    "triangleCount": 480,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "positionStepM": 0.001,
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    },
+    "mobileUrl": "layers/mesh/mobile.glb",
+    "mobileSizeBytes": 40,
+    "mobileTriangleCount": 120,
+    "source": {
+     "filename": "aufnahme-intern.e57",
+     "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "sourceOptions": {
+     "lage": "intern",
+     "hoehe": "intern"
+    },
+    "verify": {
+     "ok": true,
+     "report": "layers/x/conversion-report.json"
+    },
+    "conversion": {
+     "seconds": 1
+    },
+    "readerPointCount": 10,
+    "invalidDropped": 0
+   },
+   {
+    "id": "kacheln",
+    "kind": "mesh-tiles",
+    "title": "Kacheln",
+    "format": "3dtiles",
+    "url": "layers/kacheln/tileset.json",
+    "triangleCount": 3,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      1,
+      1
+     ]
+    ],
+    "positionStepM": 0.001,
+    "crs": "EPSG:25833",
+    "heightSystem": "DHHN2016",
+    "startVisible": false,
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    },
+    "source": {
+     "filename": "aufnahme-intern.e57",
+     "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "sourceOptions": {
+     "lage": "intern",
+     "hoehe": "intern"
+    },
+    "verify": {
+     "ok": true,
+     "report": "layers/x/conversion-report.json"
+    },
+    "conversion": {
+     "seconds": 1
+    },
+    "readerPointCount": 10,
+    "invalidDropped": 0
+   },
+   {
+    "id": "splats",
+    "kind": "splats",
+    "title": "Sichtschicht",
+    "format": "rad",
+    "url": "layers/splats/model-lod.rad",
+    "splatCount": 2400,
+    "sizeBytes": 100,
+    "shDegree": 1,
+    "chunkCount": 2,
+    "lodMethod": "bhatt-lod",
+    "buildLod": {
+     "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+     "commit": "0000000000000000000000000000000000000000"
+    },
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "alignment": {
+     "methode": "intern",
+     "kameras": 12
+    },
+    "frameCheck": {
+     "ok": true,
+     "samples": 1000,
+     "p50M": 0.002,
+     "p95M": 0.01,
+     "footprint": "intern"
+    },
+    "source": {
+     "filename": "aufnahme-intern.e57",
+     "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "sourceOptions": {
+     "lage": "intern",
+     "hoehe": "intern"
+    },
+    "verify": {
+     "ok": true,
+     "report": "layers/x/conversion-report.json"
+    },
+    "conversion": {
+     "seconds": 1
+    },
+    "readerPointCount": 10,
+    "invalidDropped": 0
+   }
+  ],
+  "topview": {
+   "url": "topview.png",
+   "widthPx": 40,
+   "heightPx": 30,
+   "pixelSizeM": 0.05,
+   "upperLeftWorld": [
+    1.0,
+    3.5
+   ],
+   "pixelAnchor": "edge",
+   "zMaxWorld": 2.5,
+   "colorFrom": "rgb",
+   "image": {
+    "source": "intern-orthofoto.tif",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+   }
+  }
+ },
+ "gast": {
+  "schemaVersion": 2,
+  "projectId": "gast-pruefung",
+  "revision": 3,
+  "title": "Prüfpaket Gast",
+  "frame": {
+   "crs": {
+    "wkt": null,
+    "verticalDatum": null,
+    "declaredBy": "cli"
+   },
+   "unit": "m",
+   "originWorld": [
+    2,
+    2,
+    1
+   ]
+  },
+  "initialView": {
+   "target": [
+    2,
+    2,
+    1
+   ],
+   "distance": 9,
+   "layers": [
+    "splats",
+    "mesh"
+   ]
+  },
+  "layers": [
+   {
+    "id": "punkte",
+    "kind": "pointcloud",
+    "title": "Punktwolke",
+    "startVisible": false,
+    "url": "cloud.copc.laz",
+    "pointCount": 5000,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "attributes": [
+     "rgb",
+     "classification"
+    ],
+    "scale": 0.001,
+    "offset": [
+     1,
+     1,
+     0
+    ],
+    "pointSourceIsScan": true,
+    "classes": {
+     "2": 4000,
+     "6": 1000
+    },
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    }
+   },
+   {
+    "id": "mesh",
+    "kind": "mesh",
+    "title": "Mesh",
+    "format": "gltf",
+    "url": "layers/mesh/model.glb",
+    "previewUrl": "layers/mesh/preview.glb",
+    "previewColor": "vertex",
+    "triangleCount": 480,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "positionStepM": 0.001,
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    },
+    "mobileUrl": "layers/mesh/mobile.glb",
+    "mobileSizeBytes": 40,
+    "mobileTriangleCount": 120
+   },
+   {
+    "id": "kacheln",
+    "kind": "mesh-tiles",
+    "title": "Kacheln",
+    "startVisible": false,
+    "format": "3dtiles",
+    "url": "layers/kacheln/tileset.json",
+    "triangleCount": 3,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      1,
+      1,
+      1
+     ]
+    ],
+    "positionStepM": 0.001,
+    "crs": "EPSG:25833",
+    "heightSystem": "DHHN2016",
+    "provenance": {
+     "kind": "photogrammetry",
+     "interpolated": false,
+     "scaleVerified": true,
+     "scaleSource": "control-points",
+     "accuracy": {
+      "absolute": {
+       "status": "none"
+      },
+      "scale": {
+       "status": "set",
+       "setFrom": [
+        "a-b"
+       ]
+      },
+      "distances": [],
+      "source": {
+       "software": "pruefwerkzeug",
+       "version": "1"
+      },
+      "report": null
+     }
+    }
+   },
+   {
+    "id": "splats",
+    "kind": "splats",
+    "title": "Sichtschicht",
+    "format": "rad",
+    "url": "layers/splats/model-lod.rad",
+    "splatCount": 2400,
+    "sizeBytes": 100,
+    "boundsWorld": [
+     [
+      0,
+      0,
+      0
+     ],
+     [
+      4,
+      4,
+      2
+     ]
+    ],
+    "shDegree": 1,
+    "chunkCount": 2,
+    "lodMethod": "bhatt-lod",
+    "frameCheck": {
+     "ok": true,
+     "samples": 1000,
+     "p50M": 0.002,
+     "p95M": 0.01
+    }
+   }
+  ],
+  "topview": {
+   "url": "topview.png",
+   "widthPx": 40,
+   "heightPx": 30,
+   "pixelSizeM": 0.05,
+   "upperLeftWorld": [
+    1.0,
+    3.5
+   ],
+   "pixelAnchor": "edge",
+   "zMaxWorld": 2.5
+  }
+ }
+}

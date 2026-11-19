@@ -17,6 +17,14 @@ Fenster „Foto“.
 - **Durch die Kamera:** Die 3D-Ansicht springt exakt in die Position und Blickrichtung des Fotos,
   das Foto liegt deckungsgleich über der Szene. Der Regler im Foto-Fenster blendet zwischen Foto
   und 3D über. `Esc` kehrt zur vorigen Ansicht zurück.
+- **Fotos zu einer Stelle finden** (seit 0.10): In der Galerie eine Stelle auf der Oberfläche
+  wählen, als Punkt oder als Klickpolygon. Angezeigt werden die Fotos, die diese Stelle zeigen und
+  bei denen sie nicht verdeckt ist.
+- **Geteilte Ansicht** (seit 0.10): Foto und 3D nebeneinander, auf Touch-Geräten im Hochformat
+  übereinander. Der Trenner lässt sich ziehen oder per Tastatur verschieben, die Rahmengröße der
+  Pyramiden ist einstellbar (0,1–20 m).
+- **Synchron-Strahl** (seit 0.10): Zeigt man im Foto auf eine Stelle, markiert die 3D-Ansicht den
+  passenden Oberflächenpunkt mit Strahl und Fadenkreuz.
 
 ## Datenschutz
 
@@ -30,7 +38,23 @@ Bearbeiter, Projektleitung und Admin die Ebene. Die Sperre wirkt auf dem Server,
 Viewer. Der statische Betrieb ohne Anmeldung (nginx) liefert Fotos grundsätzlich nicht aus.
 Für Rahmenfotos gibt es noch keinen Anonymisierungsschritt; ohne ihn kann nur ein Admin eine
 Fotoebene als „personenfrei“ erklären (protokolliert). Panoramen: siehe `import/README.md`,
-`panos-kameras --anonymisiert`.
+`panos-kameras --anonymisiert`. Panoramen laufen durch dasselbe Tor, ab 0.13 auch in älteren
+Paketen ohne Anonymisierungsangabe (Schalter „Panoramen nur freigegeben zeigen“, für jedes
+Projekt an; Abschalten ist eine protokollierte Entscheidung der Projektleitung).
+
+### Was das Tor nicht abdeckt
+
+Das Tor sperrt nur die Bilddateien der Panoramen und Fotos. **Nicht** gegatet sind:
+
+- die **Punktwolke** mit RGB-Farbe und Intensität: Personen, die beim Scan im Bild standen,
+  können als farbige Punkte erkennbar sein;
+- **Mesh-Texturen** (Texturatlanten der Meshes);
+- die **Draufsicht** der Minikarte (höchstens 2048 px Kantenlänge, Blick senkrecht von oben).
+
+Diese Ebenen sehen alle Beteiligten des Projekts. **Betreiberpflicht:** Vor dem Teilen eines
+Projekts mit Daten aus dem öffentlichen Raum diese Ebenen an den Stellen mit Passanten oder
+Fahrzeugen selbst ansehen (Sichtprüfung) und Erkennbares vor dem Import entfernen oder umfärben.
+Gast-Links (Nur-Lese-Links) liefern nie Panoramen oder Fotos, auch keine freigegebenen.
 
 ## Import
 
@@ -87,5 +111,12 @@ Farbprofile der Originale gelangen nicht ins Paket.
 
 - Eine Szene ohne Flächen in allen drei Richtungen (nur flacher Boden) lässt sich nicht auf den
   Ausrichtungsstand prüfen und wird abgewiesen.
-- „Fotos zu diesem Punkt“, Messen im Foto und der Synchron-Strahl zwischen Foto und 3D folgen in
-  einer späteren Version.
+- In perspektivischen Fotos wird bewusst nicht gemessen; gemessen wird in der 3D-Ansicht. Messen im
+  Bild ist nur für Orthobilder vorgesehen.
+- „Fotos zu einer Stelle finden“ kennt kein freies Lasso, nur das Klickpolygon.
+- Die Verdeckung wird nur gegen die geladenen Wolkenknoten und die sichtbaren Meshes geprüft; dünne
+  Hindernisse können fehlen. Ein Foto ohne Tiefentreffer bleibt als sichtbar, ungeprüft markiert.
+  Ein Sichtindex aus den Tie Points ist erst für eine 1.x-Version vorgesehen.
+- „Fotos zu einer Stelle finden“ gibt es nicht über die API und nicht als MCP-Werkzeug: Die
+  Verdeckungsprüfung läuft im Browser über Tiefenabfragen an der geladenen Szene. Eine
+  serverseitige Variante ist für eine 1.x-Version vorgesehen (siehe `docs/ki-paritaet.md`).

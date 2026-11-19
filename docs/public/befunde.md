@@ -6,7 +6,7 @@ Jeder eigene und fremde Sicherheitsbefund mit stabiler ID. Release-Schwelle: kei
 
 Diese Fassung nennt je Befund nur Kennung, Schwere, Kategorie und Status. Beschreibung, Fundstelle und Nachweis der Behebung liegen in der internen Dokumentation und werden Prüfern auf Anfrage vorgelegt.
 
-Stand: 181 Befunde — offen: 36, behoben: 40, akzeptiert: 0, kein-befund: 105.
+Stand: 191 Befunde — offen: 28, behoben: 48, akzeptiert: 6, kein-befund: 109.
 
 | ID | Schwere | Kategorie | Status | Betrifft |
 |---|---|---|---|---|
@@ -16,7 +16,7 @@ Stand: 181 Befunde — offen: 36, behoben: 40, akzeptiert: 0, kein-befund: 105.
 | B-WB-M4 | mittel | rechte | behoben | alle |
 | B-WB-N1 | niedrig | verfuegbarkeit | behoben | alle |
 | B-WB-N2 | niedrig | verfuegbarkeit | behoben | alle |
-| B-WB-N3 | niedrig | verfuegbarkeit | offen | alle |
+| B-WB-N3 | niedrig | verfuegbarkeit | akzeptiert | alle |
 | B-WB-N4 | niedrig | verfuegbarkeit | behoben | alle |
 | B-WB-N5 | niedrig | haertung | behoben | alle |
 | B-WB-N6 | niedrig | lieferkette | offen | alle |
@@ -38,17 +38,17 @@ Stand: 181 Befunde — offen: 36, behoben: 40, akzeptiert: 0, kein-befund: 105.
 | B-BB-I2 | info | haertung | behoben | alle |
 | B-BB-I3 | info | haertung | offen | alle |
 | B-BB-I4 | info | haertung | offen | alle |
-| B-FW-1 | niedrig | abfluss | offen | alle |
-| B-FW-2 | niedrig | verfuegbarkeit | offen | alle |
+| B-FW-1 | niedrig | abfluss | akzeptiert | alle |
+| B-FW-2 | niedrig | verfuegbarkeit | akzeptiert | alle |
 | B-TE-M1 | mittel | auth | behoben | alle |
 | B-TE-M2 | mittel | abfluss | behoben | alle |
 | B-TE-M3 | mittel | abfluss | behoben | alle |
 | B-TE-N1 | niedrig | sonstiges | behoben | alle |
 | B-TE-N2 | niedrig | haertung | behoben | alle |
-| B-TE-N3 | niedrig | abfluss | offen | alle |
+| B-TE-N3 | niedrig | abfluss | behoben | alle |
 | B-TE-N4 | niedrig | haertung | offen | alle |
-| B-TE-N5 | niedrig | abfluss | offen | alle |
-| B-TE-N6 | niedrig | rechte | offen | alle |
+| B-TE-N5 | niedrig | abfluss | akzeptiert | alle |
+| B-TE-N6 | niedrig | rechte | akzeptiert | alle |
 | B-TE-I1 | info | auth | offen | alle |
 | B-TE-I2 | info | sonstiges | offen | alle |
 | B-TE-I3 | info | abfluss | offen | alle |
@@ -60,12 +60,15 @@ Stand: 181 Befunde — offen: 36, behoben: 40, akzeptiert: 0, kein-befund: 105.
 | B-TE-I9 | info | abfluss | offen | alle |
 | B-TE-I10 | info | sonstiges | kein-befund | alle |
 | B-LK-IMPORT | mittel | lieferkette | behoben | import |
-| B-LK-UNTWINE | mittel | lieferkette | offen | importbilder |
+| B-LK-UNTWINE | mittel | lieferkette | behoben | importbilder |
 | B-SBOM-IMAGES | mittel | lieferkette | behoben | import |
 | B-SBOM-LIZENZ | niedrig | sonstiges | offen | alle |
 | B-SBOM-ERSTELLER | niedrig | sonstiges | offen | alle |
-| B-SCAN-IMG-PDAL | kritisch | lieferkette | offen | importbilder |
-| B-SCAN-IMG-UNTWINE | kritisch | lieferkette | offen | importbilder |
+| B-SCAN-IMG-PDAL | kritisch | lieferkette | behoben | importbilder |
+| B-SCAN-IMG-UNTWINE | kritisch | lieferkette | behoben | importbilder |
+| B-SCAN-IMG-MESHTOOLS | hoch | lieferkette | behoben | importbilder |
+| B-LK-KTX-CHECKSUM | mittel | lieferkette | behoben | importbilder |
+| B-SCAN-IMG-PYTHON | niedrig | lieferkette | offen | importbilder |
 | B-CX-P1-1 | hoch | rechte | behoben | alle |
 | B-CX-P1-2 | hoch | rechte | behoben | alle |
 | B-CX-P1-3 | hoch | haertung | behoben | alle |
@@ -98,8 +101,8 @@ Stand: 181 Befunde — offen: 36, behoben: 40, akzeptiert: 0, kein-befund: 105.
 | B-SAST-SEMGREP-B9EC6512DC58C134 | hoch | haertung | kein-befund | alle |
 | B-SAST-SEMGREP-70383636D47A1220 | hoch | haertung | kein-befund | alle |
 | B-SAST-SEMGREP-102E2BE4728300A7 | hoch | haertung | kein-befund | alle |
-| B-SAST-SEMGREP-ACD15CCD6BE6BEF4 | mittel | verfuegbarkeit | kein-befund | alle |
-| B-SAST-SEMGREP-897F308374442685 | mittel | verfuegbarkeit | kein-befund | alle |
+| B-SAST-SEMGREP-1AD0B95E08679A32 | mittel | verfuegbarkeit | kein-befund | alle |
+| B-SAST-SEMGREP-7DECEA8BDD1C148D | mittel | verfuegbarkeit | kein-befund | alle |
 | B-SAST-SEMGREP-05F335590B7D96A1 | hoch | haertung | kein-befund | alle |
 | B-SAST-SEMGREP-9BD39E36DC56CF56 | hoch | haertung | kein-befund | alle |
 | B-SAST-SEMGREP-0543C194CD92C2B8 | hoch | haertung | kein-befund | alle |
@@ -163,6 +166,7 @@ Stand: 181 Befunde — offen: 36, behoben: 40, akzeptiert: 0, kein-befund: 105.
 | B-SAST-SEMGREP-EFCAB18DDAF6F758 | hoch | abfluss | kein-befund | alle |
 | B-SAST-SEMGREP-0328784763ACD346 | hoch | haertung | kein-befund | alle |
 | B-RL-N1 | niedrig | abfluss | behoben | server |
+| B-RL-I1 | info | abfluss | kein-befund | alle |
 | B-SAST-SEMGREP-FDA42991C858C489 | hoch | haertung | kein-befund | import |
 | B-SAST-SEMGREP-FF5E75374A3F0D89 | hoch | haertung | kein-befund | import |
 | B-SAST-SEMGREP-BE6EE389B33C057A | hoch | haertung | kein-befund | import |
@@ -188,6 +192,12 @@ Stand: 181 Befunde — offen: 36, behoben: 40, akzeptiert: 0, kein-befund: 105.
 | B-SAST-SEMGREP-477186D16727C518 | hoch | haertung | kein-befund | alle |
 | B-SAST-SEMGREP-EA3E67947FDEC13C | hoch | haertung | kein-befund | alle |
 | B-SAST-SEMGREP-D6B7DA0E5F2B91F5 | mittel | haertung | kein-befund | alle |
+| B-SAST-BANDIT-9B1210876F47AF88 | mittel | haertung | kein-befund | import |
 | B-SAST-BANDIT-723722FF08CF2C61 | mittel | haertung | kein-befund | import |
 | B-SCAN-IMPORT-LOCK | kritisch | lieferkette | behoben | import |
+| B-LK-PDAL-UMGEBUNG | mittel | lieferkette | behoben | import |
+| B-SCAN-PDAL-UMGEBUNG | hoch | lieferkette | behoben | import |
+| B-SCAN-PDAL-UMGEBUNG-BLIND | hoch | lieferkette | akzeptiert | import |
+| B-SAST-SEMGREP-250CB1200E920AEC | hoch | haertung | kein-befund | import |
 | B-SAST-SEMGREP-93AE2814229F29C7 | mittel | haertung | kein-befund | alle |
+| B-SAST-SEMGREP-8629E62B9FE54D4E | mittel | auth | kein-befund | alle |

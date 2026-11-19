@@ -151,6 +151,30 @@ describe('loadManifest (I3: Fehlerpfade mit klarer Meldung)', () => {
       /project\.json ungültig: cloud\.attributes/,
     );
   });
+  describe('Gast-Manifest: Server kürzt initialView.layers auf die übrigen Ebenen', () => {
+    // Gast-Manifest wie vom Server: nur Punktwolke und Mesh, gefilterte Ebenen fehlen.
+    const gast = (layers?: string[]) => ({
+      ...v2,
+      layers: v2.layers.filter((l) => l.kind === 'pointcloud' || l.kind === 'mesh'),
+      initialView: { ...v2.initialView, ...(layers !== undefined ? { layers } : {}) },
+    });
+    it('gekürzte layers → Startansicht mit den übrigen Ebenen', async () => {
+      const m = await loadManifest(BASE, () => json(gast(['punkte'])));
+      expect(m.initialView.layers).toEqual(['punkte']);
+      expect(m.layers.map((l) => l.id)).toEqual(['punkte', 'mesh']);
+    });
+    it('layers entfernt (nichts übrig) → lädt, Startansicht ohne Ebenenvorgabe', async () => {
+      const m = await loadManifest(BASE, () => json(gast()));
+      expect(m.initialView.layers).toBeUndefined();
+      expect(m.initialView.target).toEqual(v2.initialView.target);
+      expect(m.initialViewDeclared).toBe(true);
+    });
+    it('ungekürzt (nennt gefilterte Ebene) → ManifestError, deshalb kürzt der Server', async () => {
+      await expect(loadManifest(BASE, () => json(gast(['punkte', 'splat'])))).rejects.toThrow(
+        /project\.json ungültig: initialView\.layers verweist auf keine unterstützte Ebene/,
+      );
+    });
+  });
 });
 
 // Draft-Typ für die destruktiven Mutationen im it.each unten: kein `any`, damit ESLint grün bleibt.

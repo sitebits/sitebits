@@ -167,6 +167,17 @@ def _add_overview_args(sp: argparse.ArgumentParser) -> None:
         default=None,
         help="nur Punkte bis zu dieser Welt-Höhe (Innenräume: Decke ausblenden)",
     )
+    sp.add_argument(
+        "--bild",
+        type=Path,
+        default=None,
+        help="Orthobild mit Weltdatei (.tfw/.jgw/…): ersetzt die Wolkenfarbe, wo es deckt",
+    )
+    sp.add_argument(
+        "--bild-crs",
+        default=None,
+        help="Koordinatensystem des Orthobilds, muss dem des Pakets entsprechen (z. B. EPSG:25833)",
+    )
 
 
 def _sfm_optionen(sp: argparse.ArgumentParser) -> None:
@@ -246,14 +257,37 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="Kachelarbeiter (1: ohne Prozesspool)")
     s.add_argument("--packen", action="store_true", help="Prüffassung und meshopt-/KTX2-Paket")
     s.add_argument("--crs")
-    s.add_argument("--hoehe")
+    s.add_argument("--hoehe", help="Etikett für bereits umgerechnete Quellen; ohne Umrechnung")
+    s.add_argument(
+        "--quell-hoehensystem",
+        help="Höhensystem des OBJ (dhhn2016, ellipsoidisch, dhhn92); rechnet ins Ziel um",
+    )
+    s.add_argument(
+        "--ziel-hoehensystem",
+        help="ohne --lage-von Standard dhhn2016; mit --lage-von bestimmt es das Paket",
+    )
+    s.add_argument(
+        "--lage-von",
+        type=Path,
+        metavar="PAKETORDNER",
+        help="Paket mit Wolke: Höhensystem, Lagematrix und Hüllentor wie bei add",
+    )
+    s.add_argument(
+        "--ohne-lage",
+        action="store_true",
+        help="mit --lage-von: Paket ohne Lagematrix ausdrücklich zulassen",
+    )
 
     s = sub.add_parser("inventory", help="Metadaten einer E57 als JSON auf stdout")
     s.add_argument("e57", type=Path)
 
-    s = sub.add_parser("convert", help="E57/LAS/LAZ/COPC/PLY/PTS/XYZ/TXT/CSV → COPC-Paket")
+    s = sub.add_parser(
+        "convert", help="E57/LAS/LAZ/COPC/PLY/PTS/XYZ/TXT/CSV → COPC-Paket (Punkte: mit Draufsicht)"
+    )
     _add_convert_args(s)
     _add_mesh_args(s)
+    _add_overview_args(s)
+    s.add_argument("--titel", help="Projekttitel im Paket (Punktwolke; Standard: Dateiname)")
 
     s = sub.add_parser("add", help="Mesh in vorhandenes Schema-2-Paket hinzufügen")
     _add_convert_args(s)
@@ -409,6 +443,15 @@ def _build_parser() -> argparse.ArgumentParser:
     s.add_argument("ebene")
     s.add_argument("wert", choices=("an", "aus"))
 
+    s = sub.add_parser(
+        "pdal-lizenzen",
+        help="Lizenzbeilage der PDAL-Umgebung aus dem pixi-Paket-Cache erzeugen (einrichten.sh)",
+    )
+    s.add_argument("--lock", type=Path, required=True, help="pixi.lock der Umgebung")
+    s.add_argument("--quellen", type=Path, required=True, help="quellen.json zum Lock")
+    s.add_argument("--cache", type=Path, required=True, help="PIXI_CACHE_DIR der Installation")
+    s.add_argument("--ausgabe", type=Path, default=None, help="Zieldatei (Standard: stdout)")
+
     return p
 
 
@@ -501,6 +544,15 @@ def _ohne_pfade(text: str) -> str:
     return _PFAD_RE.sub(lambda t: Path(t.group(0)).name or "<pfad>", text).strip()
 
 
+def _convert_titel(titel: str | None) -> str | None:
+    if titel is None:
+        return None
+    t = titel.strip()
+    if not 0 < len(t) <= 120 or not t.isprintable():
+        raise ValueError("Titel muss 1 bis 120 druckbare Zeichen haben")
+    return t
+
+
 def _neu_ohne_wolke(a: argparse.Namespace) -> int:
     """Exit 0 = Paket geschrieben; 2 = Eingabe abgelehnt (letzte Zeile = Meldung ohne Pfade)."""
     from .neu_ohne_wolke import neu_mesh, neu_splats
@@ -525,6 +577,18 @@ def _neu_ohne_wolke(a: argparse.Namespace) -> int:
     return 0
 
 
+def _pdal_lizenzen(a: argparse.Namespace) -> int:
+    from .pdal_lizenzen import LizenzFehler, schreibe
+
+    try:
+        anzahl = schreibe(a.lock, a.quellen, a.cache, a.ausgabe)
+    except LizenzFehler as exc:
+        print(f"PDAL-Lizenzen: {exc}", file=sys.stderr)
+        return 1
+    print(f"PDAL-Lizenzen: {anzahl} Pakete", file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     a = _build_parser().parse_args(argv)
 
@@ -537,7 +601,9 @@ def main(argv: list[str] | None = None) -> int:
             kachel_result = kacheln(a.eingabe, a.ausgabe, max_dreiecke=a.max_dreiecke,
                                     blatt_dreiecke=a.blatt_dreiecke, crs=a.crs, hoehe=a.hoehe,
                                     packen=a.packen, blatt_texel=a.blatt_texel,
-                                    textur_cache_bytes=int(cache_bytes), jobs=a.jobs)
+                                    textur_cache_bytes=int(cache_bytes), jobs=a.jobs,
+                                    umrechnen=(a.quell_hoehensystem, a.ziel_hoehensystem),
+                                    lage_von=a.lage_von, ohne_lage=a.ohne_lage)
         except (ValueError, OSError, RuntimeError) as exc:
             print(str(exc), file=sys.stderr)
             return 1
@@ -561,6 +627,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if a.cmd == "mobilstufe":
         return _mobilstufe(a)
+
+    if a.cmd == "pdal-lizenzen":
+        return _pdal_lizenzen(a)
 
     if a.cmd == "neu-ohne-wolke":
         return _neu_ohne_wolke(a)
@@ -597,7 +666,7 @@ def main(argv: list[str] | None = None) -> int:
                     return 0 if report["ok"] else 2
                 if any(getattr(a, k, None) is not None for k in
                        ("max_points", "columns", "ausduennen", "mode", "verschiebung",
-                        "transformation")):
+                        "transformation", "titel")):
                     raise ValueError("Punktoptionen sind bei Meshes nicht zulässig")
                 options = dict(crs=a.crs, unit=a.unit, up=a.up,
                                dreiecke=a.dreiecke, vorschau_dreiecke=a.vorschau_dreiecke,
@@ -779,8 +848,18 @@ def main(argv: list[str] | None = None) -> int:
                 extra["lage"] = lage_angabe
             if a.cmd == "build" and a.e57.suffix.lower() != ".e57":
                 raise ValueError("build benötigt E57-Scans; Punktformate mit convert importieren")
+            titel = _convert_titel(getattr(a, "titel", None))
             manifest = convert(a.e57, a.pkg, a.crs, a.max_points, mode, **extra)
-        except (OSError, ValueError, RuntimeError) as exc:
+            if titel is not None:
+                manifest["title"] = titel
+                write_manifest(a.pkg, manifest)
+        except ValueError as exc:
+            # Eingabe abgelehnt: letzte Zeile ohne Pfade (der Import-Worker gibt sie an Mensch
+            # und Agent weiter, wie bei neu-ohne-wolke).
+            print(f"Punktimport abgebrochen: {exc}", file=sys.stderr)
+            print(f"Abgelehnt: {_ohne_pfade(str(exc))}", file=sys.stderr)
+            return 1
+        except (OSError, RuntimeError) as exc:
             print(f"Punktimport abgebrochen: {exc}", file=sys.stderr)
             return 1
         wall = time.monotonic() - t0
@@ -801,10 +880,12 @@ def main(argv: list[str] | None = None) -> int:
         phases["panos"] = time.monotonic() - t0
         print(f"[panos] fertig nach {phases['panos']:.1f}s", file=sys.stderr, flush=True)
 
-    if a.cmd in ("overview", "build"):
+    # convert schreibt die Draufsicht gleich mit: ohne sie fehlt sie bei LAS/LAZ-Paketen, für die
+    # es kein build gibt (build verlangt E57).
+    if a.cmd in ("overview", "build", "convert"):
         print("[overview] Start …", file=sys.stderr, flush=True)
         t0 = time.monotonic()
-        res = build_overview(a.pkg, a.pixel_m, a.max_px, a.z_max)
+        res = build_overview(a.pkg, a.pixel_m, a.max_px, a.z_max, a.bild, a.bild_crs)
         phases["overview"] = time.monotonic() - t0
         with_ground = sum(v is not None for v in res["groundZ"].values())
         print(

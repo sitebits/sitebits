@@ -195,7 +195,7 @@ EINSCHRAENKUNGEN = PLATFORM / "import-bau-einschraenkungen.txt"
 #: Übergabe): der Importweg nutzt sie nur, er ändert sie nicht. Eine Änderung daran ist
 #: sicherheitskritisch und gehört in einen eigenen, geprüften Schritt — dann diesen Wert bewusst
 #: nachziehen.
-FREISCHALTEN_SHA256 = "11daab3fe5dc19b3e36f6fd5b71fd0a2e0077e77ef4dcf7af76d80ad9cef9eb4"
+FREISCHALTEN_SHA256 = "580288b1b64e6594e7b28b0bcae7f2f69cbf1a8dae9a490e681eaaa6298e84f2"
 SUDOERS_SHA256 = "26d37d27befbd135beef1b15ec1e2003ef2dc7286ef593f6f9367c21218d9d84"
 
 
@@ -222,6 +222,8 @@ def test_worker_drop_in_import_eng() -> None:
         "SCANVIEW_UPLOADS": "/srv/scanview/uploads",
         "SCANVIEW_UEBERGABE": "/srv/scanview/uebergabe",
         "SCANVIEW_UEBERGABE_MELDUNGEN": "/srv/scanview/uebergabe-meldungen",
+        # Fester Ort der gelockten PDAL-Umgebung (einrichten.sh baut sie genau dort).
+        "SCANVIEW_PDAL_UMGEBUNG": "/opt/scanview/pdal/.pixi/envs/default",
         "SCANVIEW_JOBS_UNSICHTBAR": umgebung["SCANVIEW_JOBS_UNSICHTBAR"]}
     # Dieselbe Liste wie in der Hauptunit, dazu die Meldungen (ein Auftrag sieht sie nie).
     haupt = dict(e.split("=", 1) for e in _werte(WORKER)["Environment"])

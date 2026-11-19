@@ -9,7 +9,8 @@
 # Set-Cookie der Passwort-Einlösung. Der Nutzer muss PROJEKT sehen dürfen, FREMD aber nicht.
 # PROJEKT und FREMD (je eine projectId) sind Pflicht und werden per Umgebung übergeben;
 # FREMD sollte im Katalog stehen, sonst prüft "fremdes Projekt" nur "unbekanntes Projekt".
-# Optional: ABMELDEN_COOKIE (Sitzung eines Wegwerf-Kontos, wird abgemeldet) für Prüfung 13.
+# Optional: ABMELDEN_COOKIE (Sitzung eines Wegwerf-Kontos, wird abgemeldet) für Prüfung 13;
+# FADEN_POI (POI-ID in PROJEKT, an dessen Befund-Faden der Nutzer anhängen darf) für Prüfung 9g.
 set -euo pipefail
 
 if [[ $# -ne 2 ]]; then
@@ -98,6 +99,16 @@ for p in "/data/$PROJEKT/x.html" "/data/$PROJEKT/x.svg" "/data/$PROJEKT/x.js"; d
 	if [[ $s == 404 && $ct == application/json* ]]; then ok "$p → 404 JSON von authz"
 	else nok "$p" "Status $s, Content-Type '$ct'"; fi
 done
+
+# 3h pois.json ist optional (der Import schreibt sie nie): vorhanden → 200, fehlt → 204 — nie 404,
+# sonst meldet Chrome einen Ladefehler. Wie jede JSON-Datenantwort nie im Cache.
+k=$(kopf -H "Cookie: $COOKIE" "$BASIS/data/$PROJEKT/pois.json")
+s=$(status "$k"); cc=$(feld "$k" Cache-Control)
+if [[ ($s == 200 || $s == 204) && $cc == "private, no-store"* ]]; then ok "pois.json → $s, Cache-Control: $cc"
+else nok "pois.json" "Status $s, Cache-Control '$cc' (erwartet 200 oder 204 mit private, no-store)"; fi
+# 3i die 204 kommt erst nach authz: pois.json eines fremden Projekts bleibt 404 (kein Existenz-Leck)
+s=$(status "$(kopf -H "Cookie: $COOKIE" "$BASIS/data/$FREMD/pois.json")")
+[[ $s == 404 ]] && ok "pois.json fremdes Projekt $FREMD → 404" || nok "pois.json fremdes Projekt $FREMD" "Status $s (erwartet 404)"
 
 # 4 fremdes Projekt
 s=$(status "$(kopf -H "Cookie: $COOKIE" "$BASIS/data/$FREMD/project.json")")
@@ -197,7 +208,12 @@ s=$(head -c 1100000 /dev/zero | tr '\0' 'a' | curl -sS -o /dev/null -w '%{http_c
 s=${s:-000}
 [[ $s == 413 ]] && ok "/api/* mit 1,1 MB Körper → 413" || nok "/api/* Körpergrenze" "Status $s (erwartet 413)"
 # 9e Stücke eines Uploads: nur PUT …/uploads/<id>/dateien/<nr> darf über 1 MB (bis 65 MiB). 1,1 MB
-# kommen dort beim Dienst an (er antwortet selbst, nie 413 von Caddy); über 65 MiB → 413.
+# kommen dort beim Dienst an (er antwortet selbst, nie 413 von Caddy).
+# Caddys request_body max_size greift erst beim Lesen. Die beiden Grenzfälle lehnt der Dienst ab,
+# BEVOR er den Körper liest (gemessen nach dem Update auf 0.12.0): ohne Origin/X-Scanview mit 403
+# (CSRF), POST auf den Stück-Pfad mit 405 (nur PUT/HEAD). Caddy kommt also nie zum 413; die Wand
+# selbst (65 MiB bzw. 1 MB) sichert server/tests/test_caddy_grenzen.py gegen Drift. Geprüft wird
+# hier, dass keiner der beiden Körper angenommen wird und die Verbindung sauber antwortet.
 UPLOAD_STUECK="$BASIS/api/v1/uploads/00000000000000000000000000000000/dateien/1"
 s=$(head -c 1100000 /dev/zero | curl -sS -o /dev/null -w '%{http_code}' -X PUT \
 	-H "Cookie: $COOKIE" --data-binary @- "$UPLOAD_STUECK" || true)
@@ -206,11 +222,13 @@ s=${s:-000}
 s=$(head -c $((65 * 1024 * 1024 + 1)) /dev/zero | curl -sS -o /dev/null -w '%{http_code}' -X PUT \
 	-H "Cookie: $COOKIE" --data-binary @- "$UPLOAD_STUECK" || true)
 s=${s:-000}
-[[ $s == 413 ]] && ok "Upload-Stück über 65 MiB → 413" || nok "Upload-Stück Körpergrenze" "Status $s (erwartet 413)"
+[[ $s == 403 ]] && ok "Upload-Stück über 65 MiB ohne CSRF-Kopf → 403, vom Dienst vor dem Lesen abgelehnt" \
+	|| nok "Upload-Stück über 65 MiB" "Status $s (erwartet 403 vom Dienst vor dem Lesen)"
 s=$(head -c 1100000 /dev/zero | curl -sS -o /dev/null -w '%{http_code}' -X POST \
 	-H "Origin: $BASIS" -H 'X-Scanview: 1' -H "Cookie: $COOKIE" --data-binary @- "$UPLOAD_STUECK" || true)
 s=${s:-000}
-[[ $s == 413 ]] && ok "POST 1,1 MB auf den Stück-Pfad → 413" || nok "POST auf Stück-Pfad" "Status $s (erwartet 413)"
+[[ $s == 405 ]] && ok "POST 1,1 MB auf den Stück-Pfad → 405, vom Dienst vor dem Lesen abgelehnt" \
+	|| nok "POST auf Stück-Pfad" "Status $s (erwartet 405 vom Dienst vor dem Lesen)"
 # 9f Ankündigung eines Uploads (POST /api/v1/uploads, Dateiliste als JSON): bis 13 MiB, Rechenweg
 # in scanview.caddy (B-FUZZ-5). 1,1 MB kommen beim Dienst an (er antwortet selbst, je nach Import
 # 404 oder 422, nie 413 von Caddy); über 13 MiB → 413.
@@ -225,6 +243,38 @@ s=$(head -c $((13 * 1024 * 1024 + 1)) /dev/zero | curl -sS -o /dev/null -w '%{ht
 	--data-binary @- "$UPLOAD_NEU" || true)
 s=${s:-000}
 [[ $s == 413 ]] && ok "Upload-Ankündigung über 13 MiB → 413" || nok "Upload-Ankündigung Körpergrenze" "Status $s (erwartet 413)"
+# 9g Foto/PDF am Befund-Faden (@faden_anhang): ein Stück, das genau 1 Byte über der Grenze aus
+# scanview.caddy liegt (dort `request_body @faden_anhang { max_size … }`, nicht hier abgeschrieben).
+# Von außen ist Caddys Grenze nicht erreichbar: curl sendet Content-Length, und der Dienst lehnt alles
+# über 20 MiB (anhaenge.MAX_BYTES) schon vor dem Lesen mit 413 ab — unterhalb von Caddys max_size.
+# Mit FADEN_POI (POI in PROJEKT, Recht zum Kommentieren) belegt der Punkt also die Dienst-Grenze; die
+# Caddy-Wand ist nur Rückfall und wird offline von server/tests/test_caddy_grenzen.py geprüft.
+# Ohne FADEN_POI geht das Stück ohne CSRF-Kopf an einen Platzhalter: das prüft nur die CSRF-Abweisung
+# vor dem Lesen (403, wie 9e), keine Größengrenze.
+CADDY_DATEI="$(dirname "${BASH_SOURCE[0]}")/../scanview.caddy"
+grenze=$(awk '/request_body @faden_anhang \{/ {f=1; next} f && $1 == "max_size" {print $2; exit}' "$CADDY_DATEI" 2>/dev/null || true)
+case $grenze in
+	*MiB) bytes=$(( ${grenze%MiB} * 1024 * 1024 )) ;;
+	*KiB) bytes=$(( ${grenze%KiB} * 1024 )) ;;
+	*MB) bytes=$(( ${grenze%MB} * 1000 * 1000 )) ;;
+	*) bytes= ;;
+esac
+if [[ -z $bytes ]]; then
+	nok "Faden-Anhang Körpergrenze" "max_size für @faden_anhang in $CADDY_DATEI nicht gefunden ('$grenze')"
+elif [[ -n ${FADEN_POI:-} ]]; then
+	s=$(head -c $((bytes + 1)) /dev/zero | curl -sS -o /dev/null -w '%{http_code}' -X POST \
+		-H "Origin: $BASIS" -H 'X-Scanview: 1' -H "Cookie: $COOKIE" -H 'Content-Type: image/jpeg' \
+		--data-binary @- "$BASIS/api/v1/projekte/$PROJEKT/pois/$FADEN_POI/faden/anhaenge" || true)
+	s=${s:-000}
+	[[ $s == 413 ]] && ok "Faden-Anhang $grenze + 1 Byte → 413 (Dienst-Grenze 20 MiB vor dem Lesen)" || nok "Faden-Anhang $grenze + 1 Byte" "Status $s (erwartet 413)"
+else
+	s=$(head -c $((bytes + 1)) /dev/zero | curl -sS -o /dev/null -w '%{http_code}' -X POST \
+		-H "Cookie: $COOKIE" -H 'Content-Type: image/jpeg' --data-binary @- \
+		"$BASIS/api/v1/projekte/$PROJEKT/pois/P-0/faden/anhaenge" || true)
+	s=${s:-000}
+	[[ $s == 403 ]] && ok "Faden-Anhang ohne CSRF-Kopf → 403 vor dem Lesen (nur CSRF, keine Größenprüfung; dafür FADEN_POI setzen)" \
+		|| nok "Faden-Anhang $grenze + 1 Byte" "Status $s (erwartet 403 vom Dienst vor dem Lesen)"
+fi
 
 # 9d Ein Bearer-Token öffnet nie /data (forward_auth reicht Authorization durch, /api/authz
 # wertet nur das Cookie aus) — auch ein syntaktisch passender Wert → 401.
@@ -302,6 +352,13 @@ if [[ -n ${ABMELDEN_COOKIE:-} ]]; then
 	[[ $s == 200 && $csd == '"cache"' ]] && ok "Abmelden → 200, Clear-Site-Data: $csd" \
 		|| nok "Abmelden" "Status $s, Clear-Site-Data '$csd' (erwartet 200 und \"cache\")"
 fi
+
+# 14 Teilen-Seite (Nur-Lese-Link, F28) ohne Cookie: genau eine Referrer-Policy, genau same-origin —
+# der Host-Block der Instanz (Produktions-Caddyfile) setzt sie; doppelt gesetzt wäre sie mehrdeutig.
+k=$(kopf "$BASIS/teilen")
+n=$(feld "$k" Referrer-Policy | wc -l); rp=$(feld "$k" Referrer-Policy)
+if [[ $n -eq 1 && $rp == same-origin ]]; then ok "/teilen: genau eine Referrer-Policy: $rp"
+else nok "/teilen Referrer-Policy" "$n Header: '$rp' (erwartet genau einmal same-origin)"; fi
 
 if [[ $fehler -ne 0 ]]; then
 	echo "Ergebnis: FEHLER"

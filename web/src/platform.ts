@@ -3,6 +3,8 @@ import type { AnfrageEintrag } from './debug';
 import { zeigeDebugOverlay } from './debugOverlay';
 import type { DebugWerte } from './debugOverlay';
 import { GRENZEN, TOUCH } from './geraet';
+import { profilAus } from './profil';
+import type { Profil } from './profil';
 
 // Viewer-Naht zur Plattform — die einzige Kopplungsstelle zwischen dem bestehenden Viewer
 // und der Plattform (Portal + Server). main.ts fragt beim Start genau einmal
@@ -22,8 +24,9 @@ import { GRENZEN, TOUCH } from './geraet';
 // erkenneModus()/zeigeZurueck() bleiben absichtlich klein und ohne Zustand; starteDebug()
 // (Debug-Overlay) hängt weiter unten separat an — main.ts ruft beide nacheinander auf.
 
-/** Gast eines Nur-Lese-Links: Projekt, Name des Links (nur Anzeige), Ablauf in Unix-Sekunden. */
-export interface GastInfo { projekt: string; name: string; ablauf: number }
+/** Gast eines Nur-Lese-Links: Projekt, Name des Links (nur Anzeige), Ablauf in Unix-Sekunden, Ansichtsprofil des
+ *  Links (profil.ts; fehlt es, etwa bei einem älteren Server, gilt „ansehen“). */
+export interface GastInfo { projekt: string; name: string; ablauf: number; profil: Profil }
 
 export type Modus =
   | { art: 'einzeln'; sicher: boolean; gast?: GastInfo }
@@ -106,10 +109,10 @@ function gastAus(roh: unknown): GastInfo | null {
   if (!roh || typeof roh !== 'object') return null;
   const g = roh as Record<string, unknown>;
   if (typeof g.projekt !== 'string' || typeof g.name !== 'string' || typeof g.ablauf !== 'number' || !Number.isFinite(g.ablauf)) return null;
-  return { projekt: g.projekt, name: g.name, ablauf: g.ablauf };
+  return { projekt: g.projekt, name: g.name, ablauf: g.ablauf, profil: profilAus(g.profil) };
 }
 
-/** Gast-Ansicht: das bereinigte Manifest (nur Wolke und Meshes) kommt vom Server statt aus dem Paket;
+/** Gast-Ansicht: das bereinigte Manifest (nur Wolke, Meshes und Sichtschicht) kommt vom Server statt aus dem Paket;
  *  alle anderen Abrufe (Ebenen-Dateien unter /data/<id>/) laufen unverändert. Für loadManifest(base, …). */
 export function gastFetch(fetchFn: typeof fetch = fetch): typeof fetch {
   return (eingabe, init) => {
@@ -121,12 +124,17 @@ export function gastFetch(fetchFn: typeof fetch = fetch): typeof fetch {
 }
 
 /** Gast-Ansicht: kleine, dauerhafte Kennzeichnung „Nur-Lese-Ansicht … gültig bis …“ (kein Zurück zum Portal). */
-export function zeigeGastHinweis(parent: HTMLElement, gast: GastInfo): void {
+/** Kennzeichnung der Gast-Ansicht; in den schlanken Profilen steht sie unter „Einstellungen“ (zeigen.ts). */
+export function gastHinweisText(gast: GastInfo): string {
   const bis = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeZone: 'Europe/Berlin' }).format(new Date(gast.ablauf * 1000));
+  return `Nur-Lese-Ansicht · gültig bis ${bis}`;
+}
+
+export function zeigeGastHinweis(parent: HTMLElement, gast: GastInfo): void {
   const d = document.createElement('div');
   d.className = 'sv-gast';
-  d.textContent = `Nur-Lese-Ansicht · gültig bis ${bis}`;
-  d.title = 'Freigegeben per Link: nur Punktwolke und Meshes, ohne Messungen anderer, Befunde oder Fotos.';
+  d.textContent = gastHinweisText(gast);
+  d.title = 'Freigegeben per Link: nur Punktwolke, Meshes und Sichtschicht, ohne Messungen anderer, Befunde oder Fotos.';
   parent.append(d);
 }
 

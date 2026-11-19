@@ -19,6 +19,7 @@ from scanview_import.overview import (
     Grid,
     build_overview,
     ground_z,
+    rasterize_bild,
     rasterize_top,
     topview_grid,
 )
@@ -225,3 +226,127 @@ def test_referenz_overview_plausible(tmp_path):
     assert len(heights) >= 0.9 * len(covered)
     # Instrumentenhöhe auf dem Stativ: plausibel 0,3-2,5 m.
     assert sum(0.3 <= h <= 2.5 for h in heights) >= 0.9 * len(heights)
+
+
+def test_convert_punktwolke_schreibt_draufsicht(tmp_path: Path) -> None:
+    # convert (LAS/LAZ ohne E57) erzeugt die Draufsicht selbst; vorher nur build.
+    rng = np.random.default_rng(3)
+    xyz = np.column_stack(
+        [rng.uniform(0, 40, 4000), rng.uniform(0, 30, 4000), rng.uniform(0, 5, 4000)]
+    )
+    xyz += [500000.0, 5800000.0, 30.0]
+    src = tmp_path / "wolke.laz"
+    _write_las(src, xyz, np.full((len(xyz), 3), 30000, dtype=np.uint16))
+    pkg = tmp_path / "pkg"
+    argv = ["convert", str(src), str(pkg), "--crs", "EPSG:25833", "--mode", "direct"]
+    argv += ["--max-px", "64"]
+    assert main(argv) == 0
+    top = json.loads((pkg / "project.json").read_text())["topview"]
+    assert (pkg / top["url"]).is_file()
+    assert max(top["widthPx"], top["heightPx"]) == 64
+    assert top["colorFrom"] == "rgb"
+
+
+def _georef(pkg: Path, wkt: str = "EPSG:25833") -> None:
+    m = json.loads((pkg / "project.json").read_text())
+    m["crs"] = {"wkt": wkt, "verticalDatum": "dhhn2016", "declaredBy": "file"}
+    (pkg / "project.json").write_text(json.dumps(m))
+
+
+def _bild(
+    path: Path, rgba: np.ndarray, links: float, oben: float, px: float, wf: str = ".pgw"
+) -> Path:
+    Image.fromarray(rgba, "RGBA").save(path)
+    mitte_x, mitte_y = links + px / 2, oben - px / 2
+    path.with_suffix(wf).write_text(f"{px}\n0\n0\n{-px}\n{mitte_x}\n{mitte_y}\n")
+    return path
+
+
+def test_rasterize_bild_liegt_lagerichtig_und_ist_aussen_transparent(tmp_path):
+    # Bild 4x4 m, 0,5-m-Pixel, oben links bei (2, 6): rechte obere Hälfte rot, Rest grün
+    rgba = np.zeros((8, 8, 4), dtype=np.uint8)
+    rgba[..., 1] = rgba[..., 3] = 255
+    rgba[:4, 4:] = [255, 0, 0, 255]
+    bild = _bild(tmp_path / "o.png", rgba, links=2.0, oben=6.0, px=0.5)
+    grid = Grid(0.0, 8.0, 1.0, 8, 8)  # 1-m-Raster, (0..8) x (0..8)
+    out = rasterize_bild(bild, grid)
+    assert out[1, 1, 3] == 0 and out[7, 7, 3] == 0  # außerhalb: transparent
+    assert tuple(out[2, 2]) == (0, 255, 0, 255)  # Pixel x 2..3, y 5..6 → grün
+    assert tuple(out[2, 5]) == (255, 0, 0, 255)  # Pixel x 5..6, y 5..6 → rot
+    assert tuple(out[5, 5]) == (0, 255, 0, 255)  # Pixel x 5..6, y 2..3 → grün
+
+
+def test_rasterize_bild_halbes_pixel_genau(tmp_path):
+    """Weltdateien nennen die Mitte des Pixels oben links, nicht seine Kante: ein Versatz um ein
+    halbes Bildpixel muss auffallen. Bild 1-m-Pixel ab (2, 6), Rot = 10·Spalte, Grün = 10·Zeile."""
+    rgba = np.zeros((4, 4, 4), dtype=np.uint8)
+    rgba[..., 0] = np.arange(4)[None, :] * 10
+    rgba[..., 1] = np.arange(4)[:, None] * 10
+    rgba[..., 3] = 255
+    bild = _bild(tmp_path / "o.png", rgba, links=2.0, oben=6.0, px=1.0)
+    out = rasterize_bild(bild, Grid(0.0, 8.0, 0.5, 16, 16))  # 0,5-m-Raster
+    assert out[3:7, 4, 3].tolist() == [0, 255, 255, 255]  # Zeile 3 (y 6..6,5) außen, Zeile 4 innen
+    assert out[5, 3:8, 3].tolist() == [0, 255, 255, 255, 255]
+    assert out[5, 4:8, 0].tolist() == [0, 0, 10, 10]  # x 2..3 → Bildspalte 0
+    assert out[4:8, 5, 1].tolist() == [0, 0, 10, 10]
+
+
+def test_rasterize_bild_mittelt_beim_verkleinern_ohne_dunklen_rand(tmp_path):
+    rgba = np.zeros((40, 40, 4), dtype=np.uint8)
+    rgba[:, :20] = [200, 200, 200, 255]  # linke Hälfte deckt, rechte ist transparent
+    bild = _bild(tmp_path / "o.png", rgba, links=0.0, oben=4.0, px=0.1)
+    out = rasterize_bild(bild, Grid(0.0, 4.0, 0.4, 10, 10))
+    assert out[0, 0, 3] == 255 and out[0, 9, 3] == 0
+    deckt = out[..., 3] >= 128
+    assert np.all(out[deckt, :3] >= 195)  # vormultipliziert gemittelt: Rand nicht abgedunkelt
+
+
+def test_build_overview_bild_ersetzt_wolke_nur_wo_es_deckt(tmp_path):
+    pkg = _package(tmp_path)
+    _georef(pkg)
+    rgba = np.zeros((40, 50, 4), dtype=np.uint8)
+    rgba[:, :25] = [255, 0, 0, 255]  # nur die linke Hälfte des Bildes deckt
+    bild = _bild(tmp_path / "ortho.png", rgba, links=0.0, oben=8.0, px=0.1)
+    build_overview(pkg, pixel_m=0.2, bild=bild, bild_crs="epsg:25833")
+    tv = json.loads((pkg / "project.json").read_text())["topview"]
+    assert tv["colorFrom"] == "rgb" and tv["image"]["source"] == "ortho.png"
+    assert 0.10 < tv["image"]["coverage"] < 0.16  # 2,5 x 4 m von rund 10 x 8 m
+    img = np.asarray(Image.open(pkg / "topview.png"))
+    assert tuple(img[10, 2]) == (255, 0, 0, 255)  # Bild
+    assert tuple(img[10, -3]) == (117, 117, 117, 255)  # Wolke (30000 >> 8)
+
+
+@pytest.mark.parametrize(
+    ("crs_paket", "crs_bild", "meldung"),
+    [(None, "EPSG:25833", "georeferenzierten"), ("EPSG:25833", None, "--bild-crs"),
+     ("EPSG:25833", "EPSG:25832", "--bild-crs")],
+)
+def test_build_overview_bild_rät_kein_koordinatensystem(tmp_path, crs_paket, crs_bild, meldung):
+    pkg = _package(tmp_path)
+    if crs_paket:
+        _georef(pkg, crs_paket)
+    bild = _bild(tmp_path / "o.png", np.full((4, 4, 4), 255, np.uint8), 0.0, 8.0, 1.0)
+    before = (pkg / "project.json").read_text()
+    with pytest.raises(ValueError, match=meldung):
+        build_overview(pkg, pixel_m=0.2, bild=bild, bild_crs=crs_bild)
+    assert (pkg / "project.json").read_text() == before
+
+
+def test_rasterize_bild_ohne_oder_mit_gedrehter_weltdatei_abgelehnt(tmp_path):
+    Image.new("RGBA", (4, 4)).save(tmp_path / "o.png")
+    with pytest.raises(ValueError, match="Keine Weltdatei"):
+        rasterize_bild(tmp_path / "o.png", Grid(0.0, 4.0, 1.0, 4, 4))
+    (tmp_path / "o.pgw").write_text("1\n0.1\n0\n-1\n0.5\n3.5\n")
+    with pytest.raises(ValueError, match="gedreht"):
+        rasterize_bild(tmp_path / "o.png", Grid(0.0, 4.0, 1.0, 4, 4))
+
+
+def test_overview_cli_mit_bild(tmp_path):
+    pkg = _package(tmp_path)
+    _georef(pkg)
+    bild = _bild(tmp_path / "o.png", np.full((8, 10, 4), 255, np.uint8), 0.0, 8.0, 1.0)
+    rc = main(
+        ["overview", str(pkg), "--pixel-m", "0.2", "--bild", str(bild), "--bild-crs", "EPSG:25833"]
+    )
+    assert rc == 0
+    assert json.loads((pkg / "project.json").read_text())["topview"]["image"]["coverage"] > 0.9

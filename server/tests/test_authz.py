@@ -49,7 +49,9 @@ def test_eigenes_projekt_ok_fremdes_404(mit_paketen: TestClient) -> None:
     anmelden(mit_paketen, grants={"kirche": "betrachter"})
     assert authz(mit_paketen, "/data/kirche/cloud.copc.laz") == 200
     assert authz(mit_paketen, "/data/kirche/cloud.copc.laz", method="HEAD") == 200
-    assert authz(mit_paketen, "/data/kirche/panos/S001/px/0.jpg?v=2") == 200  # echte Form
+    assert authz(mit_paketen, "/data/kirche/cloud.copc.laz?v=2") == 200  # echte Form
+    # Panoramen ohne Freigabe: für Betrachter zu (F20, seit 0021 auch im Altbestand).
+    assert authz(mit_paketen, "/data/kirche/panos/S001/px/0.jpg?v=2") == 404
     assert authz(mit_paketen, "/data/ost/cloud.copc.laz") == 404
     assert authz(mit_paketen, "/data/gibtsnicht/project.json") == 404
     assert authz(mit_paketen, "/data/kirche/cloud.copc.laz", method="PUT") == 404

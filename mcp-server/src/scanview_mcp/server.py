@@ -15,6 +15,7 @@ import logging
 import os
 import sys
 from collections.abc import Mapping
+from importlib import resources
 from typing import Annotated, Any, NoReturn
 from urllib.parse import urlsplit
 
@@ -27,13 +28,24 @@ from .api import Client
 
 LOKAL = {"localhost", "127.0.0.1", "::1"}
 
+#: Anleitung für KI-Agenten, wortgleich mit docs/public/agenten-anleitung.md (Drift-Test).
+ANLEITUNG_URI = "sitebits://agenten-anleitung"
+
+
+def anleitung() -> str:
+    return resources.files(__package__).joinpath("agenten-anleitung.md").read_text(
+        encoding="utf-8")
+
+
 HINWEISE = (
     "Werkzeuge für die scanview-Plattform (Punktwolken-Projekte eines Vermessungsbüros). "
     "Jedes Projekt hat eine projekt_id (klein, z. B. 'musterhalle-nord-v2'); zuerst "
     "projekte_auflisten aufrufen. Koordinaten sind Weltkoordinaten des Pakets in Metern "
     "[x, y, z] — so, wie sie pois_lesen und messungen_lesen liefern. Punktwolken selbst sind "
     "nicht zugänglich; im Raum messen kann nur der Viewer. Änderungen sind sofort für alle "
-    "Projektbeteiligten sichtbar und bleiben im Verlauf dauerhaft nachvollziehbar."
+    "Projektbeteiligten sichtbar und bleiben im Verlauf dauerhaft nachvollziehbar. Vor der "
+    f"ersten Änderung die Ressource {ANLEITUNG_URI} lesen (Regeln: Vorschläge, Fehlercodes, "
+    "Grundlage der Koordinaten)."
 )
 
 HINWEIS_DATENSPARSAM = (
@@ -94,10 +106,20 @@ def _objekt(ergebnis: Any) -> dict[str, Any]:
     raise ToolError("Unerwartete Antwort vom Server (kein JSON-Objekt).")
 
 
+def _ressourcen(mcp: MCPServer) -> None:
+    @mcp.resource(ANLEITUNG_URI, name="agenten-anleitung", title="Anleitung für KI-Agenten",
+                  description="Regeln für Agenten: KI schlägt vor, Mensch prüft; feste "
+                              "Fehlercodes; Grundlage der Koordinaten; Werkzeuge oder Skripte.",
+                  mime_type="text/markdown")
+    def agenten_anleitung() -> str:
+        return anleitung()
+
+
 def baue_server(client: Client) -> MCPServer:
     hinweise = HINWEISE if client.datenschutz.voll else HINWEISE + HINWEIS_DATENSPARSAM
     mcp = MCPServer("scanview", instructions=hinweise)
     c = client
+    _ressourcen(mcp)
 
     @mcp.tool(description=(
         "Listet alle Projekte, auf die der Token-Inhaber ein Recht hat: {'projekte': [Karte]}. "
@@ -391,10 +413,13 @@ def _verwaltung(mcp: MCPServer, c: Client) -> None:
     @mcp.tool(description=(
         "Liest den Freigabestand der Personenbilder (Bearbeiter+): {panoramenNurFreigegeben, "
         "ebenen [{ebene: panos|fotos, vorhanden, torAktiv, dateien, anonymisierung {status, "
-        "werkzeug, manifestSha256, geprueft}, freigabe {art, dateien, abweichend, …} | null}]}. "
+        "werkzeug, manifestSha256, geprueft}, freigabe {art, dateien, abweichend, "
+        "zuletztGeprueftAm, zuletztAbweichend, …} | null}]}. "
         "Betrachter und Rückmelder sehen Panoramen/Fotos nur mit aktiver Freigabe und nur "
         "Dateien, deren Hash noch passt. pruefen=true hasht alle freigegebenen Dateien (Sekunden "
-        "je GB) und liefert abweichend (> 0: nach der Freigabe getauscht). "
+        "je GB), liefert abweichend (> 0: nach der Freigabe getauscht) und speichert das "
+        "Ergebnis als letzten Prüfstand (zuletztGeprueftAm Unix-Sekunden, zuletztAbweichend; "
+        "null = nie geprüft). "
         "Freigeben selbst ist eine menschliche Entscheidung im Portal, nicht per Agent."
     ))
     def freigaben_lesen(projekt_id: ProjektId, pruefen: bool = False) -> dict[str, Any]:
@@ -459,18 +484,23 @@ def _importe(mcp: MCPServer, c: Client) -> None:
         "Schreib-Token; Import muss auf der Instanz eingeschaltet sein). Hochladen selbst geht "
         "nicht über dieses Werkzeug — große Dateien lädt ein Mensch im Portal (Seite Uploads) "
         "oder ein Skript über die API hoch; von dort kommt die upload_id. auftragstyp "
-        "'neu_mesh' (eine GLB- oder PLY-Datei ohne Textur) oder 'neu_splats' (eine PLY-, SPZ- "
-        "oder SPLAT-Datei, höchstens 1 Mio. Gaussians). optionen: projekt (Pflicht, neue ID aus "
-        "Kleinbuchstaben, Ziffern, Bindestrich), titel, crs (leer = lokal, Modellmaß; sonst "
-        "'EPSG:<Nummer>'), quellHoehe/zielHoehe (dhhn2016, ellipsoidal-etrs89, dhhn92; nur mit "
-        "crs). Antwort: Import mit id, status (wartend) und worker. Ohne Koordinatensystem sind "
-        "Lage und Maßstab nicht belegt — das dem Menschen sagen."
+        "'neu_wolke' (eine LAS-, LAZ- oder E57-Datei), 'neu_mesh' (eine GLB- oder PLY-Datei "
+        "ohne Textur) oder 'neu_splats' (eine PLY-, SPZ- oder SPLAT-Datei, höchstens 1 Mio. "
+        "Gaussians). optionen: projekt (Pflicht, neue ID aus Kleinbuchstaben, Ziffern, "
+        "Bindestrich), titel, crs ('EPSG:<Nummer>'; leer = bei Mesh/Splats lokal, Modellmaß, "
+        "bei der Punktwolke aus der Datei, ohne CRS in der Datei lokal), quellHoehe/zielHoehe "
+        "(dhhn2016, ellipsoidal-etrs89, dhhn92; bei Mesh/Splats nur mit crs; ohne zielHoehe "
+        "gilt dhhn2016; umgerechnet wird nur zwischen ellipsoidal-etrs89 und dhhn2016; dhhn92 "
+        "nur ohne Umrechnung (quellHoehe=zielHoehe=dhhn92), sonst 422; E57 nur deklarieren, "
+        "Ziel gleich Quelle), rgb8bit ('ja', nur neu_wolke mit LAS/LAZ: Farbe 0 bis 255 auf "
+        "16 bit). Antwort: Import mit id, status (wartend) und worker. Ohne Koordinatensystem "
+        "sind Lage und Maßstab nicht belegt — das dem Menschen sagen."
     ))
     def import_starten(
         upload_id: Annotated[str, Field(description="id eines abgeschlossenen Uploads.",
                                         pattern=r"^[0-9a-f]{32}$")],
-        auftragstyp: Annotated[str, Field(description="'neu_mesh' oder 'neu_splats'.",
-                                          pattern=r"^neu_(mesh|splats)$")],
+        auftragstyp: Annotated[str, Field(description="'neu_wolke', 'neu_mesh' oder "
+                                          "'neu_splats'.", pattern=r"^neu_(wolke|mesh|splats)$")],
         optionen: Annotated[dict[str, str], Field(
             description="{'projekt': 'neue-id', 'titel': '…', 'crs': 'EPSG:25833'}.")],
     ) -> dict[str, Any]:

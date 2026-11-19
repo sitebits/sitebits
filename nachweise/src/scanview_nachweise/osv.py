@@ -10,10 +10,13 @@ Komponente der Commit **und** der Tag aus `eigenbau.toml`; die Funde werden vere
 Zwei getrennte Schritte wie bei trivy:
 
 1. `aktualisieren` — Netzschritt (mit `db-aktualisieren`): fragt OSV je Eigenbau-Komponente
-   ab und schreibt `osv-stand.json` in den Scan-Cache. Vorher eine **Gegenprobe** mit einem
-   bekannt verwundbaren Stand (zstd v1.3.7 → CVE-2019-11922), je per Commit und per Tag; meldet
-   OSV dort auf einem der Wege nichts, ist die Abfrage blind und der Schritt bricht ab
-   (`osv-kontrolle`).
+   ab und schreibt `osv-stand.json` in den Scan-Cache. Vorher eine **Gegenprobe** je Weg mit
+   einem bekannt verwundbaren Stand: per Commit zstd v1.3.7 → CVE-2019-11922, per Tag zstd
+   v1.4.9 → OSV-2022-15 (der Fund, der den Tag-Weg begründet). Meldet OSV auf einem der Wege
+   nichts, ist die Abfrage blind und der Schritt bricht ab (`osv-kontrolle`). Seit OSV am
+   30.10.2026 die CVE-Einträge für zstd ohne Paketangabe neu eingespielt hat, findet die
+   Tag-Abfrage CVE-2019-11922 nicht mehr (die Commit-Abfrage schon); deshalb je Weg eine eigene
+   Kontrolle (03.11.2026).
 2. `lade_stand` — ohne Netz in der Scan-Stufe: Stand höchstens 24 h alt (wie die trivy-DB), nicht
    aus der Zukunft, mit bestandener Gegenprobe.
 
@@ -45,11 +48,13 @@ OSV_STAND = "osv-stand.json"
 HOECHSTALTER = timedelta(hours=24)
 #: Präfix der bom-refs von Eigenbauten (`sbom.eigenbau_einfuegen`).
 EIGENBAU_PRAEFIX = "eigenbau:"
-#: Gegenprobe: zstd v1.3.7 ist von CVE-2019-11922 betroffen (OSV kennt es per Commit und Tag).
+#: Gegenprobe per Commit: zstd v1.3.7 (dieser Commit) ist von CVE-2019-11922 betroffen.
 KONTROLLE_REPO = "https://github.com/facebook/zstd"
 KONTROLLE_COMMIT = "21cd8a9d95a321f1fe256dc837e388bbc168fdbf"
-KONTROLLE_TAG = "v1.3.7"
 KONTROLLE_ERWARTET = "CVE-2019-11922"
+#: Gegenprobe per Tag: zstd v1.4.9 → OSV-2022-15 (OSV kennt ihn per Tag, nicht per Commit).
+KONTROLLE_TAG = "v1.4.9"
+KONTROLLE_TAG_ERWARTET = "OSV-2022-15"
 _SEITEN_HOECHSTENS = 50
 
 Holen = Callable[[dict[str, Any]], dict[str, Any]]
@@ -229,8 +234,12 @@ def _vereinigt(*listen: list[Fund]) -> tuple[Fund, ...]:
     return tuple(Fund(i, tuple(sorted(aliase[i] - {i})), geaendert[i]) for i in sorted(aliase))
 
 
-def _getroffen(funde: Iterable[Fund]) -> bool:
-    return any(KONTROLLE_ERWARTET in (f.id, *f.aliases) for f in funde)
+def _getroffen(funde: Iterable[Fund], erwartet: str) -> bool:
+    return any(erwartet in (f.id, *f.aliases) for f in funde)
+
+
+def _kennungen(funde: Iterable[Fund]) -> list[str]:
+    return sorted({k for f in funde for k in (f.id, *f.aliases)})
 
 
 def aktualisieren(abfragen: Iterable[Abfrage], cache: Path, *, holen: Holen = _post,
@@ -250,21 +259,22 @@ def aktualisieren(abfragen: Iterable[Abfrage], cache: Path, *, holen: Holen = _p
                                             "eigenbau.toml korrigieren")
     per_commit = _per_commit(KONTROLLE_COMMIT, holen)
     per_tag = _per_tag(KONTROLLE_REPO, KONTROLLE_TAG, holen)
-    for weg, liste in (("Commit", per_commit), ("Tag", per_tag)):
-        if not _getroffen(liste):
-            raise NachweisFehler("osv-kontrolle", f"Gegenprobe: OSV meldet für zstd "
-                                                  f"{KONTROLLE_TAG} per {weg} kein "
-                                                  f"{KONTROLLE_ERWARTET} — Abfrage blind, kein "
-                                                  "Ersatz für trivy")
-    kontrolle = _vereinigt(per_commit, per_tag)
+    for weg, stand, liste, erwartet in (
+            ("Commit", "v1.3.7", per_commit, KONTROLLE_ERWARTET),
+            ("Tag", KONTROLLE_TAG, per_tag, KONTROLLE_TAG_ERWARTET)):
+        if not _getroffen(liste, erwartet):
+            raise NachweisFehler("osv-kontrolle", f"Gegenprobe: OSV meldet für zstd {stand} "
+                                                  f"per {weg} kein {erwartet} — Abfrage blind, "
+                                                  "kein Ersatz für trivy")
     zeit = uhr()
     funde = {a: _vereinigt(_per_commit(a.commit, holen), _per_tag(a.repo, a.tag, holen))
              for a in eintraege}
-    kennungen = sorted({k for f in kontrolle for k in (f.id, *f.aliases)})
     inhalt = json.dumps({
         "zeit": zeit.isoformat(timespec="seconds"), "url": OSV_URL,
-        "kontrolle": {"commit": KONTROLLE_COMMIT, "tag": KONTROLLE_TAG,
-                      "erwartet": KONTROLLE_ERWARTET, "gefunden": kennungen},
+        "kontrolle": {"commit": KONTROLLE_COMMIT, "erwartet": KONTROLLE_ERWARTET,
+                      "gefunden": _kennungen(per_commit),
+                      "tag": KONTROLLE_TAG, "tag_erwartet": KONTROLLE_TAG_ERWARTET,
+                      "tag_gefunden": _kennungen(per_tag)},
         "abfragen": [{"bom_ref": a.bom_ref, "purl": a.purl, "commit": a.commit,
                       "repo": a.repo, "tag": a.tag, "tag_commit": a.commit,
                       "funde": [{"id": f.id, "aliases": list(f.aliases), "modified": f.modified}
@@ -276,6 +286,22 @@ def aktualisieren(abfragen: Iterable[Abfrage], cache: Path, *, holen: Holen = _p
 
 
 # --- Ohne Netz -----------------------------------------------------------------------------------
+
+def _gegenprobe_bestanden(kontrolle: object) -> bool:
+    """Beide Wege im Stand: erklärte Kontrolle unverändert, erwartete Kennung exakt gefunden."""
+    if not isinstance(kontrolle, dict):
+        return False
+    soll = {"commit": KONTROLLE_COMMIT, "erwartet": KONTROLLE_ERWARTET,
+            "tag": KONTROLLE_TAG, "tag_erwartet": KONTROLLE_TAG_ERWARTET}
+    if any(kontrolle.get(k) != v for k, v in soll.items()):
+        return False
+    for liste, erwartet in ((kontrolle.get("gefunden"), KONTROLLE_ERWARTET),
+                            (kontrolle.get("tag_gefunden"), KONTROLLE_TAG_ERWARTET)):
+        if not isinstance(liste, list) or not all(isinstance(g, str) for g in liste) \
+                or erwartet not in liste:
+            return False
+    return True
+
 
 def lade_stand(cache: Path, uhr: datetime) -> OsvStand:
     """`osv-stand.json` laden und prüfen: ≤ 24 h, nicht aus der Zukunft, Gegenprobe bestanden."""
@@ -298,12 +324,7 @@ def lade_stand(cache: Path, uhr: datetime) -> OsvStand:
                                     "erlaubt sind 24 h — erneut `db-aktualisieren`")
     if alter < timedelta(0):
         raise NachweisFehler(regel, f"OSV-Stand-Zeit {zeit.isoformat()} liegt in der Zukunft")
-    gefunden = kontrolle.get("gefunden") if isinstance(kontrolle, dict) else None
-    if not isinstance(kontrolle, dict) or kontrolle.get("commit") != KONTROLLE_COMMIT \
-            or kontrolle.get("tag") != KONTROLLE_TAG \
-            or kontrolle.get("erwartet") != KONTROLLE_ERWARTET \
-            or not isinstance(gefunden, list) or not all(isinstance(g, str) for g in gefunden) \
-            or KONTROLLE_ERWARTET not in gefunden:
+    if not _gegenprobe_bestanden(kontrolle):
         raise NachweisFehler(regel, f"{pfad}: Gegenprobe fehlt oder nicht bestanden")
     funde: dict[Abfrage, tuple[Fund, ...]] = {}
     try:

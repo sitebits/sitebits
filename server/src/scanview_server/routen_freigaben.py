@@ -35,8 +35,9 @@ def _konflikt(e: freigabe.FreigabeFehler) -> StarletteHTTPException:
 
 @router.get("", operation_id="freigaben_lesen",
             summary="Stand der Freigaben (Panoramen, Fotos): Anonymisierung im Paket, aktive "
-            "Freigabe; mit pruefen=true zusätzlich abweichende Dateien (hasht alle, "
-            "Sekunden je GB) (Bearbeiter+)")
+            "Freigabe mit letztem Prüfstand (zuletztGeprueftAm, zuletztAbweichend); mit "
+            "pruefen=true zusätzlich abweichende Dateien (hasht alle, Sekunden je GB) und "
+            "speichert den Prüfstand (Bearbeiter+)")
 def freigaben_lesen(pid: str, request: Request, pruefen: bool = False,
                     conn: sqlite3.Connection = Depends(db)) -> JSONResponse:
     z = projekt(request, conn, pid, mindestens="bearbeiter")

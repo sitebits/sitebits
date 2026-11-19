@@ -5,7 +5,7 @@ import { anfrage, PlattformFehler } from '../plattformApi';
 import { viewerLink } from './karten';
 import {
   ENDUNGEN, fortsetzenSchluessel, gemerkt, groesseText, HOEHENSYSTEME, importOffen, importOptionen, importText, merken,
-  POLL_MS, pruefeEingabe, TITEL_MAX, TYP, uploadText, vergessen, zeitText,
+  hoeheOhneCrs, POLL_MS, pruefeEingabe, QUELLE_TEXT, TITEL_MAX, TYP, uploadText, vergessen, zeitText,
   type Eingabe, type Fehler, type Import, type Quelle, type Upload,
 } from './uploadModell';
 import { abschliessen, ankuendigen, importAbbrechen, importStarten, senden, stand, uploadLesen, uploadLoeschen } from './uploadSenden';
@@ -64,7 +64,7 @@ function neuesProjekt(neu: () => Promise<void>, melde: Melde): Formular {
   const quelle = el('fieldset', 'sv-quelle');
   quelle.append(el('legend', undefined, 'Quelle'));
   const radios = new Map<Quelle, HTMLInputElement>();
-  for (const [wert, text] of [['mesh', 'Mesh (GLB oder PLY, ohne Textur)'], ['splats', 'Gaussian Splats (PLY, SPZ oder SPLAT)']] as const) {
+  for (const [wert, text] of [['wolke', 'Punktwolke (LAS, LAZ oder E57)'], ['mesh', 'Mesh (GLB oder PLY, ohne Textur)'], ['splats', 'Gaussian Splats (PLY, SPZ oder SPLAT)']] as const) {
     const r = el('input');
     r.type = 'radio';
     r.name = 'sv-np-quelle';
@@ -85,7 +85,14 @@ function neuesProjekt(neu: () => Promise<void>, melde: Melde): Formular {
   crs.spellcheck = false;
   crs.autocomplete = 'off';
   const quellHoehe = auswahl(HOEHENSYSTEME, '– keine Umrechnung –');
-  const zielHoehe = auswahl(HOEHENSYSTEME, '– wie Datei –');
+  const zielHoehe = auswahl(HOEHENSYSTEME, '– DHHN2016 (Standard) –');
+  const rgb8bit = el('input');
+  rgb8bit.type = 'checkbox';
+  rgb8bit.id = 'sv-np-rgb8bit';
+  rgb8bit.dataset.sv = 'rgb8bit';
+  const rgbBox = el('label', 'sv-schalter');
+  rgbBox.htmlFor = rgb8bit.id;
+  rgbBox.append(rgb8bit, el('span', undefined, 'Farben liegen als 0 bis 255 vor (z. B. OpenDroneMap) – auf 16 bit skalieren (nur LAS/LAZ)'));
 
   const fortsetzen = el('p', 'sv-hinweis sv-fortsetzen');
   fortsetzen.dataset.sv = 'fortsetzen-hinweis';
@@ -116,33 +123,45 @@ function neuesProjekt(neu: () => Promise<void>, melde: Melde): Formular {
     projekt: feldMit('Projekt-ID', 'sv-np-projekt', projekt, hinweis('sv-np-projekt-hinweis', 'Kleinbuchstaben, Ziffern und Bindestrich, z. B. fassade-nord. Erscheint in der Adresse des Projekts.')),
     titel: feldMit('Titel (optional)', 'sv-np-titel', titel),
     datei: feldMit('Datei', 'sv-np-datei', datei,
-      hinweis('sv-np-datei-hinweis', 'Genau eine Datei. Archive (zip) werden nicht angenommen – Ordner entpacken und als Ordner hochladen. Texturierte Meshes, OBJ und Punktwolken kommen später.')),
-    crs: feldMit('Koordinatensystem (optional)', 'sv-np-crs', crs,
-      hinweis('sv-np-crs-hinweis', 'Ohne Angabe: lokal, Modellmaß – Lage und Maßstab nicht belegt. Messwerte tragen dann diesen Hinweis.')),
-    hoehe: feldMit('Höhensystem der Datei', 'sv-np-quellhoehe', quellHoehe, hinweis('sv-np-hoehe-hinweis', 'Nur mit Koordinatensystem.')),
+      hinweis('sv-np-datei-hinweis', 'Genau eine Datei. Archive (zip) werden nicht angenommen – Ordner entpacken und als Ordner hochladen. Texturierte Meshes und OBJ nimmt der Import noch nicht an.')),
+    crs: feldMit('Koordinatensystem (optional)', 'sv-np-crs', crs, hinweis('sv-np-crs-hinweis', '')),
+    hoehe: feldMit('Höhensystem der Datei', 'sv-np-quellhoehe', quellHoehe, hinweis('sv-np-hoehe-hinweis', '')),
   };
   const ziel = feldMit('Höhensystem im Projekt', 'sv-np-zielhoehe', zielHoehe);
 
   const aktionen = el('div', 'sv-aktionen');
   aktionen.append(start, neuBeginnen, abbrechen);
-  form.append(boxen.projekt, boxen.titel, quelle, boxen.datei, boxen.crs, boxen.hoehe, ziel, fortsetzen, aktionen, balken, status);
+  form.append(boxen.projekt, boxen.titel, quelle, boxen.datei, boxen.crs, boxen.hoehe, ziel, rgbBox, fortsetzen, aktionen, balken, status);
 
-  const art = (): Quelle => (radios.get('splats')!.checked ? 'splats' : 'mesh');
-  const accept = (): void => { datei.accept = ENDUNGEN[art()].join(','); };
+  const art = (): Quelle => ([...radios].find(([, r]) => r.checked)?.[0] ?? 'mesh');
+  const crsHinweis = boxen.crs.querySelector<HTMLElement>('#sv-np-crs-hinweis');
+  const hoeheHinweis = boxen.hoehe.querySelector<HTMLElement>('#sv-np-hoehe-hinweis');
+  const accept = (): void => {
+    const q = art();
+    datei.accept = ENDUNGEN[q].join(',');
+    rgbBox.hidden = q !== 'wolke';
+    if (crsHinweis) crsHinweis.textContent = q === 'wolke'
+      ? 'Ohne Angabe: aus der Datei. Steht dort keins (häufig bei E57), wird das Projekt lokal – Lage und Maßstab nicht belegt; eine Höhenumrechnung wird dann abgelehnt.'
+      : 'Ohne Angabe: lokal, Modellmaß – Lage und Maßstab nicht belegt. Messwerte tragen dann diesen Hinweis.';
+    if (hoeheHinweis) hoeheHinweis.textContent = q === 'wolke'
+      ? 'Umgerechnet wird nur zwischen ellipsoidisch und DHHN2016; E57 und DHHN92 nur angeben, nicht umrechnen.'
+      : 'Nur mit Koordinatensystem. Umgerechnet wird nur zwischen ellipsoidisch und DHHN2016.';
+  };
   const hoeheAn = (): void => {
-    const an = crs.value.trim() !== '';
+    const an = crs.value.trim() !== '' || hoeheOhneCrs(art());
     quellHoehe.disabled = !an;
     zielHoehe.disabled = !an || quellHoehe.value === '';
   };
   accept();
   hoeheAn();
-  for (const r of radios.values()) r.addEventListener('change', accept);
+  for (const r of radios.values()) r.addEventListener('change', () => { accept(); hoeheAn(); });
   crs.addEventListener('input', hoeheAn);
   quellHoehe.addEventListener('change', hoeheAn);
 
   const eingabe = (): Eingabe => ({
     projekt: projekt.value.trim(), titel: titel.value, quelle: art(), datei: datei.files?.[0] ?? null,
     crs: crs.value, quellHoehe: quellHoehe.disabled ? '' : quellHoehe.value, zielHoehe: zielHoehe.disabled ? '' : zielHoehe.value,
+    rgb8bit: art() === 'wolke' && rgb8bit.checked,
   });
   const zeigeFehler = (f: Fehler): boolean => {
     let erstes: HTMLElement | null = null;
@@ -161,7 +180,7 @@ function neuesProjekt(neu: () => Promise<void>, melde: Melde): Formular {
   let steuerung: AbortController | null = null;
   let aktuelleId: string | null = null;
   const bedienbar = (an: boolean): void => {
-    for (const e of [projekt, titel, datei, crs, ...radios.values()]) e.disabled = !an;
+    for (const e of [projekt, titel, datei, crs, rgb8bit, ...radios.values()]) e.disabled = !an;
     if (an) hoeheAn(); else { quellHoehe.disabled = true; zielHoehe.disabled = true; }
     start.disabled = !an;
     neuBeginnen.disabled = !an;
@@ -189,6 +208,7 @@ function neuesProjekt(neu: () => Promise<void>, melde: Melde): Formular {
     titel.value = m.titel;
     radios.get(m.quelle)!.checked = true;
     accept();
+    rgb8bit.checked = m.rgb8bit;
     crs.value = m.crs;
     hoeheAn();
     quellHoehe.value = m.quellHoehe;
@@ -243,7 +263,7 @@ function neuesProjekt(neu: () => Promise<void>, melde: Melde): Formular {
         }
         if (!u) {
           u = await ankuendigen(f);
-          merken(schluessel, { uploadId: u.id, projekt: e.projekt, titel: e.titel, quelle: e.quelle, crs: e.crs.trim(), quellHoehe: e.quellHoehe, zielHoehe: e.zielHoehe });
+          merken(schluessel, { uploadId: u.id, projekt: e.projekt, titel: e.titel, quelle: e.quelle, crs: e.crs.trim(), quellHoehe: e.quellHoehe, zielHoehe: e.zielHoehe, rgb8bit: e.rgb8bit });
           void neu();
         }
         aktuelleId = u.id;
@@ -303,7 +323,7 @@ function importTabelle(liste: Import[], neu: () => Promise<void>, melde: Melde):
     }
     const stand = el('span', `sv-import-${i.status}`, importText(i));
     const tr = zeile(i.titel && i.titel !== i.projekt ? `${i.titel} (${i.projekt})` : i.projekt,
-      i.typ === 'neu_splats' ? 'Splats' : 'Mesh', stand, i.fehler ?? '', zeitText(i.erstelltAm), aktion);
+      QUELLE_TEXT[i.typ] ?? i.typ, stand, i.fehler ?? '', zeitText(i.erstelltAm), aktion);
     tr.dataset.import = i.id;
     tr.dataset.status = i.status;
     tbody.append(tr);

@@ -1,6 +1,6 @@
 [project]
 name = "scanview-mcp"
-version = "0.12.0"
+version = "0.12.6"
 description = "MCP-Server (stdio) für die scanview-Plattform: Werkzeuge über die öffentliche API v1"
 requires-python = ">=3.11,<3.13"
 # Exakte Top-Level-Pins (per `uv lock` mit >=-Untergrenzen ermittelt, jüngste Versionen vor dem
@@ -44,6 +44,9 @@ packages = ["src/scanview_mcp"]
 # Freigabe nach Regel frühestens am 28.10.2026; per Sicherheits-Hotfix-Pfad vorgezogen (Prüfung
 # 22.10.2026: nur emSign ECC Root CA - G3 entfernt, kein Code; Befund B-SCAN-IMPORT-LOCK).
 exclude-newer = "2026-10-21T00:00:00Z"
+# opentelemetry-api 1.44.0 → 1.45.1 (PyPI 2026-10-06T17:32Z, 05.11.2026): Ein-Paket-Hebung
+# (uv lock --upgrade-package opentelemetry-api) innerhalb des Stichtags oben; transitiv über mcp,
+# kein SDK. 1.45.2 (2026-10-29) liegt hinter dem Stichtag. Retest: nachweise/tests/test_lock_retests.py.
 # Wie server/: kein globales no-build (blockiert unter uv 0.11.3 auch das eigene Paket), sondern
 # alle Fremdpakete aus uv.lock (auch die nur unter Windows/Emscripten gezogenen colorama, pywin32,
 # httpx2-jsfetch) plus die Build-Zeit-Abhängigkeiten von hatchling, die nicht im Lock stehen

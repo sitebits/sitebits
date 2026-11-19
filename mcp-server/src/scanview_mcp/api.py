@@ -12,6 +12,8 @@ Sicherheitsregeln:
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from typing import Any
 
 import httpx
@@ -20,6 +22,23 @@ from .datenschutz import Datenschutz
 
 ZEITLIMIT_S = 30.0
 _ERSATZ = "[Token]"
+# Fehlercodes sind kurze Bezeichner (fehlercodes.py); alles andere wird nicht weitergereicht.
+_CODE_RE = re.compile(r"[a-z][a-z0-9_]{0,63}")
+# Hinweise der Instanz sind ein kurzer Satz (fehlercodes.py); länger, mehrzeilig oder mit
+# Steuerzeichen wird er nicht an das Sprachmodell weitergereicht.
+_HINWEIS_MAX = 300
+
+
+# Steuer-, Format- (z. B. Bidi-Umkehr) und Trennzeichen für Zeilen und Absätze.
+_UNSICHTBAR = frozenset({"Cc", "Cf", "Zl", "Zp"})
+
+
+def _hinweis(text: str) -> str | None:
+    if len(text) > _HINWEIS_MAX or any(unicodedata.category(z) in _UNSICHTBAR for z in text):
+        return None
+    return text
+
+
 WEITERLEITUNG = "Weiterleitung – SCANVIEW_URL prüfen (genaue Adresse, https)."  # noqa: RUF001
 
 
@@ -27,14 +46,18 @@ class ApiFehler(Exception):
     """HTTP-Fehler der API. `status` 0 = keine Antwort (Verbindung, Zeitlimit).
 
     `text` ist der `fehler`-Text der Antwort (nie Header, nie der Tokenwert); `aktuell` der
-    mitgelieferte aktuelle Stand bei 409.
+    mitgelieferte aktuelle Stand bei 409; `code` und `hinweis` der feste Fehlercode der Instanz
+    und was stattdessen ginge (`docs/public/fehlercodes.md`), bei älteren Instanzen None.
     """
 
-    def __init__(self, status: int, text: str, aktuell: Any = None) -> None:
+    def __init__(self, status: int, text: str, aktuell: Any = None, *, code: str | None = None,
+                 hinweis: str | None = None) -> None:
         super().__init__(status, text)
         self.status = status
         self.text = text
         self.aktuell = aktuell
+        self.code = code
+        self.hinweis = hinweis
 
     def __str__(self) -> str:
         return f"HTTP {self.status}: {self.text}" if self.status else self.text
@@ -140,9 +163,16 @@ class Client:
             koerper = r.json()
         except ValueError:
             koerper = None
+        code: str | None = None
+        hinweis: str | None = None
         if isinstance(koerper, dict):
             if isinstance(koerper.get("fehler"), str):
                 text = koerper["fehler"]
             aktuell = koerper.get("aktuell")
+            if isinstance(koerper.get("code"), str) and _CODE_RE.fullmatch(koerper["code"]):
+                code = koerper["code"]
+            if code is not None and isinstance(koerper.get("hinweis"), str):
+                hinweis = _hinweis(_ohne_token(koerper["hinweis"], self._token))
         return ApiFehler(r.status_code, _ohne_token(text, self._token),
-                         self._schutz.filtern(_ohne_token(aktuell, self._token)))
+                         self._schutz.filtern(_ohne_token(aktuell, self._token)),
+                         code=code, hinweis=hinweis)

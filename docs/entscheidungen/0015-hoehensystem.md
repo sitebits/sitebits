@@ -40,3 +40,12 @@ automatische Transformationsauswahl ist deshalb nicht sicher.
 - Umrechnungen werden an Prüfpunkten gegen den Online-Rechner des BKG belegt (≤ 1 cm).
 - DHHN92 wird nur gelesen bzw. umgerechnet, wenn ein Altbestand es verlangt.
 - Die Namensnennung des BKG steht in `CREDITS.md` und `REUSE.toml`.
+
+## Nachtrag 2026-11: DHHN92 nur deklariert
+
+Umgerechnet wird derzeit nur zwischen `ellipsoidal-etrs89` und `dhhn2016` (GCG2016). Für DHHN92 gibt
+es keine Pipeline, weil noch kein Altbestand sie verlangt hat. Ein Import mit DHHN92 als Quelle und
+einem anderen Ziel wird deshalb schon bei der Annahme abgelehnt (API und MCP: 422, Portal vor dem
+Upload, Import-CLI vor jeder Ausgabe), statt erst im Worker zu scheitern. DHHN92 → DHHN92 bleibt
+möglich; das Paket nennt dann DHHN92 als Höhensystem. Eine Umrechnung kommt erst mit einem konkreten
+Altbestand und eigenen BKG-Prüfpunkten.

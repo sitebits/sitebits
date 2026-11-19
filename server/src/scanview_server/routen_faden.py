@@ -228,7 +228,8 @@ def befunde_lesen(
             raise Ungueltig(EINGABE_UNGUELTIG)
     f = faden.Filter(status=_auswahl(status, Status), zustaendig=_auswahl(zustaendig, Zustaendig),
                      frist=_auswahl(frist, Frist), kategorie=kategorie)
-    antwort = faden.befunde(conn, pid, sicht(request, conn, z), f, faden.heute(),
-                            inhalte.liste(conn, "pois", pid))
+    pois = inhalte.liste(conn, "pois", pid)
+    antwort = faden.befunde(conn, pid, sicht(request, conn, z), f, faden.heute(), pois,
+                            inhalte.grundlagen(conn, "pois", pid, pois, z.karte.genauigkeit))
     lesezugriff.erfasse_anfrage(request, conn, z, "api", "befunde")
     return JSONResponse(antwort)

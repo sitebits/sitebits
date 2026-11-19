@@ -20,6 +20,7 @@ from .mesh_source import Mesh, read_mesh
 from .mesh_stages import degenerate_mask
 from .mesh_surface import SourceMesh, SurfaceIndex
 from .mesh_textures import decode_texture, ktx_info, sample_rgb
+from .verweise import pruefe_paket
 
 
 def surface(mesh: Mesh) -> SourceMesh:
@@ -229,6 +230,8 @@ def verify_mesh(
 ) -> dict[str, Any]:
     t0 = time.monotonic()
     m = manifest if manifest is not None else read_manifest(pkg)
+    # Erst die Verweise (ADR 0016, Nachtrag 2026-11), dann irgendeine Datei des Pakets öffnen.
+    pruefe_paket(pkg, m)
     if any(lay["kind"] == "mesh-tiles" for lay in m["layers"]):
         from .convert import _sha256
         from .kacheln.paket import pruefen

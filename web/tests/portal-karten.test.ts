@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filtere, formatAusdehnung, formatGroesse, formatPunkte, formatStandpunkte, trefferText, viewerLink } from '../src/portal/karten';
+import { filtere, formatAusdehnung, kartenBild, formatGroesse, formatPunkte, formatStandpunkte, trefferText, viewerLink } from '../src/portal/karten';
 import type { Projekt } from '../src/portal/api';
 
 const p = (id: string, titel: string, beschreibung = ''): Projekt => ({
@@ -48,5 +48,10 @@ describe('trefferText', () => {
     expect(trefferText(0)).toBe('Kein Projekt gefunden.');
     expect(trefferText(1)).toBe('1 Projekt gefunden.');
     expect(trefferText(2)).toBe('2 Projekte gefunden.');
+  });
+  it('Kartenbild: Vorschau vor Draufsicht, sonst keins', () => {
+    expect(kartenBild({ ...p('a', 'Tempel'), vorschau: true, draufsicht: true })).toEqual({ src: '/data/a/vorschau.webp', alt: 'Ansicht: Tempel' });
+    expect(kartenBild({ ...p('a', 'Tempel'), draufsicht: true })).toEqual({ src: '/data/a/topview.png', alt: 'Draufsicht: Tempel' });
+    expect(kartenBild(p('a', 'Tempel'))).toBeNull();
   });
 });

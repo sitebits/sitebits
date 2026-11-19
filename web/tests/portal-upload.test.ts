@@ -54,7 +54,7 @@ class Speicher {
 
 describe('Fortsetzen-Zuordnung', () => {
   const datei = { name: 'modell.glb', size: 1234, lastModified: 1700000000000 };
-  const m = { uploadId: 'a'.repeat(32), projekt: 'neu', titel: 'T', quelle: 'splats' as const, crs: '', quellHoehe: '', zielHoehe: '' };
+  const m = { uploadId: 'a'.repeat(32), projekt: 'neu', titel: 'T', quelle: 'splats' as const, crs: '', quellHoehe: '', zielHoehe: '', rgb8bit: false };
   it('dieselbe Datei findet ihren Upload wieder, eine geänderte nicht', () => {
     const s = new Speicher();
     merken(fortsetzenSchluessel(datei), m, s);
@@ -79,7 +79,7 @@ describe('Fortsetzen-Zuordnung', () => {
   });
 });
 
-const EINGABE: Eingabe = { projekt: 'fassade-nord', titel: '', quelle: 'mesh', datei: { name: 'm.glb', size: 10 }, crs: '', quellHoehe: '', zielHoehe: '' };
+const EINGABE: Eingabe = { projekt: 'fassade-nord', titel: '', quelle: 'mesh', datei: { name: 'm.glb', size: 10 }, crs: '', quellHoehe: '', zielHoehe: '', rgb8bit: false };
 
 describe('Formular', () => {
   it('gültige Eingabe ohne CRS', () => {
@@ -91,8 +91,17 @@ describe('Formular', () => {
     [{ datei: null }, 'datei'], [{ datei: { name: 'a.zip', size: 3 } }, 'datei'], [{ datei: { name: 'a.spz', size: 3 } }, 'datei'],
     [{ datei: { name: 'a.obj', size: 3 } }, 'datei'], [{ datei: { name: 'a.glb', size: 0 } }, 'datei'],
     [{ crs: '25833' }, 'crs'], [{ quellHoehe: 'dhhn2016' }, 'hoehe'], [{ titel: 'x'.repeat(121) }, 'titel'],
+    [{ crs: 'EPSG:25833', quellHoehe: 'dhhn92' }, 'hoehe'], [{ crs: 'EPSG:25833', quellHoehe: 'dhhn92', zielHoehe: 'dhhn2016' }, 'hoehe'],
+    [{ crs: 'EPSG:25833', quellHoehe: 'dhhn2016', zielHoehe: 'dhhn92' }, 'hoehe'],
   ])('%o → Fehler in %s', (aenderung, feld) => {
     expect(Object.keys(pruefeEingabe({ ...EINGABE, ...aenderung }))).toEqual([feld]);
+  });
+  it('Höhensysteme: nur umrechenbare Paare, DHHN92 nur ohne Umrechnung', () => {
+    const mit = { ...EINGABE, crs: 'EPSG:25833' };
+    expect(pruefeEingabe({ ...mit, quellHoehe: 'dhhn92', zielHoehe: 'dhhn92' })).toEqual({});
+    expect(pruefeEingabe({ ...mit, quellHoehe: 'ellipsoidal-etrs89' })).toEqual({});
+    expect(pruefeEingabe({ ...mit, quellHoehe: 'dhhn2016', zielHoehe: 'ellipsoidal-etrs89' })).toEqual({});
+    expect(pruefeEingabe({ ...mit, quellHoehe: 'dhhn92' }).hoehe).toMatch(/ebenfalls DHHN92/);
   });
   it('Archiv-Hinweis nennt den Ordnerweg', () => {
     expect(pruefeEingabe({ ...EINGABE, datei: { name: 'all.zip', size: 3 } }).datei).toMatch(/Ordner entpacken/);
@@ -104,6 +113,44 @@ describe('Formular', () => {
     expect(importOptionen({ ...EINGABE, titel: ' Nord ', crs: 'EPSG:25833', quellHoehe: 'dhhn2016', zielHoehe: 'dhhn92' }))
       .toEqual({ projekt: 'fassade-nord', titel: 'Nord', crs: 'EPSG:25833', quellHoehe: 'dhhn2016', zielHoehe: 'dhhn92' });
     expect(importOptionen({ ...EINGABE, quellHoehe: 'dhhn2016' })).toEqual({ projekt: 'fassade-nord' });
+  });
+});
+
+describe('Formular Punktwolke', () => {
+  const WOLKE: Eingabe = { ...EINGABE, quelle: 'wolke', datei: { name: 'scan.laz', size: 10 } };
+  it('LAS, LAZ, E57 – nichts anderes', () => {
+    for (const n of ['a.laz', 'a.LAS', 'a.e57']) expect(pruefeEingabe({ ...WOLKE, datei: { name: n, size: 3 } })).toEqual({});
+    expect(pruefeEingabe({ ...WOLKE, datei: { name: 'a.ply', size: 3 } }).datei).toMatch(/Punktwolke.*\.laz, \.las, \.e57/);
+  });
+  it('Höhensysteme ohne CRS erlaubt (CRS aus der Datei)', () => {
+    const e = { ...WOLKE, quellHoehe: 'ellipsoidal-etrs89', zielHoehe: 'dhhn2016' };
+    expect(pruefeEingabe(e)).toEqual({});
+    expect(importOptionen(e)).toEqual({ projekt: 'fassade-nord', quellHoehe: 'ellipsoidal-etrs89', zielHoehe: 'dhhn2016' });
+  });
+  it('Farbskalierung nur LAS/LAZ und nur bei Punktwolke', () => {
+    expect(importOptionen({ ...WOLKE, rgb8bit: true })).toEqual({ projekt: 'fassade-nord', rgb8bit: true });
+    expect(importOptionen({ ...EINGABE, rgb8bit: true })).toEqual({ projekt: 'fassade-nord' });
+    expect(Object.keys(pruefeEingabe({ ...WOLKE, rgb8bit: true, datei: { name: 'a.e57', size: 3 } }))).toEqual(['datei']);
+  });
+  it('DHHN92 wird auch bei der Punktwolke nicht umgerechnet – Meldung vor dem Hochladen', () => {
+    for (const crs of ['', 'EPSG:25833']) {
+      expect(pruefeEingabe({ ...WOLKE, crs, quellHoehe: 'dhhn92' }).hoehe).toMatch(/ebenfalls DHHN92/);
+      expect(pruefeEingabe({ ...WOLKE, crs, quellHoehe: 'dhhn92', zielHoehe: 'dhhn2016' }).hoehe).toMatch(/ebenfalls DHHN92/);
+      expect(Object.keys(pruefeEingabe({ ...WOLKE, crs, quellHoehe: 'dhhn2016', zielHoehe: 'dhhn92' }))).toEqual(['hoehe']);
+      expect(pruefeEingabe({ ...WOLKE, crs, quellHoehe: 'dhhn92', zielHoehe: 'dhhn92' })).toEqual({});
+    }
+  });
+  it('E57: Höhe nur deklarieren', () => {
+    const e57 = { ...WOLKE, datei: { name: 'a.e57', size: 3 } };
+    expect(pruefeEingabe({ ...e57, quellHoehe: 'dhhn2016' })).toEqual({});
+    expect(Object.keys(pruefeEingabe({ ...e57, quellHoehe: 'ellipsoidal-etrs89' }))).toEqual(['hoehe']);
+    expect(pruefeEingabe({ ...e57, quellHoehe: 'ellipsoidal-etrs89', zielHoehe: 'ellipsoidal-etrs89' })).toEqual({});
+  });
+  it('gemerkte Punktwolke kommt mit Farboption zurück', () => {
+    const s = new Speicher();
+    const m = { uploadId: 'b'.repeat(32), projekt: 'w', titel: '', quelle: 'wolke' as const, crs: '', quellHoehe: '', zielHoehe: '', rgb8bit: true };
+    merken('k', m, s);
+    expect(gemerkt('k', s)).toEqual(m);
   });
 });
 

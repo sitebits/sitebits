@@ -183,6 +183,14 @@ def test_befunde_privat_vollstaendig_und_deterministisch():
     assert md.endswith("\n") and not md.endswith("\n\n")
 
 
+def test_befunde_bindung_nur_privat():
+    bindung = "ab" * 32
+    b = _b(status="akzeptiert", akzeptanz_begruendung="Begründung lang genug hier",
+           frist=date(2026, 12, 31), akzeptanz_bindung=bindung)
+    assert f"gebunden an `{bindung}`" in befunde_md([b], oeffentlich=False)
+    assert bindung not in befunde_md([b], oeffentlich=True)
+
+
 def test_befunde_zusammenfassung_nach_status():
     md = befunde_md([_b(), _b(id="B-X", status="behoben", fix_commit="3ee2ca6",
                               retest="server/tests/test_s.py::test_m1")], oeffentlich=True)

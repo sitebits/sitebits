@@ -81,7 +81,27 @@ STUBS = {
            "mkdir -p .venv/bin && ln -s \"$p/python3.12\" .venv/bin/python\n"
            "[ -e /tmp/uv-ohne-pruefer ] || "
            "{ printf '#!/bin/sh\\n' >.venv/bin/scanview-pruefen;"
-           " chmod 755 .venv/bin/scanview-pruefen; }\n"),
+           " chmod 755 .venv/bin/scanview-pruefen; }\n"
+           # scanview-import: nur `pdal-lizenzen` (Lizenzbeilage der PDAL-Umgebung) — protokolliert
+           # uid und Argumente; mit /tmp/pdal-lizenzen-scheitert Exit 1, mit /tmp/pdal-lizenzen-leer
+           # Exit 0 ohne Ausgabe.
+           "cat >.venv/bin/scanview-import <<'EOF'\n#!/bin/sh\n"
+           "printf 'scanview-import uid=%s %s\\n' \"$(id -u)\" \"$*\" >>/tmp/aufrufe\n"
+           "[ -e /tmp/pdal-lizenzen-scheitert ] && exit 1\n"
+           "[ -e /tmp/pdal-lizenzen-leer ] && exit 0\n"
+           "echo 'Lizenztexte der PDAL-Umgebung (Probe)'\nEOF\n"
+           "chmod 755 .venv/bin/scanview-import\n"),
+    # PDAL-Umgebung: legt wie pixi neben dem Manifest .pixi/envs/default mit pdal und untwine an
+    # und protokolliert uid und Umgebung; mit /tmp/pixi-scheitert scheitert der Bau, mit
+    # /tmp/pixi-ohne-untwine fehlt untwine.
+    "pixi": ("#!/bin/sh\nprintf 'pixi %s\\n' \"$*\" >>/tmp/aufrufe\n"
+             "[ -e /tmp/pixi-scheitert ] && exit 1\n"
+             "printf 'pixi-bau uid=%s pwd=%s cache=%s\\n' \"$(id -u)\" \"$(pwd)\" "
+             "\"$PIXI_CACHE_DIR\" >>/tmp/aufrufe\n"
+             "m=$(dirname \"$4\"); e=$m/.pixi/envs/default/bin\n"
+             "mkdir -p \"$e\" && printf '#!/bin/sh\\n' >\"$e/pdal\" && chmod 775 \"$e/pdal\"\n"
+             "[ -e /tmp/pixi-ohne-untwine ] || "
+             "{ printf '#!/bin/sh\\n' >\"$e/untwine\"; chmod 755 \"$e/untwine\"; }\n"),
     "git": "#!/bin/sh\necho 0123456789abcdef0123456789abcdef01234567\n",
     "systemctl": ("#!/bin/bash\nprintf 'systemctl %s\\n' \"$*\" >>/tmp/aufrufe\n"
                   "if [ \"$1\" = restart ] && [ -e /tmp/sabotage ]; then\n"
@@ -158,8 +178,11 @@ install -m 0666 /dev/null /tmp/aufrufe  # root-eigen: Dienst (uid 990) und root 
 R=/srv/scanview/repo
 mkdir -p $R/server $R/web/dist $R/deploy/platform/sudoers.d \\
   $R/deploy/platform/scanview-server.service.d $R/deploy/platform/scanview-backup.service.d \\
-  $R/deploy/platform/scanview-import-worker.service.d $R/import
+  $R/deploy/platform/scanview-import-worker.service.d $R/import $R/import/pdal-umgebung
 echo 'version = 1' >$R/import/uv.lock
+echo '[workspace]' >$R/import/pdal-umgebung/pixi.toml
+echo 'version: 7' >$R/import/pdal-umgebung/pixi.lock
+echo '{}' >$R/import/pdal-umgebung/quellen.json
 echo '[project]' >$R/import/pyproject.toml
 echo 'version = 1' >$R/server/uv.lock
 echo '<!doctype html>' >$R/web/dist/index.html
@@ -201,7 +224,8 @@ orte = ["/srv/scanview/state", "/var/backups", "/var/log/scanview", "/etc/zielor
         "/var/lib/scanview-install", "/srv/scanview/jobs", "/srv/scanview/berichte",
         "/var/lib/scanview-import", "/etc/systemd/system", "/etc/scanview",
         "/srv/scanview/uploads", "/srv/scanview/uebergabe", "/srv/scanview/uebergabe-meldungen",
-        "/opt/scanview/import/.venv", "/opt/scanview/python", "/usr/local/sbin", "/var/tmp"]
+        "/opt/scanview/import/.venv", "/opt/scanview/python", "/opt/scanview/pdal",
+        "/usr/local/sbin", "/var/tmp"]
 def einrichten():
     return subprocess.run(["bash", "/probe/einrichten.sh", "/srv/scanview/repo"],
                           capture_output=True, text=True,
@@ -267,7 +291,7 @@ class Lauf:
 
 
 def _probe(tmp_path: Path, vorbereitung: str, *, log_schreibbar: bool = True,
-           zwischen: str | None = None, memtotal_kb: int = 4 * 1024 * 1024,
+           zwischen: str | None = None, memtotal_kb: int = 6 * 1024 * 1024,
            dbus: bool = True) -> Lauf:
     assert deploy_probe.ORDNER.is_dir()
     (tmp_path / "bin").mkdir()
@@ -810,7 +834,7 @@ def test_joblaeufer_untergeschobener_symlink_statt_jobs_db(tmp_path: Path) -> No
 
 #: Schalter an mit Quote; Übergabe-Nutzer (995) nur in scanview-deploy, Gruppe scanview-upload (996)
 #: mit dem Worker als Mitglied.
-IMPORT_AN = ("printf 'SCANVIEW_IMPORT=1\\nSCANVIEW_UPLOAD_QUOTE_GB=50\\n' "
+IMPORT_AN = ("printf 'SCANVIEW_IMPORT=1\\nSCANVIEW_UPLOAD_QUOTE_GB=50\\nSCANVIEW_JOBS_RAM_GB=4\\n' "
              ">>/etc/scanview/scanview-joblaeufer.env\n")
 UEBERGABE_PASSWD = "scanview-uebergabe:x:995:995::/nonexistent:/usr/sbin/nologin\n"
 IMPORT_GRUPPEN = {"scanview-deploy:x:992:\n": "scanview-deploy:x:992:scanview-uebergabe\n"}
@@ -922,6 +946,80 @@ def test_import_an_richtet_uploads_und_uebergabe_ein(tmp_path: Path,
 
 @pytest.mark.docker
 @probe_da
+def test_import_an_baut_pdal_umgebung_ohne_root(tmp_path: Path, import_konten: None) -> None:
+    """Punktwolken (U2b): pixi baut die gelockte PDAL-Umgebung als nobody am festen Ort, danach
+    gehört sie root; der Drop-in nennt sie dem Worker."""
+    lauf = _probe(tmp_path, JL_HOST + IMPORT_AN)
+    assert lauf.rc == 0, lauf.stderr
+    a = lauf.aufrufe
+    assert "pixi install --locked --manifest-path /opt/scanview/pdal/pixi.toml" in a
+    [bau] = [x for x in a if x.startswith("pixi-bau ")]
+    assert bau.startswith("pixi-bau uid=65534 pwd=/ cache=/var/tmp/scanview-pdal-bau."), bau
+    assert (a.index("systemctl stop scanview-import-worker.service")
+            < a.index("pixi install --locked --manifest-path /opt/scanview/pdal/pixi.toml")
+            < a.index("systemctl restart scanview-import-worker.service"))
+    z = lauf.zustand
+    for p in ("/opt/scanview/pdal", "/opt/scanview/pdal/.pixi/envs/default/bin"):
+        assert z[p] == ["d", 0, 0, "0o755"], p
+    for p in ("pdal", "untwine"):  # pdal kam gruppenbeschreibbar aus dem Bau
+        assert z[f"/opt/scanview/pdal/.pixi/envs/default/bin/{p}"] == ["f", 0, 0, "0o755"], p
+    assert z["/opt/scanview/pdal/pixi.lock"] == ["f", 0, 0, "0o644"]
+    # Lizenzbeilage (Weg 3): als nobody aus dem Cache des Baus erzeugt, solange er noch da ist,
+    # von root abgelegt; vor dem Start des Workers.
+    [liz] = [x for x in a if x.startswith("scanview-import uid=")]
+    assert liz.startswith("scanview-import uid=65534 pdal-lizenzen --lock /opt/scanview/pdal/"
+                          "pixi.lock --quellen /opt/scanview/pdal/quellen.json --cache "
+                          "/var/tmp/scanview-pdal-bau."), liz
+    assert (a.index("pixi install --locked --manifest-path /opt/scanview/pdal/pixi.toml")
+            < a.index(liz) < a.index("systemctl restart scanview-import-worker.service"))
+    for p in ("LIZENZEN.txt", "quellen.json"):
+        assert z[f"/opt/scanview/pdal/{p}"] == ["f", 0, 0, "0o644"], p
+    assert not [p for p in z if p.startswith("/var/tmp/")], z
+    dropin = (PLATFORM / "scanview-import-worker.service.d" / "import.conf").read_text()
+    assert ("Environment=SCANVIEW_PDAL_UMGEBUNG=/opt/scanview/pdal/.pixi/envs/default"
+            in dropin.splitlines())
+
+
+@pytest.mark.parametrize(("vorbereitung", "meldung"), [
+    ("touch /tmp/pixi-scheitert", "PDAL-Umgebung: pixi install gescheitert"),
+    ("touch /tmp/pixi-ohne-untwine", "ausführbare bin/pdal und bin/untwine"),
+    ("touch /tmp/pdal-lizenzen-scheitert", "Lizenzbeilage nicht erzeugbar"),
+    ("touch /tmp/pdal-lizenzen-leer", "Lizenzbeilage nicht erzeugbar"),
+], ids=["pixi-scheitert", "ohne-untwine", "lizenzen-scheitern", "lizenzen-leer"])
+@pytest.mark.docker
+@probe_da
+def test_import_pdal_umgebung_unbrauchbar_kein_worker(tmp_path: Path, import_konten: None,
+                                                      vorbereitung: str, meldung: str) -> None:
+    lauf = _probe(tmp_path, JL_HOST + IMPORT_AN + vorbereitung + "\n")
+    assert lauf.rc != 0
+    assert meldung in lauf.stderr, lauf.stderr
+    assert "systemctl restart scanview-import-worker.service" not in lauf.aufrufe
+    assert not [p for p in lauf.zustand if p.startswith("/var/tmp/")]
+
+
+@pytest.mark.parametrize(("vorbereitung", "meldung"), [
+    ("ohne-pixi", "pixi fehlt im PATH"),
+    ("rm $R/import/pdal-umgebung/pixi.lock", "pixi.lock bzw. quellen.json fehlt"),
+    ("rm $R/import/pdal-umgebung/quellen.json", "pixi.lock bzw. quellen.json fehlt"),
+    ("echo SCANVIEW_PDAL_UMGEBUNG=/tmp/x >>/etc/scanview/scanview-joblaeufer.env",
+     "SCANVIEW_PDAL_UMGEBUNG nicht in"),
+], ids=["ohne-pixi", "ohne-lock", "ohne-quellen", "fremder-pfad"])
+@pytest.mark.docker
+@probe_da
+def test_import_pdal_vorbedingungen_vor_jeder_aenderung(
+        tmp_path: Path, import_konten: None, vorbereitung: str, meldung: str,
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    if vorbereitung == "ohne-pixi":
+        monkeypatch.delitem(STUBS, "pixi")
+        vorbereitung = "true"
+    lauf = _probe(tmp_path, JL_HOST + IMPORT_AN + vorbereitung + "\n")
+    assert lauf.rc != 0
+    assert meldung in lauf.stderr and "Nichts verändert" in lauf.stderr, lauf.stderr
+    assert not _jl_veraendert(lauf), lauf.aufrufe
+
+
+@pytest.mark.docker
+@probe_da
 def test_import_an_neue_gruppe_startet_user_manager_neu(
         tmp_path: Path, import_konten: None, monkeypatch: pytest.MonkeyPatch) -> None:
     """Ist der Worker noch nicht in scanview-upload, kommt er hinein — und sein User-Manager
@@ -947,7 +1045,10 @@ def test_import_an_neue_gruppe_startet_user_manager_neu(
     ("printf 'SCANVIEW_IMPORT=ja\\n'", "SCANVIEW_IMPORT muss 0 oder 1 sein"),
     ("printf 'SCANVIEW_IMPORT=1\\nSCANVIEW_UPLOAD_QUOTE_GB=5\\nSCANVIEW_UPLOADS=/tmp/u\\n'",
      "SCANVIEW_UPLOADS nicht in"),
-], ids=["ohne-quote", "quote-null", "quote-text", "schalter-kaputt", "fremder-upload-pfad"])
+    # Importaufträge brauchen 4 GB: mit dem Standardbudget 2 bricht der Lauf ab.
+    ("printf 'SCANVIEW_IMPORT=1\\nSCANVIEW_UPLOAD_QUOTE_GB=5\\n'", "mindestens 4 sein"),
+], ids=["ohne-quote", "quote-null", "quote-text", "schalter-kaputt", "fremder-upload-pfad",
+        "ram-zu-klein"])
 @pytest.mark.docker
 @probe_da
 def test_import_falsch_konfiguriert_bricht_vor_jeder_aenderung_ab(

@@ -16,6 +16,7 @@ from .convert import CLOUD_NAME, _sha256
 from .manifest_io import cloud_of, read_manifest
 from .point_source import detect_format, resolve_source
 from .source_points import CHUNK, e57_chunks, point_chunks
+from .verweise import pruefe_paket
 
 
 def _picks(count: int, samples: int, seed: int) -> np.ndarray:
@@ -91,6 +92,8 @@ def verify_points(
     if samples <= 0:
         raise ValueError("Stichprobenzahl muss positiv sein")
     m = read_manifest(pkg)
+    # Erst die Verweise (ADR 0016, Nachtrag 2026-11), dann irgendeine Datei des Pakets öffnen.
+    pruefe_paket(pkg, m)
     cloud = cloud_of(m)
     options = cloud["sourceOptions"]
     thin = options.get("ausduennen")

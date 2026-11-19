@@ -6,7 +6,7 @@ import pytest
 from conftest import csrf
 from fastapi.testclient import TestClient
 
-from scanview_server import db, konten, passwort
+from scanview_server import db, fehlercodes, konten, passwort
 
 
 def einladung(client: TestClient, **kw: object) -> str:
@@ -158,7 +158,9 @@ def test_einladung_pruefen_kaputte_eingaben(client: TestClient, body: dict[str, 
 def test_ungueltige_eingabe_gibt_422_json_mit_dienstkennung(client: TestClient) -> None:
     r = client.post("/auth/einladung/pruefen", json={}, headers=csrf())
     assert r.status_code == 422
-    assert r.json() == {"dienst": "scanview", "fehler": "Eingabe ungültig."}
+    assert r.json() == {"dienst": "scanview", "fehler": "Eingabe ungültig.",
+                        "code": "eingabe_ungueltig",
+                        "hinweis": fehlercodes.EINGABE_UNGUELTIG.hinweis}
 
 
 @pytest.mark.parametrize("feld", ["email", "passwort"])
@@ -305,6 +307,8 @@ def test_ueberlastet_anmelden_ist_429_ohne_fehlversuch(
     assert r.json() == {
         "dienst": "scanview",
         "fehler": "Gerade zu viele Anmeldeversuche – bitte kurz warten.",  # noqa: RUF001
+        "code": "ueberlastet",
+        "hinweis": fehlercodes.UEBERLASTET.hinweis,
     }
     conn = db.connect(client.app.state.settings.db_path)  # type: ignore[attr-defined]
     assert conn.execute("SELECT COUNT(*) FROM throttle").fetchone()[0] == 0

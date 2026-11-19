@@ -10,6 +10,494 @@ Kennungen `B-…` verweisen auf das [Befundregister](docs/public/befunde.md).
 
 ## [Unreleased]
 
+## [0.12.6] – 2026-11-18
+
+Kleines Vorbereitungs-Release: Der Prüfer auf dem Zielhost kennt jetzt das kommende Release-Manifest `/4`, mit dem
+jedes Release künftig den Upgrade-Pfad von allen Ständen ab 0.7.0 prüft. Am Verhalten von siteBits ändert sich nichts.
+
+**Betreiber:** Dieses Release einspielen, bevor ein Release mit Manifest `/4` kommt; dann reicht dafür das normale
+Aktualisieren ohne Bootstrap und ohne neue Skriptkopie. Keine Migration, keine Änderung an Caddy.
+
+```
+⢧⡳⣝⡮⣳⢽⣺⢽⣺⡽⣾⢽⣯⢿⣽⣯⣿⣽⣽⣽⣽⣽⣳⢽⢮⡳⣕⢗⣝⢮⡳⣝⡮⡯⡾⣽⣽⣽⣺⢵⡽⣮⡷⡽⡮⣗⣵⡳⣕⢷⢕⢷⢕⡗⣗⢵⡳⣕⣗⣝⢮⣺⣪⢞⡮⡮⣳⢝⡾⣵⡳⡵
+⣯⣯⡷⣿⣽⡿⣾⣟⣯⣿⣿⣟⣿⣿⣿⣾⣿⣿⣟⣯⣷⣿⣾⣿⣯⣿⣽⣽⣞⣷⣽⣺⣽⣽⣟⣿⣿⡳⣫⢯⡾⣽⣞⣟⣿⣽⣾⣽⣽⣽⣯⣟⣷⣿⢾⣵⣻⣺⣺⢮⣟⣾⣺⣽⡽⣽⢽⣳⣯⢾⣺⣽
+⣿⣷⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⣿⡿⣾⡷⣿⡾⣿⣽⣾⣿⡻⣗⢿⢽⣻⡿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣿⣽⣾⣿⣿⣿⣿⣿⣿⣿⣿
+⡿⣿⢿⡿⡿⡿⡿⡿⡿⣿⢿⡿⣿⢿⡿⣿⢿⡿⡿⣿⢿⢿⢷⢷⢿⣳⢯⣗⡟⡮⡫⡏⡗⡗⡗⡿⢽⢻⢟⢿⢻⠿⠽⡟⡿⡿⢿⠿⡿⡿⡿⡿⡿⣿⢿⡿⣿⢿⡿⡿⢿⢿⢿⢿⢿⢿⢿⢿⢿⢿⢿⢿
+⠀⠀⠄⡀⠄⠀⠠⠀⠂⠀⡀⠂⠀⠂⠌⠄⡑⠐⢈⠀⠄⠀⠠⠀⠂⠀⠡⠀⠂⠡⠈⠐⠐⠀⡢⠐⠀⠂⢐⠀⡀⠠⠀⠠⠀⠠⡀⢂⠐⠄⡢⢊⢪⠪⠪⡈⠐⢁⠡⠈⠁⠌⠂⢁⠈⠄⠁⠠⠀⠀⠄⠂
+⠀⡀⠄⠄⢄⠀⠄⡂⠌⢁⢂⠈⠨⠠⠡⠀⠄⠂⢠⢆⢆⢆⢂⠀⠀⠈⠀⠄⠀⠀⠀⠂⠄⠐⠀⠁⠀⢊⠀⢀⠀⡀⡨⠈⠀⠅⠂⠀⢈⢤⣖⢵⣢⡍⠬⡨⠨⢀⠂⠂⠅⡡⢈⢀⢀⠂⠀⡂⡂⠅⠀⠄
+⡒⣐⣀⠐⠈⠁⠅⠄⠠⠁⠂⡁⠁⠀⠀⠈⠀⠠⠐⡉⠔⡆⢆⢣⢣⢢⢀⡀⡀⡀⡈⠠⣸⣪⡢⣠⢄⣔⣇⡧⢁⠐⠀⠀⢀⢀⢄⡪⡗⡳⣸⣇⢫⢃⠂⡎⠀⠀⠠⡊⡖⡑⢄⢄⠈⠄⠌⡲⢄⢈⢌⢢
+⢝⢜⢔⢁⠠⡑⢔⢑⢢⠄⠐⠀⡁⢀⠁⠠⠨⡀⠂⢸⡀⢙⢦⡑⢎⡕⠵⡸⡰⣡⡱⡱⡱⡛⣞⠶⠷⡶⣗⣷⡀⢌⣢⢌⢒⠕⢇⡳⡪⣪⠗⢔⡽⠠⡱⢸⠀⠅⠄⢀⢀⠂⢀⠱⡄⡶⠁⠀⠂⣇⢏⢎
+⠠⡈⡈⡂⡕⡐⠅⡂⠥⢙⠘⠄⡀⢂⢀⠪⠨⢐⠁⠨⢮⢂⠌⠻⣦⣌⠋⠮⣮⡋⣫⠧⣷⢵⢤⣢⢎⣔⣼⣺⡺⣝⢘⢥⢣⠫⣣⣵⢟⢵⠩⡽⠊⡂⣑⠘⢅⢊⠨⠠⠀⡀⠠⠡⠈⠂⣅⢮⢊⢌⢀⢂
+⡇⡩⠨⠈⠕⡵⡑⠌⡌⡄⣌⢤⢔⡀⡂⠌⢈⠠⠈⢀⠩⣳⡌⣢⣨⣹⣻⣯⣷⣿⣯⣷⣺⣩⣙⣆⣇⣏⣝⣵⣼⣵⣿⣿⡿⣿⣏⣆⡡⣂⡵⠃⠐⡀⠢⡘⢐⢐⢈⡤⣥⡢⡡⣐⠌⢎⡦⡛⠨⢈⠩⢨
+⣯⣺⣜⣼⣝⣌⡙⠕⠺⣝⣞⡽⡽⡺⣞⢾⡲⢜⠬⡲⡸⡜⡿⣻⣽⡻⠚⢡⢠⢡⣩⡫⠟⠟⢛⠛⠛⡛⠻⠫⢯⢭⣑⡐⠍⢝⢛⣿⢿⡻⡕⡕⡕⡔⢆⠶⣕⢞⡞⣞⣵⣫⡻⢚⠪⡋⣪⢮⣧⣣⢯⡽
+⠈⠀⠀⠀⠙⠝⠾⡓⡛⡑⠅⡡⢉⢉⢊⢋⢊⠋⡋⡋⡓⡩⢩⠩⡨⢩⢛⢓⠯⡋⠀⠠⠐⠈⡀⠄⠁⠄⠂⢁⠐⠈⡉⡟⡟⡝⡝⡌⡝⡹⡹⡙⡹⡙⣙⠩⢋⠙⢍⢫⢨⢉⢋⠻⠺⠞⠟⠉⠀⠀⡀⠑
+```
+
+Bild der Version: `orangerie-3` · © 2026 André Stiebitz · CC BY 4.0
+
+### Hinzugefügt
+
+- **Prüfer-Vorlauf für Release-Manifest `/4`**: Der Prüfer auf dem Zielhost (`release_pruefen.py`) und
+  das Bootstrap-Skript der Betriebsanleitung kennen `scanview-release-manifest/4` (künftige
+  Upgrade-Prüfung im Release-Lauf); erzeugt wird weiter `/3`. Wer dieses Release einspielt, kann das
+  erste `/4`-Release ohne Bootstrap und ohne neue Skriptkopie prüfen.
+
+### Sicherheit
+
+- Keine behobenen Schwachstellen. Maßnahmen der Betreiber: keine.
+
+## [0.12.5] – 2026-11-13
+
+Panoramen älterer Pakete sind ab Werk gesperrt, bis sie freigegeben sind (fail-closed). Für Programme und KI-Agenten
+tragen Fehlerantworten jetzt einen festen Code mit Hinweis, Befunde und Messungen sagen, worauf ihre Koordinaten
+beruhen (`grundlage`), und eine Anleitung für Agenten liegt als MCP-Ressource bei. Der Kachler rechnet Höhe und Lage
+selbst.
+
+**Betreiber:** Migration 0021 schaltet „Panoramen nur freigegeben zeigen“ für jedes bestehende Projekt ein. Panoramen,
+die sichtbar bleiben sollen, **vor** dem Update im Portal freigeben (nach Durchsicht bzw. Anonymisierung). Die neuen
+API-Felder (`code`, `hinweis`, `grundlage`) sind Ergänzungen; bestehende Clients laufen unverändert. Keine Änderung an
+Caddy.
+
+```
+⡵⡵⣕⢵⡱⣣⡳⣕⢧⡳⡵⣝⡮⣳⣝⡮⣯⣺⢝⣮⡳⣝⢮⡳⣝⣮⡳⣕⣗⢽⣾⣽⣽⢾⢽⣹⣽⣻⢟⣟⡽⡹⡝⡎⡗⡝⡮⡺⡜⢦⢱⢸⢐⢕⢜⢌⢎⢜⢜⢜⢜⢜⢜⡜⡼⡸⡜⣜⢜⣜⢜⣜
+⣝⣞⣮⣷⣯⢷⢯⢯⣳⢯⡯⣷⣻⢷⣯⣿⣗⣯⣟⣮⢟⡮⡷⣝⢮⡺⣮⡳⣷⣿⣻⡿⣞⡿⣽⣳⢯⣾⣻⡺⡮⡯⣺⢜⡮⣺⡪⣗⢯⣗⣗⢧⡳⣕⡧⡳⣳⡳⣳⢕⡯⣮⡳⡵⣝⢮⣫⢮⡳⣕⣗⢵
+⣷⣿⣽⣾⣯⣿⣻⣯⣿⣿⣻⣿⣽⣿⣿⣿⣿⣿⣿⣻⣿⣽⣟⣾⣯⣿⣾⣾⣽⣽⣿⣿⡳⢝⢗⣯⣿⣾⢳⢟⣽⣽⣳⣻⣺⣵⣻⣞⣷⣧⣯⣷⢿⣳⣟⣯⣷⣿⣻⣽⣽⢮⣯⢿⣺⣽⢾⣯⢿⣞⣮⢿
+⣿⣾⣿⣾⣿⠿⠛⠛⡙⢝⢿⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣿⣿⣿⡷⡿⡗⢜⢘⢩⠪⡙⢖⢺⢿⢿⠿⣿⣿⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⠿⢿⣿⣿⠿⡿⢿⣿⢿⣿⣿⣿⣿
+⠿⠿⠿⠟⠩⠀⠂⠐⡀⠁⠂⠅⢩⠩⡫⡻⣻⢟⡟⣟⠟⣋⢋⢍⣉⣉⢡⢩⢹⢸⢸⢀⢑⠅⡇⠅⢑⢕⡳⡑⢈⡆⡳⡈⡃⣀⢘⣋⡋⡿⣟⢽⣿⡟⢉⢋⠋⠋⠣⠃⠁⠌⠊⠁⠑⠑⠂⠂⠝⢛⠟⠿
+⠔⣀⢀⢀⠠⠀⠀⠁⠀⡀⠅⠐⠀⢕⢘⠜⡕⢕⠱⠱⡥⣰⣐⠔⡤⢄⢔⡄⣔⣁⣘⢀⡘⠌⡈⡂⡜⢄⢃⠇⡢⣃⣀⣂⣔⣄⣆⡴⣜⢎⡦⡱⡽⡑⢖⡵⢄⠀⠄⡀⡀⡄⠀⠁⠀⠂⠁⡀⢀⢀⠠⡐
+⠳⢱⣓⣓⢿⣺⣔⣅⣆⡦⠲⠑⠕⡕⡜⡬⣸⢰⢱⡰⣹⢸⢩⠇⡟⢭⢬⡒⣔⢤⠪⠑⠙⠙⠙⢉⠋⠛⠛⠛⠫⠧⣽⣼⣘⣮⡫⡝⡯⡿⣗⢧⠦⡆⠷⢵⢳⡻⣻⢺⣙⠺⢮⢶⣸⣴⣳⡝⡣⡓⡕⠇
+⢀⠑⠔⠂⠅⠑⠭⢑⢐⢐⠅⡇⢕⢔⠱⡨⡂⢆⠅⡢⡂⡆⡆⡎⡲⡱⣕⢭⡚⡔⢀⠀⡀⠄⠐⠀⠁⠀⠂⠁⠀⠠⢐⠕⣝⢔⣞⢼⢱⢱⢑⢌⢎⢔⢱⢡⢒⢌⠪⡓⣗⢯⣓⠢⡱⠕⠁⠐⠐⠐⠀⠂
+⠀⠀⠰⡐⡄⣄⢔⢑⢅⢢⢱⢸⢨⠢⡣⡣⡃⡇⢕⢐⠅⡇⡝⡜⡎⡦⡣⡣⣓⢝⡲⢤⣀⡀⠄⠂⠄⠁⢀⡠⠠⡂⢦⢺⢸⡑⡣⢱⢸⢸⢨⠢⡣⡂⡇⢧⢣⠱⡑⡌⡪⡙⠮⡲⣸⢱⢤⢔⢢⠆
+⠀⠀⠀⠘⡮⡪⡗⡕⢕⠕⡕⢅⠕⡕⡕⡜⢌⠪⡊⢆⢇⠇⡇⡎⢜⢸⢘⢌⢂⢳⡹⣑⠎⠀⠀⠀⢀⠠⠀⠹⣄⢝⡇⠓⡘⠬⡘⡌⡎⢎⢪⢊⠢⡂⡎⡪⢊⢎⢪⢸⢰⢑⠕⢌⢂⠣⠣⣳⠋
+⠀⢀⠀⠀⠈⠲⣌⡊⡢⣃⢎⠮⡪⠮⠢⠎⠦⠱⠸⠔⠵⡱⣕⢕⣝⢜⢜⢜⡜⣜⡼⠊⠀⡀⠂⠠⠀⠄⠂⠄⢈⠳⣤⡂⡂⠕⡨⣐⢬⢬⠦⠦⠓⠎⠖⠎⠖⠖⠮⠦⠵⢌⢎⣌⣂⡦⠟⢀⠀⢁⠈
+⠀⠄⡀⠂⠠⠀⢈⠘⠈⠀⢀⠀⡀⢀⠠⠀⠠⠀⠄⠂⠠⠠⠐⢈⠈⡉⠙⡓⠏⠁⠄⡀⢂⠠⠈⡀⠂⡐⠈⡀⠡⠐⠈⡘⠳⠙⠨⠁⡁⠄⢀⠂⡈⠄⠂⡐⠀⡂⠠⠀⠄⠄⡀⠂⠡⢁⠈⡀⠄⠂⡀⠁
+```
+
+Bild der Version: `orangerie-2` · © 2026 André Stiebitz · CC BY 4.0
+
+### Hinzugefügt
+
+- **Der Kachler rechnet Höhe und Lage selbst:** `scanview-import kacheln` nimmt `--quell-hoehensystem`,
+  `--ziel-hoehensystem` und `--lage-von PAKETORDNER`. Mit Paket rechnet er wie `add`: Das Paket bestimmt das
+  Zielhöhensystem (Entscheidung 0015), danach wirkt die Lagematrix der Wolke; fehlt sie, ist `--ohne-lage` Pflicht.
+  Ein Hüllentor gegen die Wolke bricht vor jeder Ausgabe ab, wenn die Höhenbereiche nicht überlappen oder die
+  Mesh-Mitte (x, y und z) mehr als 10 m außerhalb der Wolkenhülle liegt. Die gepackte Ebene vermerkt `sourceOptions.hoehe` und `.lage`. `--hoehe`
+  bleibt das Etikett für bereits umgerechnete Quellen; Aufrufe nur mit `--hoehe` bleiben unverändert. Zusammen mit
+  `--lage-von` lehnt der Kachler `--hoehe` ab, wenn die Wolke eine Lagematrix trägt, denn das Etikett sagt nicht,
+  ob die Lage schon angewandt ist (sonst wirkte sie still doppelt, rund 1 m Versatz). KI: weiter nur
+  CLI (`docs/ki-paritaet.md`, Zeile „Großes Mesh kacheln“).
+
+### Geändert
+
+- **Panoramen älterer Pakete ohne Anonymisierungsangabe sind für Betrachter und Rückmelder gesperrt, bis sie
+  freigegeben sind** (F20, fail-closed). Migration 0021 schaltet „Panoramen nur freigegeben zeigen“ für jedes
+  bestehende Projekt ein; Projekte ohne Einrichtung und nebenbei angelegte Projektzeilen haben ihn ebenfalls an.
+  Abschalten bleibt möglich, als bewusste Entscheidung der Projektleitung (im Verlauf protokolliert, im Portal als
+  Warnung gekennzeichnet). Gast-Links sind nicht betroffen: Sie liefern nie Panoramen oder Fotos.
+- Freigabe im Portal: Der Prüfstand („alle N Dateien unverändert (geprüft TT.MM. HH:MM)“ bzw. „K von N Dateien
+  abweichend“) bleibt nach dem Neuladen stehen; der Prüfknopf ist immer sichtbar. `GET …/freigaben` (und MCP
+  `freigaben_lesen`) liefert `zuletztGeprueftAm` und `zuletztAbweichend`; `?pruefen=true` speichert sie.
+- Doku: `docs/public/fotos.md` nennt, was das Tor nicht abdeckt (Punktwolke mit RGB/Intensität, Mesh-Texturen,
+  Draufsicht), und die Sichtprüfung als Betreiberpflicht.
+
+**Betreiberhinweis:** Nach dem Update sehen Betrachter und Rückmelder in Bestandsprojekten keine Panoramen mehr, die
+nicht freigegeben sind. Panoramen, die sichtbar bleiben sollen, **vor** dem Update im Portal freigeben (nach
+Durchsicht bzw. Anonymisierung; „personenfrei“ erklärt ein Admin). Migration 0021 läuft beim Start des Dienstes.
+
+### Sicherheit
+
+- Geschlossen: Panoramen in Paketen ohne Anonymisierungsblock waren für angemeldete Betrachter und Rückmelder
+  sichtbar, solange die Projektleitung den Schalter nicht eingeschaltet hatte; eine Kategorienänderung legte die
+  Projektzeile zudem mit ausgeschaltetem Schalter an (bisher als Übergangsrisiko akzeptiert). Schwere: niedrig bis
+  mittel (nur angemeldete Beteiligte des Projekts, keine Gäste). Betroffen: 0.12.0 bis 0.12.4; davor gab es das
+  Freigabe-Tor noch nicht. Maßnahme der Betreiber: Update; vorher die Panoramen freigeben, die sichtbar bleiben
+  sollen.
+- Jede Fehlerantwort der API trägt einen festen `code` und, wo es etwas zu sagen gibt, einen `hinweis`, was
+  stattdessen ginge. Programme und KI-Agenten verzweigen auf den Code statt auf den Text. Liste:
+  [Fehlercodes](docs/public/fehlercodes.md). Ein 404 verrät weiterhin nicht, ob es ein Projekt gibt. Client
+  (`SitebitsFehler.code`/`.hinweis`) und MCP-Server reichen beides weiter; eine gemeinsame Fall-Tabelle
+  (`docs/public/api/fehlerfaelle.json`) prüft Server, Client und MCP. Das Feld `fehler` bleibt unverändert.
+- Befunde und Messungen tragen in der API und im JSON-Export `grundlage`, worauf ihre Koordinaten beruhen:
+  `gemessen` (von einem Menschen im Viewer in einer Ebene des Pakets gewählt, Maßstab geprüft), `ungeprueft`
+  (Maßstab einer Quell-Ebene nicht geprüft), `angegeben` (ohne Punktquelle oder über ein Token gesetzt) oder
+  `unbekannt` (Quell-Ebene nicht mehr im Paket). Abgeleitet aus Punktquellen, Genauigkeitsnachweis und dem
+  Protokoll (Kanal der letzten Geometrie-Änderung), keine Migration. Einträge ohne Geometrie-Ereignis im Protokoll
+  gelten als `angegeben`: Ohne Beleg wird nichts als gemessen ausgewiesen.
+- [Anleitung für KI-Agenten](docs/public/agenten-anleitung.md): Regeln für Sprachmodelle (Vorschläge, Fehlercodes,
+  Grundlage der Koordinaten, Werkzeuge oder Skripte), wortgleich als MCP-Ressource `sitebits://agenten-anleitung`
+  und als Skill `clients/sitebits/skill/SKILL.md`. Die Hinweise des MCP-Servers verweisen darauf.
+
+## [0.12.4] – 2026-11-11
+
+Patch für Gast-Links und Import-Werkzeuge: Nur-Lese-Links zeigen auch die Sichtschicht (Splats), können eine
+Startansicht tragen und öffnen in schlanken Ansichtsprofilen („Ansehen“, „Messen“, „Arbeiten“); Gäste bekommen nur
+noch die Manifest-Felder, die der Viewer liest. Am Arbeitsplatz laufen PDAL, untwine und KTX aus eigenen, gelockten
+Images (offene Image-Befunde behoben).
+
+**Betreiber:** Migration 0020 (Spalte für das Ansichtsprofil) läuft beim Start des Dienstes. Bestehende Nur-Lese-Links
+öffnen danach im Profil „Ansehen“; wer die volle Gast-Oberfläche will, legt einen Link mit „Arbeiten“ an. Keine
+Änderung an Caddy; `deploy/nginx.conf` nur Kommentare.
+
+```
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣟⣯⣿⡽⣯⣿⣽⡯⣿⣽⣽⣽⣽⣯⢿⣯⣿⣿⡿⣿⢿⣿⣿⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣿⣿⣷⣿⣿⣿⣾⣿⣾⣿⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⣿⣿⢿⣿⣿⣿⢿⣟⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+⡛⢟⢛⢯⢟⢟⢻⢻⢻⢻⢻⢻⢻⡻⡟⡿⡿⡿⣿⢿⢿⢿⠿⠿⡟⡟⡟⡟⢟⢟⢟⠻⡛⣛⢛⠻⠹⠫⡛⢝⠫⣏⢯⢫⢋⢏⣛⡚⡏⣏⡏⣯⡻⣝⢏⣯⣫⢯⡻⣝⢯⣛⢝⣝⣕⢫⢋⢏⠫⢋⢏⢛
+⢪⢊⠬⡨⡊⡕⡱⠌⠖⡆⢎⠜⠴⠸⡘⡜⡘⡍⠎⡎⡪⡘⢌⠕⢑⢑⠈⠌⠂⡅⡢⢁⠌⠐⠄⠌⢐⠡⠐⢀⠂⠆⡑⠔⡑⡘⠌⢎⢪⢢⢫⢆⢟⢼⡱⠳⢵⢳⡝⠮⡺⡬⣫⢲⡓⡇⡧⢓⠹⡹⡐⢕
+⢸⣰⡑⢥⢨⢨⣈⠌⢂⢂⢂⠢⠡⠊⠄⡗⡕⡌⢌⠂⢆⠊⡐⡈⢈⠘⡈⡒⠕⠆⠈⠀⢄⠧⢮⢪⢖⡵⡼⣄⠂⠡⠨⡢⣢⢠⢑⠔⡁⡆⣆⢮⢔⢔⢐⠑⢪⡒⡑⠁⠍⡙⠬⢃⢇⢓⢌⢃⠃⢁⠘⡐
+⢐⠰⡑⢇⢎⢎⢒⠥⠁⠀⢀⠈⠄⠀⡘⢌⠢⠙⢀⢐⠠⠑⡠⠀⠄⠂⠐⠀⠂⠐⡀⡪⡪⡪⡱⣹⢸⢸⢪⢪⢢⢂⢁⠂⠌⢊⠪⠪⣪⢪⡞⢜⠰⢁⡃⡌⢄⠊⠢⡑⠄⠂⡂⠂⠔⢈⡬⢠⠈⡐⠈⠠
+⠄⢂⢄⠥⡈⡂⠠⠠⠨⠈⢀⢀⠢⡑⢌⢪⠈⠡⠘⡐⠄⡀⠀⠢⢄⠀⠐⢀⡐⡐⡪⡪⢎⠮⡺⢼⢚⢞⢎⠷⡕⡗⡢⣪⠨⠢⡑⡅⠎⡐⠔⠌⢀⠑⠨⠘⠠⠡⠡⡠⠑⠡⠐⢈⠐⠁⢄⡐⠰⠤⢈⠠
+⡄⠢⠂⠊⠐⠀⠈⠈⠄⠌⡂⠂⠁⡐⠔⠡⠂⠅⠂⠀⠁⢂⢁⢠⠠⠛⠚⢤⣐⡐⣨⠞⡁⣌⢄⠿⢅⣅⢌⠹⣬⠠⡃⣌⠽⠓⠯⡊⡊⢀⠀⠕⠀⠨⠢⡃⢕⢜⡑⠠⠀⠔⠀⡂⡀⠙⠔⠘⠱⢑⠎⢆
+⢇⠂⠈⠌⠘⠀⠁⠃⠊⠂⠂⡁⠁⠀⠠⠡⠀⠀⠀⠀⠀⠀⠁⠢⣀⢀⢨⣠⠖⠏⠩⣲⢍⠀⠀⠐⠀⠀⢉⡷⡈⡛⠭⡠⡈⠈⡘⡤⠪⠐⠀⠈⡂⡐⠀⠄⢂⠡⢊⢑⠂⠂⠢⠀⠠⠠⠐⠀⠁⡁⠀⠰
+⣕⡄⠂⡀⠐⠠⠠⡀⠄⡀⠁⢀⠀⡀⢄⠠⡐⡀⠂⠀⠀⠀⠀⠄⠈⠊⢅⡀⠈⠈⠂⡐⢉⢱⣳⢖⣞⠊⡙⢀⠂⠂⢂⢁⡩⡳⠋⠈⠀⠀⠀⠁⠐⡀⡂⠄⠄⢄⠡⡐⢄⠡⠈⠄⠁⠄⡀⠄⠂⠀⠠⢘
+⢎⢞⢆⢆⢂⠠⠀⡀⠁⠈⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠐⠠⠊⠩⠑⠓⡚⢮⠯⡎⡮⢫⠳⠒⠒⠊⠊⠑⠡⠈⠈⠈⠁⠁⠀⠀⠀⠀⠀⠈⠈⠈⠂⠑⠈⠂⠊⠐⠀⠁⠀⠀⠀⠀⠐⠈⠜
+```
+
+Bild der Version: `schlosspark` · © 2026 André Stiebitz · CC BY 4.0
+
+### Hinzugefügt
+
+- Nur-Lese-Links zeigen Gästen jetzt auch die **Sichtschicht (Splats)**: bei `spz`/`ply` genau die eine Datei, bei
+  `rad` die Kopfdatei und die `.radc`-Chunks, die ihr Kopf nennt. Ein kaputter oder unzulässiger RAD-Kopf nimmt die
+  ganze Ebene heraus, Wolke und Mesh bleiben. Pakete, die mit `add-splats --startebene` im Splat starten, starten so
+  auch als Gast-Link und im Show-Modus im Splat.
+- Nur-Lese-Links können eine **Startansicht** tragen (`/teilen#t=…&cam=…&tgt=…&ly=…`): In den Projekt-Einstellungen
+  gibt es dafür das optionale Feld „Startansicht“, in das ein Ansichtslink aus dem Viewer kommt. Nur Kamera, Ziel und
+  sichtbare Ebenen reisen mit, und nur im Fragment; Server und Datenbank sehen sie nicht. Eine unbrauchbare Eingabe
+  ergibt einen Link ohne Ansicht und eine Meldung, eine teilweise brauchbare einen Hinweis auf die fehlenden Teile. KI: bewusst nur im Browser (ADR 0016, `docs/ki-paritaet.md`).
+- **Ansichtsprofile** „Ansehen“, „Messen“ und „Arbeiten“ für Nur-Lese-Links (Migration 0020). „Ansehen“ zeigt nur das
+  3D-Modell mit einer schmalen Leiste (Grau, eine Strecke, Einstellmenü mit Hintergrund, Sonnenlicht, Punktgröße,
+  Vollbild, Steuerungshilfe und Info), „Messen“ dazu Linienzug, Fläche und Höhe, „Arbeiten“ die bisherige
+  Gast-Oberfläche. Das Profil wird beim Anlegen gewählt und steckt am Link; das Projekt hat eine Standardansicht
+  (`einstellungen.ansichtsprofil`, Vorgabe „Ansehen“). Gäste können nicht wechseln, `?zeigen=1` bleibt Alias für
+  „Ansehen“. Kein Profil erweitert, was ein Gast laden darf. KI: Standardansicht lesbar über `projekt_lesen`, Ändern
+  und die Wahl je Link nur im Browser (ADR 0016, `docs/ki-paritaet.md`).
+
+### Geändert
+
+- Nur-Lese-Links öffnen ohne eigene Wahl im Profil „Ansehen“, auch die schon angelegten. Wer die bisherige volle
+  Gast-Oberfläche will, legt einen Link mit „Arbeiten“ an. Die Gast-Kennzeichnung „Nur-Lese-Ansicht · gültig bis …“
+  steht in „Ansehen“ und „Messen“ im Einstellmenü.
+- Teilen-Hinweis in den Projekt-Einstellungen: nennt die Sichtschicht und dass Fototexturen und Sichtschicht aus
+  Fotos entstehen und Personen zeigen können.
+- `deploy/nginx.conf` (nur Kommentare) und `deploy/README.md` („Was diese Variante ohne Anmeldung zeigt“): Die lokale
+  nginx-Variante liefert Meshes samt Texturen und Panoramen ohne Anmeldung aus, Splats gar nicht; nur lokal/VPN.
+- Import am Arbeitsplatz: PDAL 2.10.2 und untwine 1.5.1 laufen aus **einem** lokal gebauten Image `scanview-pdal`
+  (`import/docker/pdal.Dockerfile`) statt aus `pdal/pdal` und dem ungelockten untwine-Image. Inhalt allein aus dem
+  expliziten conda-Lock `import/docker/pdal.conda-lock.txt` (je Paket URL + SHA-256, dieselben Builds wie die
+  PDAL-Umgebung des Servers, dazu Python 3.12, ohne conda/pip), Basis-Images per Digest, Laufzeit auf distroless.
+  Der Tag ist ein Hash über Dockerfile und Lock; das Image wird beim ersten Lauf gebaut (einmal Netz für die Pakete)
+  und nie verteilt. Ergebnisse gemessen gleich (LAZ und E57, beide Modi: Punktzahl, Bounds, alle Punktdaten). Im
+  Import-Archiv liegen `pdal.Dockerfile` und `pdal.conda-lock.txt` statt `untwine.Dockerfile`. KI und API: keine
+  neue Funktion, MCP-Parität nicht anwendbar.
+- Mesh-Import am Arbeitsplatz: das KTX-Image `scanview-meshtools` ist neu aufgebaut (Laufzeit distroless, fünf
+  conda-Pakete aus dem PDAL-Lock, KTX 4.4.2 unverändert); Kodierung und Dekodierung gemessen bytegleich zum alten
+  Image. Wie `scanview-pdal` trägt es einen Inhalts-Tag (Hash über Dockerfile und Lock) statt einer fest
+  eingetragenen Image-ID, die kein Neubau reproduziert, und wird beim ersten Import mit Textur gebaut. Beide Images
+  prüft der Import einmal je Lauf; passt ein Tag nicht mehr zu Dockerfile und Lock, bricht er ab, statt still das
+  alte Image zu nehmen. KI und API: keine neue Funktion, MCP-Parität nicht anwendbar.
+
+### Behoben
+
+- `scanview-import start-sichtbar` wirkte nicht, wenn das Paket Startebenen nennt (`initialView.layers`, etwa nach
+  `add-splats --startebene`), weil diese im Viewer Vorrang haben. Jetzt führt der Befehl die Liste mit (`an` hängt
+  an, `aus` nimmt heraus; eine leere Liste bleibt als „alle Ebenen aus“ stehen, auch im Gast-Link) und gibt sie als
+  `startebenen` aus. Eine Ebene, die der Viewer nicht als Startebene zeigen kann (etwa ein Splat-Platzhalter ohne
+  Format), lehnt er ab, statt das Paket unladbar zu machen; die Regel prüfen Import und Viewer an denselben Fällen.
+
+### Sicherheit
+
+- Gast-Manifest der Nur-Lese-Links: je Ebene und bei der Draufsicht gehen nur noch die Felder hinaus, die der Viewer
+  liest (Feld-Positivliste je Ebenenart). Quelldateiname und SHA-256, Importoptionen, Ausrichtung und Prüfberichte
+  (`source`, `sourceOptions`, `alignment`, `buildLod`, `verify`, …) sowie die Herkunft des Draufsicht-Rasters
+  (`colorFrom`, `image`) erreichen Gäste nicht mehr; vorher gingen sie bei Wolke, Mesh, Mesh-Kacheln und Draufsicht mit. Neuer Eingabecode: der RAD-Kopf-Leser im Server (höchstens 1 MB, fail closed,
+  Negativtests). Restrisiko (angenommen am 2026-11-11): Mesh-Texturen und Splats gehen ohne
+  Anonymisierung an Gäste (ADR 0016, Nachtrag 2026-11-10; Anonymisierung folgt mit F20 in 1.x). Betreiber: keine Maßnahme.
+- Nur-Lese-Links: Punktwolke und Draufsicht kommen nur noch in die Gast-Positivliste, wenn kein Pfadteil ein Symlink
+  ist (wie schon bei Meshes und Kacheln). Der Katalog lehnt Symlinks beim Laden ab; ein später eingesetzter Link hätte
+  eine Datei außerhalb des Pakets freigeben können (niedrig, nur mit Schreibzugriff auf den Datenordner).
+- Import-Werkzeug am Arbeitsplatz (nicht ausgeliefert): B-SCAN-IMG-PDAL und B-SCAN-IMG-UNTWINE (kritisch) sowie
+  B-LK-UNTWINE (mittel) behoben — das neue Image `scanview-pdal` enthält weder py-rattler noch certifi/urllib3,
+  openssl steht auf 3.6.5, die Ubuntu-Schicht entfällt (Nachscan: 0 Treffer ≥ hoch in der Debian-Schicht; die
+  conda-Pakete prüft trivy nicht, dafür ein statischer Lock-Test). Die übrigen conda-Pakete sind dieselben Builds
+  wie in der PDAL-Umgebung (Test gegen `pixi.lock`); deren 40 OSV-Treffer und VEX-Aussagen gelten inhaltlich auch
+  im Image, die Netzabschirmung dort durch `docker run --network none` (Einordnung im Register). Die acht nur im
+  Image enthaltenen Pakete (Python und Abhängigkeiten) prüft kein Scanner: B-SCAN-IMG-PYTHON (niedrig, offen).
+  Betreiber: keine Maßnahme (am Arbeitsplatz baut der nächste Import das neue Image selbst; das alte
+  `scanview-untwine:latest` und `pdal/pdal` können danach weg).
+- Textur-Werkzeug am Arbeitsplatz (nicht ausgeliefert): B-SCAN-IMG-MESHTOOLS (hoch) behoben — `scanview-meshtools`
+  läuft auf distroless statt `python:3.12-slim` (vorher 55 Treffer hoch in der Debian-Schicht, jetzt 0) und enthält
+  neben KTX nur Python und die C++-Laufzeit. B-LK-KTX-CHECKSUM (mittel) behoben: der klassische Docker-Builder
+  überging `ADD --checksum`, das KTX-Paket wird jetzt zusätzlich per `sha256sum` geprüft. Das Image steht jetzt
+  auch im Nachweis-SBOM `importbilder`. Betreiber: keine Maßnahme (der nächste Mesh-Import mit Textur baut das
+  Image selbst, einmal Netz; das alte `scanview-meshtools:4.4.2` kann danach weg).
+
+
+## [0.12.3] – 2026-11-10
+
+Patch mit Punktwolken-Upload im Browser (U2b, nur Admins, ab Werk aus), Paket-Ersetzen ohne Ausfall, schnelleren
+Rollenabfragen (Migration 19) und einem fehlenden `pois.json`, das jetzt mit 204 statt 404 antwortet.
+
+**Betreiber:** Reihenfolge beachten, erst Viewer und Server, dann `scanview.caddy` (Abschnitt unten). U2b braucht
+`pixi` nur bei `SCANVIEW_IMPORT=1`.
+
+```
+⢵⢕⢏⢎⢎⠜⡔⡱⡨⡢⢣⢊⢆⢪⢰⢑⢜⢜⢌⢎⢮⡸⡸⡸⡸⡸⡸⡺⡽⡮⢮⡪⡎⡮⡪⡪⣪⢪⢮⢺⡪⣳⢝⣞⡽⣽⢽⣯⢿⣻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣻⡽⡯⣯⣳⣝⢮⣣⡳⡕⡇⡗⣕
+⡇⣗⢕⡵⣱⢱⡱⣱⢱⡪⣎⢮⡪⣎⢮⡺⣜⢮⡳⣹⢜⡮⡮⡳⣝⢼⡪⡮⣳⡹⣕⣗⣝⢮⡺⣝⡼⡵⣝⣞⣾⣵⣯⣷⣟⣯⣿⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣯⣿⣟⣷⣳⣳⢯⣺⣪⢞⡵⣝⣜
+⣿⣻⡯⣟⣮⢷⡽⣮⢷⣽⢮⣷⣻⣮⢷⣽⣺⣳⣯⣷⣻⡾⣽⣽⣞⣷⢯⣟⣮⣯⣗⣗⣷⢿⣽⣷⣿⣻⣯⣿⣯⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣯⣷⣿⣽⣟⣾⢾⣽⣞⣾⣺
+⡿⡿⡿⣿⢿⡿⣿⢿⣿⡿⣿⡿⣿⢿⣿⢿⣿⣿⢿⡿⣿⣿⣿⡿⣿⢿⣿⡿⣿⣾⢿⡿⡿⡿⡿⡿⡿⡿⡿⢿⠿⡿⠿⠿⠿⠿⡿⢿⢿⢿⢿⢿⢿⢿⢿⢿⢿⡿⣿⢿⡿⡿⣿⢿⢿⢿⢿⢿⢿⢿⢿⢿
+⡸⣘⣜⡴⣵⡪⡶⣵⡲⣵⡱⣜⢌⢪⢐⢕⣑⣊⡣⡣⣱⡐⡢⠥⢅⠣⡑⡘⡐⡘⢂⠓⠕⠕⡑⡑⡑⡑⡙⣘⣊⡒⡅⡅⡅⢥⢨⢢⢣⢪⢢⠣⡃⡃⡃⡣⠳⠚⡒⡓⠪⢊⢦⣕⡮⡮⡮⡪⢦⠣⠧⡑
+⢨⠊⡒⠕⠑⡁⠍⡂⡑⠅⡉⡮⡞⢝⠝⢝⠪⡓⠝⢝⢮⠺⢔⠅⡑⡑⢌⢆⢣⢪⠎⢎⠃⡃⠪⡐⢅⠄⡌⠄⠄⢑⢁⠃⢍⢕⠔⡖⡼⠔⠥⠩⠊⠜⠈⠆⢅⡡⣔⢦⢧⢧⢥⠢⠈⡪⡰⡌⢄⢅⢇⡑
+⢀⠂⠢⠨⠐⠠⡁⢔⢀⢊⠐⢅⡪⢐⡡⡡⢑⢈⢎⠦⠡⠪⡂⡊⠔⡠⢡⠢⢃⠢⠨⡠⡄⡢⡂⡪⡀⡕⣄⠘⡈⠢⡂⠆⠃⢍⠫⡚⡲⢨⠊⢌⢌⢢⢱⢔⣌⠙⠮⡳⡹⠑⢁⢢⢘⠐⠄⠨⠀⡀⠄⠂
+⠀⠅⠑⡈⠠⠑⢈⠂⠢⠂⠌⠔⡘⡒⠳⢘⠨⠢⠡⠨⠨⢑⢠⠂⠕⡈⠂⢌⠄⢈⢀⠄⠁⠐⠀⠂⣀⢁⢀⠅⠐⡨⢈⠍⠪⢢⠃⡢⡢⡓⡐⣁⢫⢑⢹⣇⢋⢹⠈⡀⠂⠁⡡⢀⠠⠠⡑⠠⠐⢀⠐⠈
+⠐⠈⡀⠄⠂⠌⡀⠀⡂⠅⡑⡀⡲⢬⢬⢰⠌⠪⢑⠁⡂⠐⡐⠱⡡⡀⠑⡐⡨⠐⡡⡂⠁⠅⠅⡣⡂⠓⢄⢐⢄⡀⠂⠈⠀⢂⠐⡠⢊⠀⢓⠒⠕⡒⠁⢣⢄⢆⠁⢯⠝⡘⡈⡠⠘⡈⢄⠁⢠⠠⠀⠁
+⠀⠅⡐⡠⠈⡂⠄⢁⠨⡐⡄⠜⠌⡂⠅⡁⠣⠑⠡⠐⠌⠂⢂⠁⠀⢀⢑⢈⠠⠈⠆⢢⡸⣨⠢⡬⡤⣕⢔⠂⠃⠂⡂⠄⡀⡠⠘⠨⠠⠐⠈⠆⠠⢘⡔⠁⠂⡂⠅⠂⢈⠨⠐⢔⢐⢈⢐⠈⡰⢅⢅⡁
+⠐⢁⠂⠂⠠⠐⠈⠄⠡⠀⠌⡊⡨⢈⡐⡌⠆⠑⠌⡀⠂⠈⢀⢈⡈⡀⠢⠠⠠⡁⠌⠎⠊⠈⡁⠅⠀⠂⠁⠀⠈⠀⠂⡑⠡⠀⠀⢀⠠⡐⢐⠐⢰⡱⣔⠌⡂⠄⢂⠢⣂⢇⠍⡈⢪⢀⡂⡂⡐⡬⠨⠂
+⠄⠄⠐⠐⡐⠌⡂⠈⠌⠌⠌⢂⢂⠡⡐⡀⢂⠡⠡⠘⢜⢘⢒⢑⠨⠠⢐⢈⠀⠄⡁⠁⡁⢃⢁⢪⢠⢂⢡⢐⢀⢄⢄⠄⡔⠌⠆⠃⠁⠠⠀⠄⠂⠕⡕⡧⡲⠐⡆⣄⢂⠢⠉⠃⢁⠁⢁⢈⢉⠒⠌⠢
+```
+
+Bild der Version: `bornim-agrarinstitut` · © 2026 André Stiebitz · CC BY 4.0
+
+**Betreiber:** Migration 19 (nur zwei Indizes) läuft beim Start des Dienstes. `scanview.caddy` und `deploy/nginx.conf`
+sind geändert. Reihenfolge: **erst Viewer und Server aktualisieren, dann `scanview.caddy` übernehmen** (`caddy validate`,
+`systemctl reload caddy`) — ein alter Viewer hinter dem neuen Caddy meldet bei der 204 sonst „pois.json im Paket
+ungültig“. Ein Rücksprung auf 0.12.2 läuft ohne Eingriff: der ältere Dienst überspringt die schon eingespielte Migration,
+die Indizes stören ihn nicht. Kein `DROP INDEX` (ohne die passende `schema_version`-Zeile wäre der Stand inkonsistent).
+
+### Hinzugefügt
+
+- Betrieb: `paket-bereitstellen.sh --ersetzen` tauscht ein vorhandenes Projektpaket ohne Ausfall aus. Das
+  Freischalt-Skript hat dafür die Modi `ersetzen` und `pruefen-ersetzen`; das alte Paket bleibt bis zur Sichtprüfung
+  unsichtbar in `.ersetzt-<projekt>` liegen, und scheitert der Tausch, kommt es zurück an seinen Platz.
+  **Betreiber:** Freischalt-Skript beim Update per `install -o root -g root -m 0755` nach `/usr/local/sbin/`
+  einspielen; die sudoers-Regel bleibt unverändert.
+- Neues Projekt aus einer **Punktwolke** (Etappe U2b, nur Admins, ab Werk aus): Importauftrag
+  `neu_wolke` für eine LAS-, LAZ- oder E57-Datei (Signatur `LASF` bzw. `ASTM-E57`), im Portal Quelle
+  „Punktwolke“, per API und MCP (`import_starten`). Der Worker baut das Paket mit
+  `scanview-import convert --mode staged` und prüft es mit `verify` — **ohne Docker**: PDAL 2.10.2 und
+  untwine 1.5.1 kommen aus einer gelockten conda-forge-Umgebung (`import/pdal-umgebung/pixi.lock`,
+  SHA-256 je Paket, Mindestalter 7 Tage), die `einrichten.sh` bei `SCANVIEW_IMPORT=1` mit
+  `pixi install --locked` nach `/opt/scanview/pdal` legt (Voraussetzung: `pixi` im `PATH` von root,
+  [Betriebsanleitung](docs/public/betrieb.md)). Ohne Angabe gilt das Koordinatensystem der Datei, hat sie
+  keins (oft bei E57), wird das Projekt lokal (Lage nicht belegt, Höhenumrechnung abgelehnt);
+  Höhensysteme wie in der CLI (E57 und DHHN92 nur deklarieren, sonst 422 schon vor dem Hochladen),
+  feste Option `rgb8bit` für LAS/LAZ mit Farbe 0 bis 255 (z. B. OpenDroneMap). Budget je Auftrag: 4 GB RAM, 6 h, 512 Prozesse, freier Platz
+  sechsfache Quelldatei (gemessen an 5,1 GB LAZ / 340 Mio. Punkten: 41 + 14 min auf 16 Kernen).
+  `einrichten.sh` verlangt bei `SCANVIEW_IMPORT=1` jetzt `SCANVIEW_JOBS_RAM_GB` ≥ 4 (galt schon für
+  Mesh und Splats, wurde aber nicht geprüft).
+- `scanview-import convert --titel`; abgelehnte Eingaben enden mit einer Zeile „Abgelehnt: …“ ohne
+  Pfade. `pdal_runner` kennt die Ausführungsart `lokal` (`SCANVIEW_PDAL_AUSFUEHRUNG=lokal`,
+  `SCANVIEW_PDAL_UMGEBUNG`); am Arbeitsplatz bleibt Docker Standard.
+- Lizenzbeilage der PDAL-Umgebung: `quellen.json` (Version, Build, SHA-256, conda-forge-Rezept,
+  Upstream-Quelle und Lizenzdateien je Paket) im Release; die vollständigen Lizenztexte erzeugt
+  `einrichten.sh` auf dem Host (`scanview-import pdal-lizenzen` → `/opt/scanview/pdal/LIZENZEN.txt`;
+  gelingt das nicht, bricht `einrichten.sh` ab und startet den Jobläufer nicht). Die Lizenztexte stehen nicht
+  im Repository und nicht im Release-Archiv. `quellen.json` ist geprüft gegen das Lock (`scanview-nachweise pdal-umgebung pruefen`, Teil der Lizenzstufe). Die
+  Pakete stehen im Import-SBOM; GPL-/MPL-Pakete (untwine, librttopo, readline, libspatialite,
+  freexl) nur unter einer eng begrenzten Ausnahme „nur externer Prozess“ (B-LK-PDAL-UMGEBUNG).
+  Betreiber: Wer die PDAL-Umgebung weitergibt, gibt `/opt/scanview/pdal/LIZENZEN.txt` mit.
+- Schwachstellenprüfung der PDAL-Umgebung ohne trivy (trivy führt für conda keine Daten):
+  `import/pdal-umgebung/osv.toml` ordnet 25 der 66 Pakete ihrem Upstream-Repo, Release-Tag und Commit
+  zu und fragt OSV (Ökosystem GIT) mit einer Gegenprobe je Paket; bleibt die Gegenprobe leer, gilt das
+  Paket als ungeprüft. Den OSV-Stand lädt `scanview-nachweise db-aktualisieren` (und `wochenscan
+  --db-aktualisieren`) mit, einzeln `scanview-nachweise pdal-umgebung osv-aktualisieren`. Funde
+  blockieren wie trivy-Treffer; freigeben kann sie nur eine VEX-Aussage in `osv.toml`, gebunden an den
+  SHA-256 von `pixi.lock`. Die 41 Pakete ohne Schwachstellendaten stehen genau in
+  `import/pdal-umgebung/scan-blind.toml` (Name, Version, Build, SHA-256, Lock-SHA) mit Befund
+  B-SCAN-PDAL-UMGEBUNG-BLIND; aus der Scan-Pflicht fallen sie nur, wenn dieser Befund akzeptiert ist und
+  die Akzeptanz den Inhalt der Liste trägt (`akzeptanz_bindung`, Wert aus
+  `scanview-nachweise pdal-umgebung blind-bindung`). Nach Fristablauf blockieren Release-Kette und
+  Wochenscan.
+
+### Geändert
+
+- Nachweiskette: Die SAST-Prüfung mit Bandit läuft jetzt unter Python 3.12 (dasselbe gepinnte uv-Image wie die
+  SBOM des Imports) und parst damit auch neuere Syntax wie PEP-695-Generics. Eine vorhandene Bandit-Installation
+  unter `nachweise/werkzeuge/bandit/.venv` passt nicht mehr zur Marke: Die Kette bricht dann mit `sast-werkzeug` ab;
+  Ordner löschen, sie wird beim nächsten Lauf neu bereitgestellt.
+- Server: Indizes auf `project_roles(project_id)` und `invites(email)` (Migration 19) für Rollen je Projekt und
+  Einladungen je E-Mail. Die Projektliste ist gemessen: je weiterem Projekt eine SQL-Anweisung, mit Befund-Fäden drei.
+- `deploy/platform/test/caddy-pruefen.sh`: neue Prüfungen 3h/3i (`pois.json` 200 oder 204, fremdes Projekt 404),
+  9g (Faden-Anhang: mit `FADEN_POI` die 20-MiB-Grenze des Dienstes, sonst nur die CSRF-Abweisung) und 14
+  (Referrer-Policy auf `/teilen`). 9e erwartet
+  für die Upload-Grenzfälle nicht mehr 413: der Dienst lehnt sie ab, bevor er den Körper liest (403 bzw. 405).
+  Die Zahl der OK-Zeilen im Plattform-README ist neu ausgezählt (54).
+- KI und API: keine neue Funktion, keine Änderung an API oder MCP (Indizes, Header und Prüfskript betreffen nur den
+  Betrieb).
+
+### Behoben
+
+- Viewer: Fehlt einem Paket das optionale `pois.json`, erscheint kein Ladefehler mehr auf der Browser-Konsole.
+  Plattform (nach der Rechteprüfung) und Einzelmodus (nginx) antworten mit 204 statt 404; der Viewer wertet die Datei
+  nur bei 200 aus. Gäste eines Nur-Lese-Links fragen die Datei gar nicht mehr an. Ein fremdes oder unbekanntes
+  Projekt bleibt auf der Plattform 404. Im Einzelmodus trägt die 204 wie alle Paketdateien `max-age=3600`.
+
+### Sicherheit
+
+- Import-Worker: Der eigene Netz-Namensraum der Auftrags-Units (`PrivateNetwork=yes`) wird jetzt erzwungen statt
+  angenommen. Der User-Manager lässt die Property still weg, wenn er keinen Namensraum anlegen darf; ein Auftrag sähe
+  dann Netz, LAN und Loopback des Hosts. Geprüft wird beim Worker-Start im Selbsttest und vor jedem Auftrag in dessen
+  Unit, bevor PDAL, untwine oder ein anderes Werkzeug startet (`/proc/self/net/dev` und `/sys/class/net`: nur `lo`
+  und Fallback-Tunnel des Kernels). Grundlage der VEX-Begründungen zu libssh2 in `import/pdal-umgebung/osv.toml`.
+  Keine Schwachstelle behoben, keine bekannte Ausnutzung. **Betreiber:** Wirkt `PrivateNetwork` auf dem Server nicht,
+  startet der Worker nicht mehr („Selbsttest fehlgeschlagen … Isolation greift nicht: netzraum“, Exit 3) bzw.
+  scheitert ein Auftrag mit „Isolation greift nicht (kein eigener Netz-Namensraum)“. Ausweg (unprivilegierte
+  User-Namensräume, `net.core.fb_tunnels_only_for_init_net=1`): `docs/public/betrieb.md`, Abschnitt Jobläufer.
+
+- Punktwolken-Import (U2b): PDAL, libE57, LASzip, GDAL und PROJ lesen fremde Dateien auf dem Server — nur im
+  isolierten Auftrag ohne Netz, aus einer root-eigenen, gelockten Umgebung. trivy führt für die conda-Pakete
+  dieser Umgebung keine Daten; 25 davon prüft stattdessen die OSV-Ersatzprüfung (B-SCAN-PDAL-UMGEBUNG
+  behoben), die 41 übrigen, darunter die Datei-Parser von PDAL, GDAL, PROJ, libtiff und libpng, prüft kein
+  Scanner (B-SCAN-PDAL-UMGEBUNG-BLIND, offen, hoch; blockiert die Freigabe, solange das Restrisiko nicht
+  akzeptiert ist). Betreiber: ab Werk aus (`SCANVIEW_IMPORT`).
+- Keine Schwachstelle behoben. Eingeordnet: B-RL-I1 (info, kein Befund) — nach einem Rechteentzug bleiben nur die
+  Paketteile, die dieselbe Person vorher geladen hat, bis zu 1 h in ihrem Browser-Cache; neue Anfragen scheitern
+  sofort, andere Personen am selben Gerät schützt B-RL-N1. Das Plattform-README beschreibt die Einschränkung genauer.
+  Neu geprüft: die Referrer-Policy der Teilen-Seite (genau einmal `same-origin`) im E2E-Test und in caddy-pruefen.sh.
+  Betreiber: keine Maßnahme außer dem Update in der oben genannten Reihenfolge.
+
+## [0.12.2] – 2026-11-05
+
+Patch mit Bedienung und Sicherheit: Polylinien per Klick auf den letzten Punkt beenden, Panorama-Nachbarn hinter dichten
+Gruppen, Gast-Links mit nicht freigegebenen Ebenen in der Startansicht öffnen wieder, DHHN92 bricht früh ab statt nach
+dem Upload. Der Import prüft Verweise in Paketen jetzt schon bei `verify` (niedrig, siehe Sicherheit).
+
+**Betreiber:** keine Migration, keine Änderung an Caddy oder `deploy/`. Update wie gewohnt.
+
+```
+⠢⡑⡌⢆⢣⢑⢅⢇⢕⢕⢕⢕⡕⡧⣳⡹⣪⡳⡽⡵⡯⡯⡯⡯⡯⡯⣯⣳⢯⣳⢯⣳⢝⡮⣳⢝⡼⣪⢺⡸⡜⡜⡜⡌⡆⡣⡊⡢
+⡑⢕⢸⢘⢌⢎⢎⢎⢎⢮⡪⣇⢗⡽⣜⢮⣗⢯⡯⣯⣯⢿⣽⣟⣿⣻⣗⣯⡿⣾⢽⡾⣽⢽⣺⢵⢯⡺⣕⢧⡳⡱⡕⡕⡕⢕⠜⡌
+⢜⠜⡜⡜⡜⣜⢜⢎⡗⣕⣗⢵⣫⢾⢵⣻⣺⣽⢯⣷⡿⣿⣯⣿⣯⣿⣿⣽⣿⣻⣿⣽⣿⣽⣽⢯⡯⣟⡾⣕⢯⢮⡣⣇⢧⢣⢣⠣
+⡪⡪⡪⡪⡪⡮⢮⡳⣝⣞⢮⣻⢮⢿⣽⣳⢿⢾⣻⢽⠻⡝⢞⢓⠏⠗⢏⠯⢟⡯⣿⢷⣿⣷⣿⣿⣻⣽⣾⢽⡽⣺⡪⣞⢜⡜⡜⡜
+⡪⡪⣪⢳⡹⣪⢗⣽⣺⣺⣽⣽⣻⣟⢾⠝⠝⠡⢑⠐⡡⠈⠄⠂⠁⡁⠡⠈⠂⠊⡌⡫⠳⣟⣯⣿⣿⢿⣾⣻⣽⣳⡽⣪⢧⡫⡎⡮
+⡪⣺⢸⢕⡽⣪⣟⣾⣺⣽⡾⣟⡞⠎⠡⠨⠈⠐⠀⠠⠀⠈⢀⠈⠀⠄⠂⠈⢀⠁⡐⠨⠱⠨⡊⢿⢽⣿⣿⣻⣾⡽⣽⣳⡳⡵⣝⢜
+⡇⡷⡽⣕⡯⣗⣿⢾⣯⡿⣝⠇⠂⢁⠈⡀⢈⠀⡈⠀⠠⢢⢰⢨⢪⢄⢆⢔⠀⠄⡀⠁⠨⠈⡐⠄⠫⡻⣾⡿⣷⣟⣷⣳⢽⣺⡪⡳
+⢽⢝⣿⡳⣯⢿⣾⣿⢯⡻⠐⠐⠈⠀⠀⠄⢂⠀⠀⠠⠩⡊⡢⡑⢕⢌⢆⠣⠅⠁⢂⠁⡐⢀⠂⠌⠌⠜⡪⣿⡿⣯⣷⢿⣽⣺⣪⢯
+⢯⡻⡮⣯⣯⣿⣷⢿⡝⡐⠁⠅⠁⡀⠰⠘⠈⠀⠀⠨⡨⠢⢒⣑⢑⡒⠜⠬⡡⠁⠀⠅⡃⡂⠐⡈⠌⡊⡘⢮⢿⣿⣻⣽⣾⣺⢮⣳
+⡯⣞⣯⡷⣿⣾⣟⢷⠑⠄⠡⠀⢈⠀⠀⠂⠀⠀⠀⢂⢂⢃⠥⢰⠡⠬⣑⢑⢂⠂⠀⠐⠐⠠⠐⠀⡢⠨⢂⠕⢽⢿⣻⣿⣞⣷⡻⡮
+⡯⣟⣾⡿⣿⣿⡽⡝⠌⡈⢀⠂⠀⠀⠀⠀⠀⠀⠀⠂⡁⡢⠈⢐⠅⠁⠢⠡⢁⠐⠈⠀⠡⠡⠐⠐⢈⠢⠱⠨⣚⢿⣿⢿⣽⡾⣽⢽
+⡿⣯⣷⣿⣿⣿⡯⣏⠢⠐⡀⢀⢀⠀⢀⠀⠀⠀⠠⠁⠀⡐⠠⠂⠑⠄⠨⠀⢀⠁⠈⠀⠠⠐⠈⠀⢀⠑⠨⡊⢔⢿⣻⣿⣯⢿⣝⣗
+⡿⣯⣿⣿⣿⣿⣯⣇⠪⠐⡀⠂⡀⠠⠀⠂⠈⠈⠈⠈⠀⠅⠡⡀⡀⠌⠨⠈⠀⠁⡁⠈⠈⠈⠈⠈⠀⠨⢂⢊⢌⣿⣻⡿⣞⣿⣺⡺
+⣿⣻⣿⣿⣿⣿⣷⣗⠅⢕⠠⠁⠄⠄⠄⠂⠄⠠⠀⠂⠀⠁⢀⠐⠄⢀⠁⠀⠈⠀⠀⠀⠀⢀⠀⠄⠈⢪⢐⠔⣜⢾⣯⣿⣻⢞⡮⡯
+⣯⡿⣿⣿⣿⣿⣿⣾⡣⡡⢂⠅⠕⠡⠂⠅⡂⡐⠀⡀⠀⠁⠀⠀⠁⠀⠀⠀⠀⢀⠀⠀⠠⠀⢀⢊⢐⠅⡢⡑⣞⣯⣿⢾⢽⣝⣞⣝
+⣯⣿⣿⣿⣿⣿⣿⣿⣽⡢⡡⢊⢌⢐⢐⠀⡀⢀⠡⠀⠀⠄⠀⠀⠂⠀⠀⠀⠈⠀⠀⠈⠐⠀⠂⠂⢕⢐⢢⢽⢽⣯⢿⢽⣳⡳⣕⢮
+⣯⣷⣿⣿⣿⣿⣿⣿⣿⣿⣜⠔⢔⢐⡐⡐⠄⠄⡐⡀⠄⠠⠠⠈⠠⠐⠠⠀⠀⠀⡀⠠⢀⠢⡃⠅⡂⡪⣪⣿⣻⣽⣟⡽⣺⡪⡞⣜
+⡷⣻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣽⡸⣐⠸⡐⢅⢅⢂⠆⠅⠅⡂⡈⠠⠀⠈⠈⠐⡁⠄⢌⢐⠔⠔⢡⣸⣺⣽⣾⢿⣳⣳⡫⣞⡜⡮⡪
+⡯⡯⡿⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿⣧⣳⡘⡔⢅⢂⢊⠔⡁⡂⡂⢂⢂⢂⠅⡡⢂⠅⠆⡑⡨⣸⣺⣞⣯⡿⣽⣫⢗⣗⡝⡮⡺⡸⡸
+⡽⣝⡯⣷⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣳⣽⣺⣪⡒⡔⣐⢐⠡⠡⡐⡐⡁⡊⡔⣨⣢⣾⣺⣟⣿⡽⣗⡿⡵⣫⡳⣕⢝⡜⡎⡎⡎
+⡳⣳⣫⢯⢿⣽⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣾⣿⣾⣞⣞⣞⣮⣶⣳⣗⣯⣿⣽⢾⣗⣯⢷⣻⡺⣳⢝⣝⢮⢺⡸⡱⡱⡱⡑⡕
+⡝⣜⢮⢯⣻⣺⣳⡿⣿⡿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣻⣟⣯⡷⡿⣽⣺⢵⡻⣪⢞⢵⢝⢜⢎⢕⢕⠕⡕⠜⡌⠬
+⡪⡎⣗⢵⢳⡳⣳⣻⢽⢯⣟⣷⣿⣿⣿⣿⣿⣿⡿⣿⣻⣯⡿⣯⣿⢽⡯⣯⢷⣻⢽⡺⣪⡳⡝⣎⢧⢳⢱⢱⢱⢱⢑⠕⡅⡣⡑⡑
+⢪⢪⢪⡪⡳⣹⢺⡪⡯⡳⡯⣟⣿⣻⣿⣻⣽⡾⡯⣟⡽⣞⡯⡷⡯⡯⡯⣗⢟⢮⡳⡝⡮⣚⢎⢎⢎⢎⢎⢎⢪⠢⢣⢑⢌⠢⡊⢌
+```
+
+Bild der Version: `schlosspark-planet` · © 2026 André Stiebitz · CC BY 4.0
+
+### Geändert
+- Viewer: Eine Polylinie lässt sich durch einen Klick (bzw. Tipp) auf ihren letzten Punkt beenden, ohne dass ein
+  zusätzlicher Punkt entsteht; bei nur einem Punkt kommt der Hinweis „Zum Beenden mindestens zwei Punkte setzen“.
+  Ein Doppelklick beendet sie ebenfalls und setzt dabei keinen Drehpunkt.
+  Nach dem zweiten Punkt nennt die Meldungszeile die Wege zum Beenden, der Bedienung-Dialog führt die Geste.
+- Viewer: Die Liste „Messungen“ zeigt ihren Titel nur noch in der Kopfzeile des Rahmens, nicht doppelt.
+- Panorama: Nachbarmarken und Sprung per Doppelklick erreichen auch Standpunkte hinter einer dichten Gruppe. Zu den
+  acht nächsten Standpunkten kommt je Himmelsrichtung (acht Sektoren) der nächste bis 25 m dazu.
+- Sonne: Das Fenster „Sonne“ und die Anleitung zum Sonnenmodul zeigen oben sichtbar den Hinweis
+  „Experiment – Ergebnisse ohne Gewähr. Haftung nur im gesetzlich vorgeschriebenen Umfang.“
+
+### Behoben
+
+- Gast-Links: Nennt die Startansicht eines Projekts Ebenen, die Gäste nicht sehen (z. B. Standpunkte, Splats oder Fotos),
+  öffnet der Link jetzt. Das Gast-Manifest führt in der Startansicht nur noch die freigegebenen Ebenen; bleibt
+  keine übrig, startet der Viewer mit der Voreinstellung. `project.json` bleibt unverändert.
+- Upload und Import mit DHHN92 ohne passendes Ziel-Höhensystem brechen jetzt vor dem Upload bzw. vor
+  der Verarbeitung ab, statt erst nach dem Hochladen zu scheitern. Umgerechnet wird nur zwischen
+  ellipsoidischen Höhen und DHHN2016; für DHHN92 ist das Höhensystem im Projekt ebenfalls DHHN92.
+  Die Zielauswahl im Portal nennt den Standard DHHN2016 statt „wie Datei“.
+
+### Dokumentation
+- Foto-Doku: „Fotos zu einer Stelle finden“, geteilte Ansicht und Synchron-Strahl (seit 0.10) beschrieben, dazu
+  ihre Grenzen und warum „Fotos zu einer Stelle finden“ nicht über API und MCP verfügbar ist.
+- KI-Paritätsliste: Zeilen für „Fotos zu einer Stelle finden“ und die geteilte Fotoansicht ergänzt.
+
+### Sicherheit
+- Entwicklungs- und Nachweiswerkzeuge: certifi 2026.7.22 → 2026.10.19 in der Entwicklungsumgebung des Servers
+  (nur über httpx in den Tests) und im Fuzzing-Werkzeug schemathesis (GHSA-6q48-6c7w-9gw2, kritisch). Beides wird
+  nicht ausgeliefert. opentelemetry-api 1.44.0 → 1.45.1 im MCP-Server (transitiv über mcp, ohne SDK).
+  Betreiber: keine Maßnahme außer dem Update.
+- Entwicklungswerkzeuge des Viewers (höchste Schwere hoch, betroffen: Entwicklungsumgebung bis 0.12.1, nicht
+  ausgeliefert): vite 6.4.3 → 6.4.5 und vitest 4.1.11 → 4.1.12 (mit @vitest/mocker), exakt gepinnt. Behoben in vite
+  (über launch-editor bzw. den Entwicklungsserver): GHSA-587h-7wmj-h5pm / CVE-2026-112942 (hoch, nur Windows),
+  GHSA-698v-4r3x-3vcv / CVE-2026-112943 (mittel), GHSA-r825-w8mm-5pxw / CVE-2026-112944 (mittel),
+  GHSA-rq7h-c2jc-7f22 / CVE-2026-112946 (mittel), GHSA-9jrq-w75r-8gcw / CVE-2026-112945 (niedrig); in
+  @vitest/mocker: GHSA-qxg6-89mg-rqv8 / CVE-2026-112949 (mittel), GHSA-xp26-3454-mjgp / CVE-2026-112950 (mittel).
+  Die Lücken liegen im Entwicklungsserver bzw. in der Testumgebung, nicht im ausgelieferten Bundle.
+  Betreiber: keine Maßnahme.
+- Import (niedrig, betroffen: bis 0.12.1): Pakete mit unzulässigen Verweisen werden jetzt schon bei der Prüfung
+  (`scanview-import verify`) abgelehnt, nicht erst zur Laufzeit aus der Gast-Ansicht genommen. Abgelehnt werden
+  absolute Verweise, Verweise mit `..` und kodierte Verweise (Prozentkodierung, Backslash, Steuerzeichen,
+  Unicode-Tricks) im Manifest, in `stations.json` (Würfelseiten und Stufenmuster `levelFile`), in glTF-Dateien und
+  in Kachel-Tilesets samt den glTF-Dateien der Kacheln. Das gilt für Punktwolken-, Mesh- und reine Splat-Pakete
+  und damit für CLI, API-Import und MCP gleich (ADR 0016, Nachtrag). Bisher konnte die Prüfung eines präparierten
+  Mesh-Pakets Dateien außerhalb des Pakets lesen und die eines reinen Splat-Pakets ihren Prüfbericht außerhalb des
+  Pakets schreiben. Der Laufzeitfilter der Plattform hielt solche Verweise schon bisher aus Gast-Links heraus
+  und bleibt als zweite Linie. Betreiber: keine Maßnahme außer dem Update; Pakete aus fremder Hand bis dahin
+  nicht mit `scanview-import verify` prüfen.
+
+## [0.12.1] – 2026-11-04
+
+Patch für die Vorführung auf fremden Handys: Show-Modus `?zeigen=1` für Gast-Links und Messen an einzelnen Meshes
+auf Touch-Geräten; dazu Import-Verbesserungen (Orthobild als Draufsicht, große Mesh-Texturen).
+
+**Betreiber:** keine Migration, keine Änderung an Caddy oder `deploy/`. Update wie gewohnt.
+
+```
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣻⣿⣽⣟⣿⣻⣿⣿⣻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢿⣿⣿⣿⣿⡿⣿⡿⡿⠿⠿⠿⠻⠿⠿⠿⠽⢯⢯⠿⢏⡟⡿⡿⢏⡿⡿⡽⠿⢿⠻⠻⡿⡿⡿⣿⡿⣿⣿⣿⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿
+⠀⠀⠀⠀⠠⠀⠐⠀⡂⠌⠠⠡⡢⡑⢆⢇⢇⠆⡃⠅⠚⣞⢊⢊⠢⠤⠤⡠⡄⡄⡄⡤⣔⢜⡪⡖⢗⣗⠧⡔⡤⡀⡠⣠⢠⠤⠤⡲⡲⠺⣶⢆⠠⠐⠀⠠⠠⠐⠠⡀⡀⣀⠀⠄⠀⡐⢄⠠⠀⠄
+⡠⣃⢄⣀⢄⠀⠄⢁⠐⡈⠀⠅⡂⠌⠢⡑⠌⡂⠢⠈⢄⠠⠐⠨⢄⣊⢂⠲⠰⣑⣬⢦⣸⣠⣊⣢⣘⣘⣔⣅⣬⣔⡱⠔⠖⢕⣙⢬⠲⠩⡐⡠⠊⠈⡀⠀⢀⠠⢊⢰⢈⠢⠢⠀⠁⠄⠂⠠⡀⡤⣘⡐
+⠽⡭⣳⣕⢅⠄⡀⠠⠐⠀⠁⡂⢐⠈⢐⠠⢁⠂⡁⠈⠄⢂⠁⠀⠄⠈⡑⡫⡺⡗⡯⠥⠰⡕⠉⠈⠈⠉⢺⢄⢎⣿⢻⢳⣑⢁⠠⠐⠀⡁⠐⡐⢀⠐⡀⠄⠠⠐⠀⠐⡀⠌⠄⠀⠁⡀⡀⣸⡹⡪⡧⡫
+⠀⠂⠐⠈⡑⠩⡪⡪⣒⢔⢄⢐⠠⡐⡐⡀⡂⣂⢰⣕⣗⡶⣔⣥⢶⡳⣣⣫⠞⠙⡈⡠⡁⡢⠑⠀⠐⠡⡁⢆⠔⡨⢛⢷⣾⢴⡶⣦⢵⣰⢶⢶⡶⣀⡂⡐⡈⡀⡁⠐⡀⣔⢴⢕⡯⡚⡍⢊⠈⠀⠄
+⡮⠺⠞⠷⠝⠝⢊⢉⠙⠷⢵⢵⣱⣱⢨⡊⡎⢮⢺⢺⣞⣿⢽⡧⡁⠛⠻⡶⣬⣄⣂⡢⠘⠐⠩⠀⠈⠆⠊⢢⣑⢬⣸⣴⡾⡟⡯⡗⢯⢯⣟⣯⢿⢕⡳⡝⣜⢎⣞⣯⣫⣮⠷⠫⠉⡙⢚⠳⠳⠯⠖⢷
+⣿⡔⡐⢐⠐⢌⠔⢐⢈⢐⠄⠅⠡⢉⣫⣞⣯⢏⠻⠹⣙⢎⡦⣣⣧⣶⢷⣿⢿⡟⠏⢂⠐⡐⣀⢂⡁⡀⡂⢀⠘⠻⢿⣿⣿⣾⣵⣼⢬⣢⣊⢏⠗⡻⢺⡿⣽⡩⠙⠨⠈⠄⠌⢄⠅⡐⡀⠂⠌⠄⣂⣿
+⣯⣷⣬⣤⣬⣔⣬⣤⣅⣔⣈⣄⣵⣺⣗⣟⡞⠅⠨⠈⠌⡻⣻⢿⣟⣿⣿⣯⣧⣦⣦⣢⣅⣗⢷⣵⢼⡮⣆⣡⣄⣦⣦⣷⣿⡿⣿⣿⢿⣻⣚⠵⠁⠌⠌⢿⢽⣻⢷⣬⣈⢌⣨⣠⣢⣢⣬⡬⣬⢤⡼⣾
+```
+
+Bild der Version: `2023-08-14-orangerie-001` · © 2026 André Stiebitz · CC BY 4.0
+
+### Hinzugefügt
+- Import: Orthobild als Draufsicht. `--bild` mit Weltdatei und `--bild-crs` ersetzen in `topview.png` die
+  Wolkenfarbe, wo das Bild deckt; das Koordinatensystem muss dem des Pakets entsprechen.
+- Viewer: Show-Modus `?zeigen=1` für Vorführungen auf fremden Handys. Nur 3D-Ansicht und eine Leiste unten mit
+  Objektname, Grau/Textur, Messen (eine Strecke) und Hinweis auf siteBits; Werkzeugleiste, Panels und Hinweise sind
+  ausgeblendet. Ein Nur-Lese-Link in der Form `/teilen?zeigen=1#t=…` öffnet die Gast-Ansicht direkt so.
+- Portal: Vorschaubild auf der Projektkarte. Liegt `vorschau.webp` neben `project.json` (beliebige Ansicht,
+  z. B. Schrägansicht aus dem Viewer), zeigt die Karte dieses Bild, sonst wie bisher die Draufsicht. Die Projektliste
+  der API meldet es im neuen Feld `vorschau`.
+
+### Behoben
+- Viewer: Auf Touch-Geräten ließen sich einzelne Meshes nicht messen; die Mobilstufe hat keinen Messfang, und die
+  Vollstufe wurde nie nachgeladen. Beim Messen lädt der Viewer sie jetzt nach, innerhalb der Gerätegrenzen;
+  ist sie zu groß, bleibt die Mobilstufe mit Hinweis stehen.
+- Import: Mesh-Texturen bis 16384 Pixel je Achse (Fotogrammetrie-Atlanten) brachen `add`/`convert` mit
+  `DecompressionBombError` ab; die Texturdekodierung hat jetzt eine eigene Grenze von 16384 je Achse.
+- Import: Bei einer verlinkten OBJ-Datei kamen Material und Texturen aus dem Ordner des Link-Ziels statt
+  neben dem angegebenen Pfad.
+- Import: `convert` schreibt bei Punktwolken die Draufsicht (`topview.png`) mit; bisher tat das nur
+  `build` (E57), LAS/LAZ-Pakete blieben ohne Draufsicht.
+- Nur-Lese-Links: Pakete ohne Punktwolke (nur Mesh) hatten keine Gast-Ansicht; der Viewer meldete
+  „project.json nicht gefunden“. Die Gast-Ansicht braucht jetzt nur eine zulässige Ebene (Punktwolke oder Mesh).
+- Nachweise: `db-aktualisieren` brach mit `osv-kontrolle` ab, weil OSV.dev CVE-2019-11922 für zstd v1.3.7
+  seit dem 30.10.2026 nur noch per Commit, nicht mehr per Tag meldet. Die Gegenprobe hat jetzt je Weg einen
+  eigenen Prüffall (Tag: zstd v1.4.9 → OSV-2022-15); beide Wege bleiben Pflicht.
+
+### Sicherheit
+- Server: pyasn1 0.6.4 → 0.6.5 (über webauthn). Behebt CVE-2026-119194, CVE-2026-119195, CVE-2026-119196 und
+  CVE-2026-119197: quadratische Rechenzeit beim Dekodieren präparierter ASN.1-Daten (Dienstverweigerung).
+  Betreiber: Update einspielen, sonst keine Maßnahme.
+- Hinweis: Die Grenze gegen Dekompressionsbomben liegt für Mesh-Texturen
+  jetzt bei 16384² Pixeln statt Pillows Standard (~179 Mpx), wie schon im Kachler; eine dekodierte Textur
+  belegt damit bis 1 GiB Speicher. Betreiber: keine Maßnahme.
+
 ## [0.12.0] – 2026-10-26
 
 Gekachelte Meshes im Viewer und in Gast-Links, der Kachler im Import-Werkzeug und die Etappe Mitmachen: Fotos und PDFs

@@ -5,6 +5,10 @@ import type { Station } from './stations';
 /** Nachbar-Bodenmarken im Panorama-Modus: höchstens so weit und so viele. */
 export const NEIGHBOUR_MAX_M = 25;
 export const NEIGHBOUR_MAX_COUNT = 8;
+/** Richtungssektoren (Draufsicht) für die Nachbarwahl: Zu den nächsten NEIGHBOUR_MAX_COUNT kommt je Sektor der
+ *  nächste Standpunkt dazu. Sonst verdeckt bei dichten Rundgängen eine Gruppe in einer Richtung alle Ziele in den
+ *  übrigen Richtungen (die 8 nächsten lägen alle in der Gruppe). */
+export const NEIGHBOUR_SEKTOREN = 8;
 /** Gibt es innerhalb von NEIGHBOUR_MAX_M keinen Nachbarn (weit auseinanderliegende Panorama-Serien,
  *  z. B. Kugelpanoramen im Gehen), gelten die nächsten so vielen bis zu dieser Entfernung — sonst säße man fest. */
 export const NEIGHBOUR_FALLBACK_COUNT = 3;
@@ -60,7 +64,14 @@ export function nearestStation3d(
   return best;
 }
 
-/** Nachbarn mit Panorama, nach 3D-Abstand sortiert, ohne den Standpunkt selbst. */
+/** Richtungssektor (0 … NEIGHBOUR_SEKTOREN−1) von `von` nach `nach` in der Draufsicht. */
+function sektor(von: Vec3, nach: Vec3): number {
+  const winkel = Math.atan2(nach[1] - von[1], nach[0] - von[0]) + Math.PI; // 0 … 2π
+  return Math.min(NEIGHBOUR_SEKTOREN - 1, Math.floor((winkel / (2 * Math.PI)) * NEIGHBOUR_SEKTOREN));
+}
+
+/** Nachbarn mit Panorama, nach 3D-Abstand sortiert, ohne den Standpunkt selbst: die nächsten `maxCount` und dazu
+ *  je Richtungssektor der nächste, alle höchstens `maxDistM` entfernt. */
 export function neighbours(
   stations: readonly Station[],
   id: string,
@@ -73,7 +84,16 @@ export function neighbours(
     .filter((s) => s.id !== id && s.panorama !== null)
     .map((s) => ({ s, d: dist3(s.pose.translation, self.pose.translation) }))
     .sort((a, b) => a.d - b.d);
-  const nah = sortiert.filter(({ d }) => d <= maxDistM).slice(0, maxCount);
+  const imRadius = sortiert.filter(({ d }) => d <= maxDistM);
+  const gewaehlt = new Set(imRadius.slice(0, maxCount).map(({ s }) => s));
+  const belegt = new Set<number>();
+  for (const { s } of imRadius) {
+    const k = sektor(self.pose.translation, s.pose.translation);
+    if (belegt.has(k)) continue;
+    belegt.add(k);
+    gewaehlt.add(s);
+  }
+  const nah = imRadius.filter(({ s }) => gewaehlt.has(s));
   if (nah.length > 0 || maxDistM !== NEIGHBOUR_MAX_M) return nah.map(({ s }) => s);
   return sortiert
     .filter(({ d }) => d <= NEIGHBOUR_FALLBACK_M)

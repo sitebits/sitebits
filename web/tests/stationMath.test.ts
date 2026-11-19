@@ -71,3 +71,20 @@ describe('neighbourInDirection (Doppelklick im Panorama)', () => {
     expect(neighbourInDirection(zwei, 'A', [10, 1.5, -1.5])?.id).toBe('C');
   });
 });
+
+describe('neighbours nach Richtungssektoren (dichter Rundgang)', () => {
+  // Eine dichte Gruppe von zehn Standpunkten östlich von A (alle näher als 7 m) und ein Standpunkt 15 m nördlich:
+  // Mit nur den 8 nächsten läge kein Nachbar im Norden, der Standpunkt hinter der Gruppe wäre unerreichbar.
+  const gruppe = Array.from({ length: 10 }, (_, i) => st(`G${i}`, 2 + (i % 5), i < 5 ? -0.8 : 0.8));
+  const list = [st('A', 0, 0), ...gruppe, st('N', 0, 15)];
+  it('der Standpunkt in der leeren Richtung bleibt Nachbar, die nächsten acht bleiben auch', () => {
+    const ids = neighbours(list, 'A').map((s) => s.id);
+    expect(ids).toContain('N');
+    expect(ids.slice(0, 8).every((id) => id.startsWith('G'))).toBe(true);
+    expect(ids).toHaveLength(9);
+  });
+  it('Doppelklick in seine Richtung erreicht ihn', () =>
+    expect(neighbourInDirection(list, 'A', [0, 15, -1.5])?.id).toBe('N'));
+  it('jenseits von 25 m zählt auch ein leerer Sektor nicht', () =>
+    expect(neighbours([...list.slice(0, -1), st('N', 0, 30)], 'A').map((s) => s.id)).not.toContain('N'));
+});

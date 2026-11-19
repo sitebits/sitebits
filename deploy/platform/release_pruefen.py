@@ -55,9 +55,13 @@ from typing import IO, Any
 
 #: Wie manifest.SCHEMA / PFLICHT_JE_SCHEMA (drift-getestet): neue Manifeste tragen /3; jedes
 #: bekannte Schema wird gegen seine eigenen Pflichtlisten geprüft, ein unbekanntes abgelehnt.
-SCHEMA = "scanview-release-manifest/3"
+#: /4 (Stufe `upgrade`) ist schon bekannt, bevor die Kette es erzeugt: beim Aktualisieren prüft
+#: auf dem Zielhost diese Kopie aus dem vorigen Release.
 SCHEMA_1 = "scanview-release-manifest/1"
 SCHEMA_2 = "scanview-release-manifest/2"
+SCHEMA_3 = "scanview-release-manifest/3"
+SCHEMA_4 = "scanview-release-manifest/4"
+SCHEMA = SCHEMA_3
 NAMESPACE = "scanview-release"
 KENNUNG = "release@scanview"
 MANIFEST_DATEI = "manifest.json"
@@ -74,7 +78,8 @@ PRUEFUNG_WERTE = frozenset({"bestanden", "nicht-anwendbar"})
 AUSGELIEFERT_JE_SCHEMA: dict[str, frozenset[str]] = {
     SCHEMA_1: frozenset({"web", "server", "mcp"}),
     SCHEMA_2: frozenset({"web", "server", "mcp"}),
-    SCHEMA: frozenset({"web", "server", "mcp", "import"}),
+    SCHEMA_3: frozenset({"web", "server", "mcp", "import"}),
+    SCHEMA_4: frozenset({"web", "server", "mcp", "import"}),
 }
 AUSGELIEFERT = AUSGELIEFERT_JE_SCHEMA[SCHEMA]
 UMGEBUNG_PFLICHT = ("node", "npm", "python", "uv", "docker", "architektur")
@@ -87,21 +92,29 @@ _WERKZEUGE_1 = ("trivy", "syft", "cyclonedx-npm", "cyclonedx-py", "cyclonedx-py-
 #: Jede muss mit „bestanden“ im Manifest stehen (wie manifest.PFLICHT_PRUEFUNGEN).
 _PRUEFUNGEN_1 = ("register", "befunde", "negativtests", "retests", "qualitaetstor", "sbom",
                  "scan", "negativkontrollen", "lizenzen", "export")
-PFLICHT_BERICHTE = ("stufe-einfrieren", "stufe-register", "stufe-qualitaetstor", "stufe-sast",
-                    "stufe-sbom", "stufe-fuzzing", "stufe-egress", "stufe-scan",
-                    "stufe-negativkontrollen", "stufe-lizenzen", "stufe-matrix", "stufe-export",
-                    "scan-ergebnis", "werkzeugbefunde", "exportmanifest", "npm-signaturen",
-                    "sast-semgrep", "sast-bandit", "fuzzing-admin", "fuzzing-betrachter",
-                    "egress-statisch", "egress-browser")
-PFLICHT_WERKZEUGE = (*_WERKZEUGE_1, "semgrep", "bandit", "schemathesis", "zap", "caddy-test",
-                     "playwright")
-PFLICHT_PRUEFUNGEN = (*_PRUEFUNGEN_1, "commit-signatur", "npm-signaturen", "sast",
-                      "fuzzing", "egress")
+_BERICHTE_2 = ("stufe-einfrieren", "stufe-register", "stufe-qualitaetstor", "stufe-sast",
+               "stufe-sbom", "stufe-fuzzing", "stufe-egress", "stufe-scan",
+               "stufe-negativkontrollen", "stufe-lizenzen", "stufe-matrix", "stufe-export",
+               "scan-ergebnis", "werkzeugbefunde", "exportmanifest", "npm-signaturen",
+               "sast-semgrep", "sast-bandit", "fuzzing-admin", "fuzzing-betrachter",
+               "egress-statisch", "egress-browser")
+_WERKZEUGE_2 = (*_WERKZEUGE_1, "semgrep", "bandit", "schemathesis", "zap", "caddy-test",
+                "playwright")
+_PRUEFUNGEN_2 = (*_PRUEFUNGEN_1, "commit-signatur", "npm-signaturen", "sast", "fuzzing", "egress")
+_BERICHTE_4 = ("stufe-einfrieren", "stufe-register", "stufe-qualitaetstor", "stufe-sast",
+               "stufe-sbom", "stufe-fuzzing", "stufe-egress", "stufe-upgrade", "stufe-scan",
+               "stufe-negativkontrollen", "stufe-lizenzen", "stufe-matrix", "stufe-export",
+               "scan-ergebnis", "werkzeugbefunde", "exportmanifest", "npm-signaturen",
+               "sast-semgrep", "sast-bandit", "fuzzing-admin", "fuzzing-betrachter",
+               "egress-statisch", "egress-browser")
+_PRUEFUNGEN_4 = (*_PRUEFUNGEN_2, "upgrade")
 PFLICHT_JE_SCHEMA: dict[str, tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...]]] = {
     SCHEMA_1: (_BERICHTE_1, _WERKZEUGE_1, _PRUEFUNGEN_1),
-    SCHEMA_2: (PFLICHT_BERICHTE, PFLICHT_WERKZEUGE, PFLICHT_PRUEFUNGEN),
-    SCHEMA: (PFLICHT_BERICHTE, PFLICHT_WERKZEUGE, PFLICHT_PRUEFUNGEN),
+    SCHEMA_2: (_BERICHTE_2, _WERKZEUGE_2, _PRUEFUNGEN_2),
+    SCHEMA_3: (_BERICHTE_2, _WERKZEUGE_2, _PRUEFUNGEN_2),
+    SCHEMA_4: (_BERICHTE_4, _WERKZEUGE_2, _PRUEFUNGEN_4),
 }
+PFLICHT_BERICHTE, PFLICHT_WERKZEUGE, PFLICHT_PRUEFUNGEN = PFLICHT_JE_SCHEMA[SCHEMA]
 FELDER = ("schema", "version", "erstellt", "quellcommit", "exportcommit", "artefakte", "sboms",
           "berichte", "werkzeuge", "db_stand", "netzschritte", "pruefungen", "umgebung",
           "trockenlauf")

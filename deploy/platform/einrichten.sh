@@ -251,6 +251,12 @@ JL_UPLOADS=/srv/scanview/uploads
 JL_UEBERGABE=/srv/scanview/uebergabe
 JL_MELDUNGEN=/srv/scanview/uebergabe-meldungen
 JL_UEBERGABE_SKRIPT=/usr/local/sbin/scanview-import-uebergabe
+# PDAL-Umgebung für Punktwolken (U2b): gelockte conda-forge-Umgebung aus import/pdal-umgebung
+# (pixi.lock mit SHA-256 je Paket), nur mit SCANVIEW_IMPORT=1. Fester Ort, weil die Pakete ihren
+# Präfix enthalten (nicht verschiebbar); der Drop-in import.conf nennt ihn dem Worker.
+JL_PDAL=/opt/scanview/pdal
+JL_PDAL_UMGEBUNG=$JL_PDAL/.pixi/envs/default
+JL_PDAL_QUELLE=import/pdal-umgebung
 for f in scanview-import-worker.service scanview-joblaeufer.env.beispiel \
 	scanview-server.service.d/joblaeufer.conf scanview-backup.service.d/joblaeufer.conf \
 	import-bau-einschraenkungen.txt scanview-import-uebergabe scanview-import-uebergabe.service \
@@ -323,8 +329,14 @@ if [[ $JOBLAEUFER -eq 1 ]]; then
 		if [[ ! $jl_quote =~ ^[0-9]{1,6}$ ]] || ((10#$jl_quote < 1)); then
 			fehler "Import: SCANVIEW_UPLOAD_QUOTE_GB fehlt oder ist keine ganze Zahl ab 1 — Pflicht bei SCANVIEW_IMPORT=1, ohne Standard (Platz für Uploads, GB). Nichts verändert."
 		fi
+		# PDAL-Umgebung: pixi (bewusst installiert wie uv, gepinnte Version mit Prüfsumme; die
+		# Mindestversion steht als requires-pixi in pixi.toml) und die Lock-Datei aus dem Release.
+		command -v pixi >/dev/null ||
+			fehler "Import: pixi fehlt im PATH von root (PDAL-Umgebung für Punktwolken). pixi bewusst installieren (gepinnte Version, Prüfsumme; docs/public/betrieb.md), dann erneut starten. Nichts verändert."
+		[[ -f $REPO/$JL_PDAL_QUELLE/pixi.toml && -f $REPO/$JL_PDAL_QUELLE/pixi.lock && -f $REPO/$JL_PDAL_QUELLE/quellen.json ]] ||
+			fehler "Import: $REPO/$JL_PDAL_QUELLE/pixi.toml, pixi.lock bzw. quellen.json fehlt — ohne Lock und Lizenzbezug keine PDAL-Umgebung. Nichts verändert."
 		# Die Pfade setzen die Drop-ins fest; ein Wert in der Datei hätte Vorrang (EnvironmentFile).
-		for v in SCANVIEW_UPLOADS SCANVIEW_UEBERGABE SCANVIEW_UEBERGABE_MELDUNGEN; do
+		for v in SCANVIEW_UPLOADS SCANVIEW_UEBERGABE SCANVIEW_UEBERGABE_MELDUNGEN SCANVIEW_PDAL_UMGEBUNG; do
 			! grep -qE "^[[:space:]]*$v=" "$JL_ENV" ||
 				fehler "Import: $v nicht in $JL_ENV setzen (fester Pfad aus den Drop-ins). Nichts verändert."
 		done
@@ -338,14 +350,18 @@ if [[ $JOBLAEUFER -eq 1 ]]; then
 				esac
 			done
 		fi
+		# Importaufträge (Mesh, Splats, Punktwolke) rechnen mit 4 GB; darunter deckelte
+		# user@<uid>.service jeden Auftrag unter seinem Budget.
+		((jl_ram >= 4)) ||
+			fehler "Import: SCANVIEW_JOBS_RAM_GB muss bei SCANVIEW_IMPORT=1 mindestens 4 sein (Budget der Importaufträge 4 GB), steht auf $jl_ram. Nichts verändert."
 		echo "   Import an: Quote $jl_quote GB."
 	fi
 	[[ $JL_IMPORT_AN -eq 1 ]] || echo "   Import neuer Projekte aus (SCANVIEW_IMPORT=1 in $JL_ENV schaltet ihn ein)."
 	echo "   systemd $jl_systemd, cgroup v2 mit memory, ${jl_kb} kB Arbeitsspeicher, Budget $jl_ram GB."
 fi
 # Nach dem Start des Webdienstes: meldet der Worker sich in /api/gesundheit als „aktiv“? Er läuft
-# zuerst seinen Selbsttest (Netz, Bus, Schreiben außerhalb, RAM-Grenze); scheitert der, endet er
-# mit Exit 3 und startet nicht neu.
+# zuerst seinen Selbsttest (Netz, Bus, eigener Netz-Namensraum, Schreiben außerhalb, RAM-Grenze);
+# scheitert der, endet er mit Exit 3 und startet nicht neu.
 joblaeufer_aktiv() {
 	local antwort
 	for _ in $(seq 1 60); do
@@ -696,6 +712,49 @@ if [[ $JOBLAEUFER -eq 1 ]]; then
 		install -m 0644 "$HIER/scanview-server.service.d/import.conf" "${JL_IMPORT_UNITS[2]}"
 		install -m 0644 "$HIER/scanview-import-worker.service.d/import.conf" "${JL_IMPORT_UNITS[3]}"
 		echo "   Import: $JL_UPLOADS, $JL_UEBERGABE, $JL_MELDUNGEN, Nutzer $JL_UEBERGABE_NUTZER, Übergabe-Timer installiert."
+
+		# PDAL-Umgebung (Punktwolken): pixi lädt genau die Pakete aus pixi.lock und prüft ihre
+		# SHA-256 (--locked: bricht ab, wenn Lock und pixi.toml nicht zusammenpassen). Gebaut als
+		# $JL_BAU_NUTZER wie die Import-Umgebung, direkt am Zielort (der Präfix steckt in den
+		# Paketen), danach root-eigen. Aufträge starten pdal/untwine nur als Prozess, ohne Netz.
+		echo "   PDAL-Umgebung ($JL_PDAL_QUELLE/pixi.lock)"
+		for d in "$JL_PDAL" "$JL_PDAL/.pixi"; do
+			[[ ! -L $d ]] || fehler "$d ist ein Symlink."
+		done
+		install -d -o root -g root -m 0755 "$JL_PDAL"
+		install -m 0644 -o root -g root "$REPO/$JL_PDAL_QUELLE/pixi.toml" "$REPO/$JL_PDAL_QUELLE/pixi.lock" \
+			"$REPO/$JL_PDAL_QUELLE/quellen.json" "$JL_PDAL/"
+		rm -rf -- "$JL_PDAL/.pixi" "$JL_PDAL/LIZENZEN.txt"
+		jl_bau=$(mktemp -d /var/tmp/scanview-pdal-bau.XXXXXXXX)
+		chmod 0711 "$jl_bau"
+		install -m 0755 "$(command -v pixi)" "$jl_bau/pixi"
+		install -d -o "$JL_BAU_NUTZER" -m 0700 "$jl_bau/cache" "$jl_bau/home" "$jl_bau/pixi-home"
+		install -d -o "$JL_BAU_NUTZER" -m 0755 "$JL_PDAL/.pixi"
+		if ! (cd / && runuser -u "$JL_BAU_NUTZER" -- env -i PATH=/usr/bin:/bin \
+			HOME="$jl_bau/home" PIXI_HOME="$jl_bau/pixi-home" PIXI_CACHE_DIR="$jl_bau/cache" \
+			"$jl_bau/pixi" install --locked --manifest-path "$JL_PDAL/pixi.toml"); then
+			rm -rf -- "$jl_bau"
+			fehler "PDAL-Umgebung: pixi install gescheitert (Netz beim Einrichten, Prüfsumme, pixi.lock?) — Jobläufer nicht gestartet."
+		fi
+		# Lizenzbeilage (ADR 2026-10-22, Nachtrag Weg 3): vollständige Texte aus den entpackten
+		# Paketen im Cache des Baus, solange er noch da ist; gelesen als $JL_BAU_NUTZER, geschrieben
+		# von root. Ohne Beilage keine Umgebung und kein Worker.
+		if ! (cd / && runuser -u "$JL_BAU_NUTZER" -- env -i PATH=/usr/bin:/bin HOME="$jl_bau/home" \
+			"$JL_IMPORT_BIN/scanview-import" pdal-lizenzen --lock "$JL_PDAL/pixi.lock" \
+			--quellen "$JL_PDAL/quellen.json" --cache "$jl_bau/cache") >"$jl_bau/LIZENZEN.txt" ||
+			[[ ! -s $jl_bau/LIZENZEN.txt ]]; then
+			rm -rf -- "$jl_bau" "$JL_PDAL/.pixi"
+			fehler "PDAL-Umgebung: Lizenzbeilage nicht erzeugbar (scanview-import pdal-lizenzen, quellen.json passt nicht zum Lock?) — Jobläufer nicht gestartet."
+		fi
+		install -m 0644 -o root -g root "$jl_bau/LIZENZEN.txt" "$JL_PDAL/LIZENZEN.txt"
+		rm -rf -- "$jl_bau"
+		chown -R root:root "$JL_PDAL/.pixi"
+		chmod -R u+rwX,go=rX "$JL_PDAL/.pixi"
+		[[ -d $JL_PDAL_UMGEBUNG/bin && ! -L $JL_PDAL_UMGEBUNG/bin &&
+			-f $JL_PDAL_UMGEBUNG/bin/pdal && ! -L $JL_PDAL_UMGEBUNG/bin/pdal && -x $JL_PDAL_UMGEBUNG/bin/pdal &&
+			-f $JL_PDAL_UMGEBUNG/bin/untwine && ! -L $JL_PDAL_UMGEBUNG/bin/untwine && -x $JL_PDAL_UMGEBUNG/bin/untwine &&
+			-z $(find "$JL_PDAL" \( ! -user 0 -o -perm /0022 \) ! -type l -print -quit 2>/dev/null) ]] ||
+			fehler "PDAL-Umgebung: $JL_PDAL_UMGEBUNG muss root-eigen, nur für root beschreibbar sein und ausführbare bin/pdal und bin/untwine enthalten."
 	else
 		import_ausschalten
 	fi

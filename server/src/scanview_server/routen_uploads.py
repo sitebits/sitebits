@@ -59,8 +59,9 @@ ZU_VIELE = "Es laufen schon zu viele Importe – bitte warten, bis einer fertig 
 NICHT_ABGESCHLOSSEN = "Der Upload ist noch nicht abgeschlossen."
 NICHT_MEHR_OFFEN = "Der Import ist schon beendet."
 DEFEKT = "Die Upload-Ablage ist beschädigt – den Upload löschen und neu beginnen."  # noqa: RUF001
-EINE_DATEI = ("Für ein neues Projekt aus {art} genau eine Datei hochladen ({endungen}); "
-              "texturierte Meshes und Ordner kommen später.")
+EINE_DATEI = "Für ein neues Projekt aus {art} genau eine Datei hochladen ({endungen})."
+EINE_DATEI_NOCH_NICHT = " Texturierte Meshes und Ordner nimmt der Import noch nicht an."
+IMPORT_ART = {"neu_wolke": "einer Punktwolke", "neu_mesh": "Mesh", "neu_splats": "Splats"}
 
 
 class DateiIn(BaseModel):
@@ -412,7 +413,8 @@ def _import_json(a: auftraege.Auftrag, jc: sqlite3.Connection) -> dict[str, Any]
 
 
 @router.post("/importe", dependencies=[Depends(csrf)], status_code=202,
-             summary="Neues Projekt aus einem abgeschlossenen Upload (Admin; neu_mesh, neu_splats)")
+             summary="Neues Projekt aus einem abgeschlossenen Upload (Admin; neu_wolke, neu_mesh, "
+                     "neu_splats)")
 def import_starten(body: ImportIn, request: Request, conn: sqlite3.Connection = Depends(db),
                    jc: sqlite3.Connection | None = Depends(jobs)) -> JSONResponse:
     n = _admin(request, conn)
@@ -427,10 +429,11 @@ def import_starten(body: ImportIn, request: Request, conn: sqlite3.Connection = 
         raise Ungueltig("Unbekannte Option: datei bzw. upload gehören nicht in optionen.")
     endungen = auftraege.IMPORT_ENDUNGEN.get(body.typ)
     if endungen is not None:
-        art = "Mesh" if body.typ == "neu_mesh" else "Splats"
         passend = [d for d in u.dateien if d.pfad.lower().endswith(endungen)]
         if len(u.dateien) != 1 or len(passend) != 1:
-            raise Ungueltig(EINE_DATEI.format(art=art, endungen=", ".join(endungen)))
+            raise Ungueltig(EINE_DATEI.format(art=IMPORT_ART[body.typ],
+                                              endungen=", ".join(endungen))
+                            + ("" if body.typ == "neu_wolke" else EINE_DATEI_NOCH_NICHT))
         optionen = {**body.optionen, "upload": u.id, "datei": passend[0].pfad}
     else:
         optionen = {**body.optionen, "upload": u.id}

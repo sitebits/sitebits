@@ -4,9 +4,10 @@ Ablauf je Artefakt (aus `artefakte.baue_artefakte`):
 
 1. `erzeuge_roh` — Generator laut Werkzeug-Probe (`docs/compliance/werkzeuge.md`): Web
    `cyclonedx-npm --package-lock-only`, Python `cyclonedx-py environment` über eine im gepinnten
-   uv-Image gebaute venv. Die Container-Images des Imports (PDAL, untwine) beschreibt `syft` in
-   einem eigenen, nicht ausgelieferten SBOM (`erzeuge_bilder`, Name `BILDER`): sie laufen nur
-   beim Datenaufbereiter und kommen nicht mit dem Import-Archiv auf den Host. Belegte
+   uv-Image gebaute venv. Das Container-Image des Imports (scanview-pdal: PDAL, untwine)
+   beschreibt `syft` in einem eigenen, nicht ausgelieferten SBOM (`erzeuge_bilder`, Name
+   `BILDER`): es läuft nur beim Datenaufbereiter und kommt nicht mit dem Import-Archiv auf den
+   Host. Belegte
    Anreicherung: SHA-512 der Python-Wheels (Download gegen `uv.lock`, SHA-256
    geprüft), npm-Hashes gegen `package-lock.json` abgeglichen, Ersteller aus den Paketmetadaten.
 2. `nachbearbeiten` — Pflichtfelder nach TR §5.2 und Anhang 8.2 (CycloneDX 1.6): Ersteller,
@@ -1302,7 +1303,19 @@ def _herunterladen(url: str) -> bytes:
 #: Python-Minor-Version (untere Schranke von `requires-python`) → (Werkzeug, Site-Ordner).
 _PY_WERKZEUGE = {"3.11": ("cyclonedx-py", "site"), "3.12": ("cyclonedx-py-py312", "site-py312")}
 _NPM_CLI = "/werkzeug/node_modules/@cyclonedx/cyclonedx-npm/bin/cyclonedx-npm-cli.js"
-_IMPORT_BILDER = Path("import/src/scanview_import/pdal_runner.py")
+#: Container-Images des Import-Werkzeugs: Kennung (bom-ref-Präfix `<kennung>|`, siehe
+#: `scan.IMAGE_PRAEFIXE`), Quelldatei und Konstante mit dem Image-Tag (String-Literal, per Regex
+#: gelesen) und der Grund, warum ihr Inhalt lückenhaft ist.
+_IMPORT_BILDER: tuple[tuple[str, Path, str, str], ...] = (
+    ("pdal", Path("import/src/scanview_import/pdal_runner.py"), "IMAGE",
+     "Container-Image scanview-pdal (PDAL und untwine), lokal gebaut aus gepinnter Basis + "
+     "explizitem conda-Lock, Tag = Lock-Hash: Paketinhalt laut syft ohne SHA-512 der Paketform "
+     "und ohne Dateinamen"),
+    ("meshtools", Path("import/src/scanview_import/mesh_textures.py"), "KTX_IMAGE",
+     "Container-Image scanview-meshtools (KTX-Software), lokal gebaut aus gepinnter Basis + "
+     "explizitem conda-Lock + per SHA-256 geprüftem KTX-Paket, Tag = Lock-Hash: Paketinhalt laut "
+     "syft ohne SHA-512 der Paketform und ohne Dateinamen; KTX selbst ohne PURL"),
+)
 
 
 def _werkzeug(werkzeuge: dict[str, Werkzeug], name: str, nachweise: Path) -> tuple[Werkzeug, Path]:
@@ -1556,14 +1569,56 @@ def _roh_python(artefakt: Artefakt, worktree: Path, werkzeuge: dict[str, Werkzeu
                 {"type": "source-distribution", "url": quellen[schluessel],
                  "comment": "sdist laut uv.lock"})
     luecken.update(nur_sdist_luecken)
+    if artefakt.name == "import":
+        downloads += pdal_umgebung_einfuegen(bom, worktree, belege, _herunterladen)
     return Rohergebnis(bom=bom, belege=belege, unvollstaendig=luecken,
                        netzschritte=[*schritte, *downloads])
 
 
-def _konstante(text: str, name: str) -> str:
+def pdal_umgebung_einfuegen(bom: dict[str, Any], worktree: Path, belege: dict[str, Beleg],
+                            laden: Callable[[str], bytes]) -> list[Netzschritt]:
+    """Import: die gelockte PDAL-Umgebung (`import/pdal-umgebung/pixi.lock`) wird auf dem Host
+    installiert und gehört damit zum Lieferumfang — ihre Pakete als Komponenten des Import-SBOMs
+    (Abhängigkeit der Hauptkomponente), SHA-512 belegt über den Download gegen die SHA-256 des
+    Locks. Ohne Lock nichts (ältere Stände)."""
+    from . import pdal_umgebung as pu
+
+    pfad = worktree / pu.LOCK
+    if not pfad.is_file():
+        return []
+    lock_text = pfad.read_text(encoding="utf-8")
+    pu.pruefe(worktree)  # Beilage (Lizenztexte, Quellen) passt zum Lock — sonst kein SBOM
+    quellen = json.loads((worktree / pu.QUELLEN).read_text(encoding="utf-8"))
+    neu = pu.komponenten(lock_text, quellen)
+    vorhanden = {k.get("bom-ref") for k in bom.get("components", [])}
+    if vorhanden & {k["bom-ref"] for k in neu}:
+        raise NachweisFehler("sbom-komponenten", "PDAL-Umgebung doppelt im SBOM")
+    bom.setdefault("components", []).extend(neu)
+    schritte: list[Netzschritt] = []
+
+    def mit_schritt(url: str) -> bytes:
+        schritte.append(Netzschritt(befehl=["herunterladen", url], cwd=str(pu.ORDNER),
+                                    zeit=_jetzt()))
+        return laden(url)
+
+    for ref, (url, sha512) in pu.sha512_belege(lock_text, mit_schritt).items():
+        belege[ref] = Beleg(url=url, sha512=sha512, dateiname=url.rsplit("/", 1)[1])
+    haupt_ref = _haupt(bom)["bom-ref"]
+    abh = bom.setdefault("dependencies", [])
+    for d in abh:
+        if d.get("ref") == haupt_ref:
+            d["dependsOn"] = sorted({*d.get("dependsOn", []), *(k["bom-ref"] for k in neu)})
+            break
+    else:
+        abh.append({"ref": haupt_ref, "dependsOn": sorted(k["bom-ref"] for k in neu)})
+    abh += pu.abhaengigkeiten(lock_text)
+    return schritte
+
+
+def _konstante(text: str, name: str, quelle: Path | None = None) -> str:
     treffer = re.search(rf'^{name}\s*=\s*"([^"]+)"', text, re.MULTILINE)
     if treffer is None:
-        raise NachweisFehler("sbom-image", f"{_IMPORT_BILDER}: {name} nicht gefunden")
+        raise NachweisFehler("sbom-image", f"{quelle or 'Quelltext'}: {name} nicht gefunden")
     return treffer.group(1)
 
 
@@ -1577,77 +1632,80 @@ def container_purl(referenz: str) -> str | None:
     return f"pkg:docker/{name}@{urllib.parse.quote(digest, safe='')}"
 
 
+def _ein_image(bom: dict[str, Any], syft: Werkzeug, arbeit: Path, kennung: str, referenz: str,
+               grund: str, luecken: dict[str, str]) -> str:
+    """syft über ein lokales Image (`docker save` der Image-ID, ohne Netz): Container-Komponente
+    `image:<kennung>`, Paketinhalt als `<kennung>|…` darunter, alles mit `grund` lückenhaft.
+    Liefert die bom-ref der Container-Komponente."""
+    info = ausfuehren(["docker", "image", "inspect", "--format", "{{.Id}} {{.Created}}",
+                       referenz], "sbom-image").stdout.split()
+    if len(info) != 2 or not info[0].startswith("sha256:"):
+        raise NachweisFehler("sbom-image", f"{referenz}: Image-ID nicht lesbar")
+    bild_id, erstellt = info
+    ordner = arbeit / f"image-{kennung}"
+    ordner.mkdir()
+    tar = ordner / "bild.tar"
+    aus = ordner / "aus"
+    aus.mkdir()
+    try:
+        ausfuehren(["docker", "save", "-o", str(tar), bild_id], "sbom-image")
+        ausfuehren(docker_befehl(
+            syft, ["scan", "docker-archive:/img/bild.tar", "--select-catalogers",
+                   "+conda-meta-cataloger", "-o", "cyclonedx-json@1.6=/aus/bom.json"],
+            {tar: "/img/bild.tar"}, {aus: "/aus"},
+            umgebung={"SYFT_CHECK_FOR_APP_UPDATE": "false"}), "sbom-generator")
+    finally:
+        tar.unlink(missing_ok=True)
+    roh = _lade_json(aus / "bom.json", "sbom-generator")
+    name, _, rest = referenz.partition("@")[0].rpartition(":")
+    version = rest if rest and rest != "latest" else erstellt
+    cref = f"image:{kennung}"
+    komponente: dict[str, Any] = {
+        "type": "container", "bom-ref": cref, "name": name or referenz, "version": version,
+        "properties": [{"name": "scanview:image", "value": referenz},
+                       {"name": "scanview:image-id", "value": bild_id}],
+    }
+    purl = container_purl(referenz)
+    if purl:
+        komponente["purl"] = purl
+    behalten = {k["bom-ref"] for k in roh.get("components", []) if k.get("type") != "file"}
+    neu = {r: f"{kennung}|{r}" for r in behalten}
+    bom["components"].append(komponente)
+    for k in roh.get("components", []):
+        if k.get("bom-ref") in behalten:
+            k = copy.deepcopy(k)
+            k["bom-ref"] = neu[k["bom-ref"]]
+            bom["components"].append(k)
+            luecken[k["bom-ref"]] = grund
+    for d in roh.get("dependencies", []):
+        if d.get("ref") in behalten:
+            bom["dependencies"].append({
+                "ref": neu[d["ref"]],
+                "dependsOn": sorted(neu[r] for r in d.get("dependsOn", []) if r in behalten)})
+    bom["dependencies"].append({"ref": cref, "dependsOn": sorted(neu.values())})
+    luecken[cref] = grund
+    return cref
+
+
 def _roh_images(bom: dict[str, Any], worktree: Path, werkzeuge: dict[str, Werkzeug],
                 arbeit: Path) -> dict[str, str]:
-    """syft über die vom Import genutzten Container-Images (`docker save` der lokalen Image-ID,
-    ohne Netz). Jedes Image wird Komponente `container`, sein Paketinhalt (ohne syft-Dateieinträge)
-    hängt darunter; alles ist `incomplete` (kein SHA-512 der Paketform, conda ohne Lock)."""
-    try:
-        text = (worktree / _IMPORT_BILDER).read_text(encoding="utf-8")
-    except OSError as e:
-        raise NachweisFehler("sbom-image", f"{_IMPORT_BILDER}: {e.strerror}") from None
+    """syft über die vom Import genutzten Container-Images (`_IMPORT_BILDER`: scanview-pdal mit
+    PDAL und untwine, scanview-meshtools mit KTX). Je Image eine Komponente `container`, sein
+    Paketinhalt (ohne syft-Dateieinträge) hängt darunter; alles ist `incomplete` (kein SHA-512
+    der Paketform)."""
     syft = werkzeuge.get("syft")
     if syft is None:
         raise NachweisFehler("werkzeuge", "syft fehlt in werkzeuge.json")
-    gruende = {
-        "pdal": ("Container-Image pdal/pdal (per Digest gepinnt): Paketinhalt laut syft ohne "
-                 "SHA-512 der Paketform und ohne Dateinamen, conda-Pakete ohne Lock-Beleg"),
-        "untwine": ("Container-Image scanview-untwine (lokal gebaut, nur Image-ID): transitive "
-                    "conda-Pakete ohne Lock, kein Registry-Digest (B-LK-UNTWINE)"),
-    }
     haupt_ref = _haupt(bom)["bom-ref"]
     luecken: dict[str, str] = {}
     container_refs: list[str] = []
-    for kennung, konstante in (("pdal", "IMAGE"), ("untwine", "UNTWINE_IMAGE")):
-        referenz = _konstante(text, konstante)
-        info = ausfuehren(["docker", "image", "inspect", "--format", "{{.Id}} {{.Created}}",
-                           referenz], "sbom-image").stdout.split()
-        if len(info) != 2 or not info[0].startswith("sha256:"):
-            raise NachweisFehler("sbom-image", f"{referenz}: Image-ID nicht lesbar")
-        bild_id, erstellt = info
-        ordner = arbeit / f"image-{kennung}"
-        ordner.mkdir()
-        tar = ordner / "bild.tar"
-        aus = ordner / "aus"
-        aus.mkdir()
+    for kennung, quelle, konstante, grund in _IMPORT_BILDER:
         try:
-            ausfuehren(["docker", "save", "-o", str(tar), bild_id], "sbom-image")
-            ausfuehren(docker_befehl(
-                syft, ["scan", "docker-archive:/img/bild.tar", "--select-catalogers",
-                       "+conda-meta-cataloger", "-o", "cyclonedx-json@1.6=/aus/bom.json"],
-                {tar: "/img/bild.tar"}, {aus: "/aus"},
-                umgebung={"SYFT_CHECK_FOR_APP_UPDATE": "false"}), "sbom-generator")
-        finally:
-            tar.unlink(missing_ok=True)
-        roh = _lade_json(aus / "bom.json", "sbom-generator")
-        name, _, rest = referenz.partition("@")[0].rpartition(":")
-        version = rest if rest and rest != "latest" else erstellt
-        cref = f"image:{kennung}"
-        komponente: dict[str, Any] = {
-            "type": "container", "bom-ref": cref, "name": name or referenz, "version": version,
-            "properties": [{"name": "scanview:image", "value": referenz},
-                           {"name": "scanview:image-id", "value": bild_id}],
-        }
-        purl = container_purl(referenz)
-        if purl:
-            komponente["purl"] = purl
-        behalten = {k["bom-ref"] for k in roh.get("components", []) if k.get("type") != "file"}
-        neu = {r: f"{kennung}|{r}" for r in behalten}
-        bom["components"].append(komponente)
-        for k in roh.get("components", []):
-            if k.get("bom-ref") in behalten:
-                k = copy.deepcopy(k)
-                k["bom-ref"] = neu[k["bom-ref"]]
-                bom["components"].append(k)
-                luecken[k["bom-ref"]] = gruende[kennung]
-        for d in roh.get("dependencies", []):
-            if d.get("ref") in behalten:
-                bom["dependencies"].append({
-                    "ref": neu[d["ref"]],
-                    "dependsOn": sorted(neu[r] for r in d.get("dependsOn", []) if r in behalten)})
-        bom["dependencies"].append({"ref": cref, "dependsOn": sorted(neu.values())})
-        luecken[cref] = gruende[kennung]
-        container_refs.append(cref)
+            text = (worktree / quelle).read_text(encoding="utf-8")
+        except OSError as e:
+            raise NachweisFehler("sbom-image", f"{quelle}: {e.strerror}") from None
+        referenz = _konstante(text, konstante, quelle)
+        container_refs.append(_ein_image(bom, syft, arbeit, kennung, referenz, grund, luecken))
     for d in bom["dependencies"]:
         if d.get("ref") == haupt_ref:
             d["dependsOn"] = [*d.get("dependsOn", []), *container_refs]
@@ -1666,8 +1724,8 @@ def erzeuge_bilder(worktree: Path, werkzeuge: dict[str, Werkzeug], *, version: s
     """Nachweis-SBOM der Container-Images des Import-Werkzeugs (syft über `docker save`, ohne
     Netz). Eigene Hauptkomponente `scanview-importbilder`, weil es kein Artefakt dazu gibt: kein
     Dateiname, keine Artefakt-Hashes. `serialNumber` aus Version und Image-IDs. Der ganze Inhalt
-    ist `incomplete` (kein SHA-512 der Paketform, conda ohne Lock) — ehrlich ausgewiesen, aber
-    kein Teil eines ausgelieferten SBOMs."""
+    ist `incomplete` (syft liefert keinen SHA-512 der Paketform, auch wenn die conda-Pakete per
+    SHA-256 im Lock stehen) — ehrlich ausgewiesen, aber kein Teil eines ausgelieferten SBOMs."""
     arbeit = arbeitsordner / BILDER
     try:
         arbeit.mkdir(parents=True)
@@ -1678,8 +1736,9 @@ def erzeuge_bilder(worktree: Path, werkzeuge: dict[str, Werkzeug], *, version: s
         "metadata": {"component": {
             "type": "application", "bom-ref": _BILDER_REF, "name": _BILDER_REF,
             "version": version,
-            "description": "Container-Images des Import-Werkzeugs (PDAL, untwine) — laufen nur "
-                           "beim Datenaufbereiter, nicht ausgeliefert"}},
+            "description": "Container-Images des Import-Werkzeugs (scanview-pdal: PDAL, "
+                           "untwine; scanview-meshtools: KTX) — laufen nur beim "
+                           "Datenaufbereiter, nicht ausgeliefert"}},
         "components": [], "dependencies": [{"ref": _BILDER_REF, "dependsOn": []}],
     }
     luecken = _roh_images(b, worktree, werkzeuge, arbeit)

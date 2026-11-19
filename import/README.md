@@ -46,6 +46,18 @@ uv run --locked scanview-import convert /daten/punkte.csv /daten/text-paket --un
 uv run --locked scanview-import verify /daten/punkte.csv /daten/text-paket --samples 10000
 ```
 
+`convert` schreibt bei Punktwolken die Draufsicht (`topview.png`, Eintrag `topview` in `project.json`)
+gleich mit, wie `build` bei E57. Größe wie bei `overview`: `--pixel-m` (Standard 0,05 m) und
+`--max-px` (Standard 2048 Pixel an der längeren Kante; bei großen Flächen, etwa Drohnenaufnahmen,
+lieber 4096), `--z-max` blendet Decken aus.
+
+Bei georeferenzierten Paketen kann ein Orthobild die Wolkenfarbe in der Draufsicht ersetzen:
+`--bild ortho.tif --bild-crs EPSG:25833` (bei `overview`, `convert` und `build`). Das Bild braucht eine
+Weltdatei daneben (`.tfw`, `.jgw`, `.pgw` oder `.wld`, nicht gedreht) und muss im Koordinatensystem des
+Pakets liegen; `--bild-crs` wird mit dem Paket verglichen, nicht geraten. Wo das Bild durchsichtig ist
+oder nicht hinreicht, bleibt die Farbe der Wolke. `project.json` vermerkt Quelle und Deckung unter
+`topview.image`.
+
 `--ausduennen <meter>` ist optional für **alle** Formate einschließlich E57 und behält je
 Voxel den Originalpunkt nächst zum Zellzentrum (`filters.voxelcenternearestneighbor`).
 Ohne Option läuft kein Ausdünnungsfilter. Bei Ausdünnung wird die Quelle zuerst in
@@ -130,8 +142,35 @@ uv run --locked scanview-import verify /daten/wolke.laz /daten/paket
   EPSG:3045). WGS-84-UTM (z. B. EPSG:32632), lokale Rahmen und Pakete ohne CRS werden nicht
   umgerechnet. Fehlt das Gitter oder liegt ein Punkt außerhalb, bricht der Import ab. DHHN92 kann
   deklariert, aber nicht umgerechnet werden.
+- **Nicht umrechenbar:** Eine Kombination ohne Umrechnung (etwa DHHN92 mit dem Standardziel
+  DHHN2016) bricht vor der Verarbeitung ab, es entsteht kein Paket. Für DHHN92 ohne Umrechnung
+  beim Anlegen `--ziel-hoehensystem dhhn92` angeben.
 - **Ergänzen (`add`):** Das Paket bestimmt das Ziel. Ein abweichendes `--ziel-hoehensystem` oder
-  ein unbekanntes Paket-Höhensystem bricht ab.
+  ein unbekanntes Paket-Höhensystem bricht ab. DHHN92-Daten passen nur in ein Paket, das schon beim
+  Anlegen `--ziel-hoehensystem dhhn92` bekommen hat; in ein Paket mit anderem Höhensystem bricht
+  `add` vor der Verarbeitung ab.
+- **Kacheln (`kacheln`):** Großes Mesh (OBJ) in eine 3D-Tiles-Hierarchie (Ebene `mesh-tiles`). Ohne
+  Paket gelten `--quell-hoehensystem`/`--ziel-hoehensystem` wie bei `convert`. Mit `--lage-von
+  PAKETORDNER` rechnet der Kachler wie `add`: Das Paket bestimmt das Ziel, danach wirkt die
+  Lagematrix der Wolke (`sourceOptions.lage`); `heightSystem` und CRS kommen wörtlich aus dem
+  Paketrahmen, `--crs` muss dazu passen. Fehlt der Wolke die Lagematrix, ist `--ohne-lage`
+  Pflicht. Ein billiges Hüllentor bricht vor jeder Ausgabe ab, wenn sich die Höhenbereiche von
+  Mesh und Wolke (`boundsWorld`) nicht überlappen oder die Mesh-Mitte (x, y und z) mehr als 10 m
+  außerhalb der Wolkenhülle liegt; die Wolke muss das Mesh also auch in der Höhe abdecken. Paket
+  ohne CRS, mit unbekanntem Höhensystem oder nicht metrisch bricht ab. Die Messung gegen echte Wolkenpunkte (frameCheck wie bei `add`) läuft für
+  Kacheln noch nicht: Laufzeit und Speicher bei Millionen Dreiecken sind nicht gemessen.
+  `--hoehe` bleibt das Etikett für bereits umgerechnete Quellen und schließt
+  `--quell-hoehensystem` aus; `--packen` braucht eines von beiden. Das Etikett sagt nur, dass
+  die Höhe stimmt, nicht, ob die Lagematrix schon angewandt ist. Deshalb lehnt `kacheln`
+  `--hoehe` zusammen mit `--lage-von` ab, wenn die Wolke eine Lagematrix trägt: Ein rohes OBJ
+  bekommt `--quell-hoehensystem` (auch gleich dem Paket, dann wirkt nur die Lage), ein OBJ mit
+  schon angewandter Höhe und Lage wird ohne `--lage-von` gekachelt. Die gepackte Ebene vermerkt
+  `sourceOptions.hoehe` und `sourceOptions.lage` wie `add`.
+
+  ```bash
+  uv run --locked scanview-import kacheln /daten/netz.obj /daten/kacheln --packen \
+    --crs EPSG:25833 --quell-hoehensystem ellipsoidisch --lage-von /daten/paket
+  ```
 - **E57:** nur Deklaration, beide Optionen gleich (z. B. `--quell-hoehensystem dhhn2016
   --ziel-hoehensystem dhhn2016`); eine Umrechnung lehnt der Import ab.
 - **Nachweis:** `sourceOptions.hoehe` der Ebene hält Quelle, Ziel, Gitter und dessen SHA-256.
@@ -498,15 +537,15 @@ scanview-import start-sichtbar <paket> <ebenen-id> aus   # bzw. an
 Setzt `startVisible: false` an der Ebene in `project.json` (`an` entfernt das Feld wieder). Der Viewer
 zeigt die Ebene dann beim Öffnen nicht; eine so ausgeblendete Punktwolke lädt er gar nicht erst. Nutzer
 schalten sie im Ebenenmenü ein, ein Link mit `ly=` hat Vorrang. Gedacht etwa für Projekte, die mit dem
-Mesh beginnen sollen, weil die Punktwolke aus der Nähe grob wirkt.
+Mesh beginnen sollen, weil die Punktwolke aus der Nähe grob wirkt. Nennt das Paket Startebenen
+(`initialView.layers`, etwa nach `add-splats --startebene`), haben diese im Viewer Vorrang vor
+`startVisible`; `start-sichtbar` führt die Liste deshalb mit (`an` hängt die Ebene an, `aus` nimmt sie
+heraus; wird sie leer, startet der Viewer mit allen Ebenen aus) und gibt sie dann als `startebenen` mit aus.
 
 ## Mesh-Import Weg A
 
 ```bash
-# Einmalig KTX-Werkzeug bauen. Laufzeit verwendet die geprüfte Image-ID, keinen Tag.
-docker build -f docker/meshtools.Dockerfile -t scanview-meshtools:4.4.2 docker
-docker image inspect scanview-meshtools:4.4.2 --format '{{.Id}}'
-
+# Das KTX-Werkzeug baut der erste Import mit Textur selbst (einmal Netz für Pakete und KTX).
 uv run --locked scanview-import convert /daten/modell.obj /daten/mesh-paket --unit m
 uv run --locked scanview-import convert /daten/modell.glb /daten/glb-paket
 uv run --locked scanview-import add --same-frame /daten/modell.obj /daten/wolken-paket --unit m
@@ -515,9 +554,21 @@ uv run --locked scanview-import verify /daten/modell.obj /daten/wolken-paket
 uv run --locked scanview-import convert /daten/modell.obj /daten/rahmen-paket --unit m --dreiecke 0
 ```
 
-Die Image-ID muss mit `KTX_IMAGE` in `src/scanview_import/mesh_textures.py` übereinstimmen.
-Ein Neubau kann eine andere ID liefern (Debian-Pakete); dann bewusst prüfen und den Pin
-aktualisieren. Es gibt keinen automatischen Tag-Fallback. Ohne Textur braucht das Mesh
+Material (`mtllib`) und Texturen sucht der Import neben dem **angegebenen** Pfad, auch wenn die
+OBJ-Datei ein Symlink ist: Eine Arbeitskopie kann die Geometrie verlinken und eigene, etwa
+verkleinerte, Texturen daneben legen. Quelltexturen dürfen bis 16384 Pixel je Achse groß sein
+(Fotogrammetrie-Atlanten); größere bricht der Import mit Meldung ab.
+
+Das Image heißt `KTX_IMAGE` in `src/scanview_import/mesh_textures.py`: `scanview-meshtools:`
+und die ersten 12 Hex der SHA-256 über `docker/meshtools.Dockerfile` und das Lock, wie bei
+`scanview-pdal`. Fehlt es lokal, baut der Import es selbst; ein Tag, der nicht mehr zu Dockerfile
+und Lock passt, bricht ab (Tag im Quelltext nachziehen). Das Image entsteht aus zwei per Digest
+gepinnten Basen (Laufzeit distroless, ohne Shell und Paketverwaltung), dem per SHA-256
+geprüften KTX-Release-Paket und dem expliziten Lock `docker/meshtools.conda-lock.txt` (Python
+und C++-Laufzeit, fünf Pakete, dieselben Builds wie `docker/pdal.conda-lock.txt`). Von Hand
+bauen geht mit `docker build -f docker/meshtools.Dockerfile -t <KTX_IMAGE> docker`. Gestartet
+wird die geprüfte Image-ID; sie steht als `imageDigest` in den Texturangaben der Ebene
+(`project.json`). Ohne Textur braucht das Mesh
 keinen KTX-Prozess. Die Container laufen ohne Netz, als eigene UID, mit 40-GiB-Grenze,
 allen Capabilities entzogen und nur einem eigenen schreibbaren Arbeitsordner.
 Auch die KTX-Container werten `SCANVIEW_PDAL_MEMORY` (Standard `40g`, inklusive Swap),

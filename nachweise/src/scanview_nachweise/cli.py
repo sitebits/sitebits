@@ -28,6 +28,7 @@ from . import (
     manifest,
     negativkontrollen,
     osv,
+    pdal_scan,
     register,
     release,
     reproduzierbarkeit,
@@ -41,7 +42,7 @@ from . import (
 from .fehler import NachweisFehler
 from .werkzeuge import lade_werkzeuge
 
-_VERSION = "0.12.0"
+_VERSION = "0.12.6"
 
 
 def _version(_args: argparse.Namespace) -> int:
@@ -198,8 +199,27 @@ def _db_aktualisieren(args: argparse.Namespace) -> int:
     stand = scan.db_aktualisieren(cache, lade_werkzeuge(wurzel / "nachweise" / "werkzeuge.json"))
     print(f"trivy-DB aktualisiert (Netzschritt): {stand.feld} {stand.zeit.isoformat()}, "
           f"sha256 {stand.sha256} — {cache / scan.DB_STAND}")
+    _pdal_osv_aktualisieren(wurzel, cache)
     _osv_aktualisieren(cache, osv.abfragen_aus_eigenbau(
         sbom.lade_eigenbau(wurzel / "nachweise" / "eigenbau.toml")))
+    return 0
+
+
+def _pdal_osv_aktualisieren(wurzel: Path, cache: Path) -> None:
+    """OSV-Stand der PDAL-Umgebung (Netzschritt, Gegenprobe je Paket; `pdal_scan`)."""
+    stand = pdal_scan.aktualisieren(wurzel, cache)
+    if stand is None:
+        print("OSV PDAL-Umgebung: keine osv.toml — kein Netzschritt")
+        return
+    funde = ", ".join(f"{r.split('/', 1)[1].split('@', 1)[0]}: {[f.id for f in fs]}"
+                      for r, (_p, fs) in sorted(stand.gedeckt.items()) if fs)
+    print(f"OSV-Stand PDAL-Umgebung (Netzschritt): {len(stand.gedeckt)} Pakete gedeckt, "
+          f"{len(stand.blind)} mit leerer Gegenprobe (blind); Funde: {funde or 'keine'} — "
+          f"{cache / pdal_scan.STAND} (sha256 {stand.sha256[:16]}…)")
+
+
+def _pdal_osv(args: argparse.Namespace) -> int:
+    _pdal_osv_aktualisieren(_wurzel(args), _cache(args))
     return 0
 
 
@@ -245,12 +265,14 @@ def _scan(args: argparse.Namespace) -> int:
     werkzeuge = lade_werkzeuge(wurzel / "nachweise" / "werkzeuge.json")
     sboms = _sbom_dateien(ordner)
     vex_pfad = Path(args.vex) if args.vex else wurzel / _VEX
-    aussagen = vex.lade_vex(vex_pfad)
     befunde = _register_laden(wurzel).befunde
     locks = _lock_hashes(wurzel)
     # DB-Frische gegen die echte Uhr, nicht gegen --heute (das gilt nur für Verfall/Befunde).
     osv_stand = osv.stand_falls_noetig(sboms.values(), cache, scan.jetzt())
-    lauf = scan.scanne_alle(sboms, cache, vex_pfad, werkzeuge, uhr=scan.jetzt(), osv=osv_stand)
+    pdal = pdal_scan.scan_eingaben(wurzel, sboms.values(), cache, scan.jetzt(), lambda: befunde)
+    aussagen = [*vex.lade_vex(vex_pfad), *pdal.vex]
+    lauf = scan.scanne_alle(sboms, cache, vex_pfad, werkzeuge, uhr=scan.jetzt(), osv=osv_stand,
+                            pdal=pdal.stand, blind=pdal.blind)
     stand, treffer, artefakte = lauf.stand, lauf.treffer, lauf.artefakte
 
     blockiert_scan = vex.treffer_gate(treffer, aussagen, heute, lock_hashes=locks)
@@ -369,6 +391,38 @@ def _pruefen_negativkontrollen(args: argparse.Namespace) -> int:
     anzahl = len(bericht["kontrollen"])
     print(f"Negativkontrollen: {bericht['ergebnis']} ({anzahl}/{anzahl}) — geschrieben: "
           f"{ausgabe}")
+    return 0
+
+
+def _pdal_erzeugen(args: argparse.Namespace) -> int:
+    """`quellen.json` der PDAL-Umgebung aus einem pixi-Cache neu schreiben (die Lizenztexte
+    erzeugt `einrichten.sh` auf dem Host, nicht im Repo)."""
+    from . import pdal_umgebung as pu
+
+    wurzel = _wurzel(args)
+    lock_text = (wurzel / pu.LOCK).read_text(encoding="utf-8")
+    quellen = pu.erzeuge(lock_text, Path(args.cache))
+    (wurzel / pu.QUELLEN).write_text(json.dumps(quellen, indent=2, ensure_ascii=False) + "\n",
+                                     encoding="utf-8")
+    print(f"PDAL-Umgebung: {len(quellen['pakete'])} Pakete, quellen.json geschrieben")
+    return 0
+
+
+def _pdal_pruefen(args: argparse.Namespace) -> int:
+    from . import pdal_umgebung as pu
+
+    bericht = pu.pruefe(_wurzel(args))
+    print(f"PDAL-Umgebung: {bericht['pakete']} Pakete, Beilage passt zum Lock")
+    return 0
+
+
+def _pdal_blind_bindung(args: argparse.Namespace) -> int:
+    """Bindung der Blind-Liste ausgeben: diesen Wert trägt die Akzeptanz des Befunds als
+    `akzeptanz_bindung` (`pdal_scan.blind_bindung`)."""
+    wurzel = _wurzel(args)
+    blind = pdal_scan.lade_scan_blind(wurzel / pdal_scan.SCAN_BLIND)
+    print(f"{blind.befund}: akzeptanz_bindung = \"{pdal_scan.blind_bindung(blind)}\" "
+          f"({len(blind.pakete)} Pakete, Lock-SHA {blind.lock_sha256})")
     return 0
 
 
@@ -672,6 +726,8 @@ def _wochenscan(args: argparse.Namespace) -> int:
         stand = scan.db_aktualisieren(cache, werkzeuge)
         print(f"trivy-DB aktualisiert (Netzschritt): {stand.feld} {stand.zeit.isoformat()}, "
               f"sha256 {stand.sha256}")
+        # PDAL-Umgebung: osv.toml des Repos (dieselbe Quelle wie die VEX-Aussagen im Scan).
+        _pdal_osv_aktualisieren(repo_pfad, cache)
         _osv_aktualisieren(cache, [
             *osv.abfragen_aus_eigenbau(sbom.lade_eigenbau(wurzel / "nachweise" / "eigenbau.toml")),
             *wochenscan.osv_abfragen(archiv_pfad, signers)])
@@ -880,6 +936,26 @@ def _bauen_parser() -> argparse.ArgumentParser:
                                               "<wurzel>/nachweise/allowed_signers)")
     do.add_argument("--wurzel", help="Repo-Wurzel mit nachweise/ (Standard: ab cwd aufwärts)")
     do.set_defaults(func=_deploy_ordner)
+
+    pu = sub.add_parser("pdal-umgebung", help="Beilage der PDAL-Umgebung (Lizenztexte, Quellen)")
+    pu_sub = pu.add_subparsers(dest="pdal_befehl", required=True)
+    pue = pu_sub.add_parser("erzeugen", help="quellen.json aus einem pixi-Cache (nach `pixi "
+                                             "install --locked`) schreiben")
+    pue.add_argument("--cache", required=True, help="PIXI_CACHE_DIR der Installation")
+    pue.add_argument("--wurzel", help="Repo-Wurzel (Standard: ab cwd aufwärts)")
+    pue.set_defaults(func=_pdal_erzeugen)
+    puo = pu_sub.add_parser("osv-aktualisieren", help="nur den OSV-Stand der PDAL-Umgebung laden "
+                                                      "(Netzschritt; Teil von db-aktualisieren)")
+    puo.add_argument("--cache", help="Scan-Cache (Standard wie scan)")
+    puo.add_argument("--wurzel", help="Repo-Wurzel (Standard: ab cwd aufwärts)")
+    puo.set_defaults(func=_pdal_osv)
+    pub = pu_sub.add_parser("blind-bindung", help="akzeptanz_bindung der Blind-Liste "
+                                                  "(scan-blind.toml) ausgeben (offline)")
+    pub.add_argument("--wurzel", help="Repo-Wurzel (Standard: ab cwd aufwärts)")
+    pub.set_defaults(func=_pdal_blind_bindung)
+    pup = pu_sub.add_parser("pruefen", help="Beilage gegen pixi.lock prüfen (offline)")
+    pup.add_argument("--wurzel", help="Repo-Wurzel (Standard: ab cwd aufwärts)")
+    pup.set_defaults(func=_pdal_pruefen)
 
     pr = sub.add_parser("pruefen", help="Prüfungen der Nachweiskette selbst")
     pr_sub = pr.add_subparsers(dest="pruefen_befehl", required=True)

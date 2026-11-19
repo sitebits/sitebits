@@ -144,7 +144,7 @@ def test_abdeckung_nach_bom_ref():
          "purl": "pkg:cargo/pyo3@0.25.1"},
         {"bom-ref": "pdal|conda-1", "type": "library", "name": "gdal"},
         {"bom-ref": "pdal|deb-1", "type": "library", "purl": "pkg:deb/ubuntu/zlib1g@1.3"},
-        {"bom-ref": "untwine|deb-1", "type": "library", "purl": "pkg:deb/ubuntu/zlib1g@1.3"},
+        {"bom-ref": "pdal|deb-2", "type": "library", "purl": "pkg:deb/ubuntu/zlib1g@1.3"},
         {"bom-ref": "wurzel", "type": "application", "name": "scanview-web",
          "components": [{"bom-ref": "innen", "type": "file", "name": "a.js"}]},
     ], "metadata": {"component": {"bom-ref": "haupt"}}}
@@ -153,7 +153,7 @@ def test_abdeckung_nach_bom_ref():
         {"Identifier": {"PURL": "pkg:deb/ubuntu/zlib1g@1.3", "BOMRef": "pdal|deb-1"}}]})
     a = abdeckung(bom, d, "importbilder")
     assert a["komponenten"] == 6                 # ohne type=file
-    assert a["gescannt"] == 4        # untwine|deb-1 über dieselbe PURL mit abgedeckt
+    assert a["gescannt"] == 4        # pdal|deb-2 über dieselbe PURL mit abgedeckt
     assert a["ungescannt"] == {"ohne PURL": 2}   # Dateikomponenten zählen nicht mit
     assert a["nach_typ"] == {"cargo": 1, "node-pkg": 1, "python-pkg": 0, "ubuntu": 1}
     # Nur im Nachweis-SBOM der Werkzeug-Images ist der Image-Inhalt ausgenommen.
@@ -173,19 +173,19 @@ def test_bilder_name_wie_sbom():
 
 def test_je_komponente_ordnet_gleiche_purl_allen_images_zu():
     # trivy fasst gleiche PURLs verschiedener Images zusammen und nennt nur eine (zufällige)
-    # bom-ref — das SBOM entscheidet, in welchen Images das Paket steckt.
+    # bom-ref — das SBOM entscheidet, in welchen Komponenten das Paket steckt.
     bom = {"components": [
-        {"bom-ref": "untwine|deb-z", "purl": "pkg:deb/ubuntu/zlib1g@1.3"},
+        {"bom-ref": "pdal|deb-z2", "purl": "pkg:deb/ubuntu/zlib1g@1.3"},
         {"bom-ref": "pdal|deb-z", "purl": "pkg:deb/ubuntu/zlib1g@1.3"},
         {"bom-ref": "pdal|x", "purl": "pkg:deb/ubuntu/x@1"}]}
     t = Treffer("CVE-1", "pkg:deb/ubuntu/zlib1g@1.3", "1.3", "mittel", None, artefakt="import",
-                bom_ref="untwine|deb-z")
+                bom_ref="pdal|deb-z2")
     ohne = Treffer("CVE-2", "demo@1", "1", "hoch", None, artefakt="import", bom_ref=None)
     assert je_komponente([t, ohne], bom) == [
         Treffer("CVE-1", "pkg:deb/ubuntu/zlib1g@1.3", "1.3", "mittel", None, artefakt="import",
                 bom_ref="pdal|deb-z"),
         Treffer("CVE-1", "pkg:deb/ubuntu/zlib1g@1.3", "1.3", "mittel", None, artefakt="import",
-                bom_ref="untwine|deb-z"),
+                bom_ref="pdal|deb-z2"),
         ohne]
 
 
@@ -193,10 +193,10 @@ def test_je_komponente_vergleicht_purl_dekodiert():
     # SBOM (syft) kodiert die Epoche als „1%3A…“, trivy gibt „1:…“ aus.
     bom = {"components": [
         {"bom-ref": "pdal|git", "purl": "pkg:deb/ubuntu/git@1%3A2.43.0?arch=amd64"},
-        {"bom-ref": "untwine|git", "purl": "pkg:deb/ubuntu/git@1%3A2.43.0?arch=amd64"}]}
+        {"bom-ref": "pdal|git2", "purl": "pkg:deb/ubuntu/git@1%3A2.43.0?arch=amd64"}]}
     t = Treffer("CVE-1", "pkg:deb/ubuntu/git@1:2.43.0?arch=amd64", "1:2.43.0", "mittel", None,
                 artefakt="import", bom_ref="pdal|git")
-    assert [x.bom_ref for x in je_komponente([t], bom)] == ["pdal|git", "untwine|git"]
+    assert [x.bom_ref for x in je_komponente([t], bom)] == ["pdal|git", "pdal|git2"]
 
 
 def test_abdeckung_modell_offen_aber_keine_pflicht():
@@ -212,8 +212,26 @@ def test_abdeckung_modell_offen_aber_keine_pflicht():
     assert a["ungescannt_pflicht"] == ["bibliothek-ohne-purl"]
 
 
+def test_abdeckung_conda_nie_gescannt():
+    """trivy listet pkg:conda als conda-pkg, führt dafür aber keine Schwachstellen (Gegenprobe
+    openssl 3.0.0: 0 Treffer) — gelistet heißt dort nicht geprüft, also Pflicht offen."""
+    from scanview_nachweise import pdal_umgebung as pu
+
+    purl = "pkg:conda/openssl@3.6.5?build=h781a0a9_0&channel=conda-forge&subdir=linux-64"
+    ref = f"{pu.REF_PRAEFIX}{purl}"
+    bom = {"components": [{"bom-ref": ref, "type": "library", "purl": purl}]}
+    daten = {"SchemaVersion": 2, "Results": [{"Type": "conda-pkg", "Packages": [
+        {"Identifier": {"PURL": purl, "BOMRef": ref}}]}]}
+    for artefakt in ("import", "importbilder"):
+        a = abdeckung(bom, daten, artefakt)
+        assert a["gescannt"] == 0 and a["ungescannt"] == {"pkg:conda": 1}
+        assert a["ungescannt_pflicht"] == [ref]
+    # Eine Ersatzprüfung mit genau dieser bom-ref und PURL deckt sie (wie bei Eigenbauten).
+    assert abdeckung(bom, daten, "import", {ref: purl})["ungescannt_pflicht"] == []
+
+
 def test_abdeckung_vergleicht_purl_dekodiert():
-    bom = {"components": [{"bom-ref": "untwine|git", "type": "library",
+    bom = {"components": [{"bom-ref": "pdal|git2", "type": "library",
                            "purl": "pkg:deb/ubuntu/git@1%3A2.43.0"}]}
     daten = {"SchemaVersion": 2, "Results": [{"Type": "ubuntu", "Packages": [
         {"Identifier": {"PURL": "pkg:deb/ubuntu/git@1:2.43.0", "BOMRef": "pdal|git"}}]}]}

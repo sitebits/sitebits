@@ -32,6 +32,8 @@ class EbeneGenauigkeit:
     hinweise: tuple[str, ...]
     # Maschinenlesbar für Agenten (KI-Parität): Status und Kennzahlen, ohne Kamera-GNSS-Werte.
     werte: dict[str, Any] | None = None
+    # Maßstab geprüft (accuracy.scale.status checked, sonst ältere Angabe scaleVerified: true).
+    massstab_belegt: bool = False
 
     def als_json(self) -> dict[str, Any]:
         return {"ebene": self.id, "titel": self.titel, "art": self.art, "zeilen": list(self.zeilen),
@@ -201,6 +203,8 @@ def ebenen(layers: list[Any]) -> tuple[EbeneGenauigkeit, ...]:
             id=e["id"], titel=titel, art=e["kind"],
             zeilen=tuple(panel_zeilen(acc)), hinweise=_hinweise(e["kind"], prov),
             werte=_werte(acc) if lesbar(acc) else None,
+            massstab_belegt=(acc["scale"]["status"] == "checked" if lesbar(acc)
+                             else prov.get("scaleVerified") is True),
         ))
     return tuple(out)
 
@@ -220,3 +224,39 @@ def mess_hinweis(punktquellen: Any, je_ebene: Mapping[str, tuple[str, ...]]) -> 
     return " · ".join(
         f"{MODELLMASS}{', '.join(quellen)})" if h == MODELLMASS else h for h in gesehen
     )
+
+
+#: Grundlage eines Eintrags: worauf seine Koordinaten beruhen. Nur lesend abgeleitet.
+#: gemessen    - ein Mensch hat die Geometrie im Viewer gesetzt (Kanal web), jeder Punkt hat eine
+#:               Quelle in einer Ebene des aktuellen Pakets, und deren Maßstab ist geprüft;
+#: ungeprueft  - wie gemessen, aber mindestens eine Quell-Ebene hat keinen geprüften Maßstab
+#:               (kein Nachweis, nur gesetzt, abweichend oder Modellmaß);
+#: angegeben   - Koordinaten ohne Punktquelle, über ein Token (Skript oder KI-Agent: Punktquellen
+#:               sind dort Behauptungen, kein Beleg) oder ohne nachvollziehbaren Kanal;
+#: unbekannt   - eine Quell-Ebene gibt es im aktuellen Paket nicht mehr.
+GRUNDLAGEN = ("gemessen", "ungeprueft", "angegeben", "unbekannt")
+
+
+def grundlage(daten: Mapping[str, Any], herkunft: str, ebenen: tuple[EbeneGenauigkeit, ...],
+              kanal: str | None) -> str:
+    """`kanal`: Kanal der letzten Änderung der Geometrie (`inhalte.geometrie_kanaele`)."""
+    if herkunft != "mensch" or kanal != "web":
+        return "angegeben"
+    if "points" in daten:
+        quellen = daten.get("pointSources")
+        punkte = daten.get("points")
+        if not isinstance(quellen, list) or not isinstance(punkte, list) \
+                or len(quellen) != len(punkte):
+            return "angegeben"
+    else:
+        quellen = [daten.get("positionSource")]
+    roh = [q.get("layerId") if isinstance(q, dict) else None for q in quellen]
+    ids = [i for i in roh if isinstance(i, str)]
+    if not ids or len(ids) != len(roh):
+        return "angegeben"
+    je_ebene = {e.id: e for e in ebenen}
+    if any(i not in je_ebene for i in ids):
+        return "unbekannt"
+    if not all(je_ebene[i].massstab_belegt for i in ids):
+        return "ungeprueft"
+    return "gemessen"

@@ -1,0 +1,17 @@
+{
+  "zweck": "Gemeinsame Fall-Tabelle für Fehlercodes. Drei Läufer prüfen sie: der Server gegen die echte Anwendung (server/tests/test_fehlercodes.py), der MCP-Server (mcp-server/tests/test_fehlercodes.py) und der Client (clients/sitebits/test/fehlercodes.test.ts). `wer`: Konto:Umfang[:agent] für ein Token, `-` ohne Anmeldung. Codes: docs/public/fehlercodes.md.",
+  "faelle": [
+    {"fall": "ohne_anmeldung", "wer": "-", "methode": "GET", "pfad": "/api/v1/projekte/ost", "status": 401, "code": "nicht_angemeldet"},
+    {"fall": "projekt_gibt_es_nicht", "wer": "bear:lesen", "methode": "GET", "pfad": "/api/v1/projekte/gibt-es-nicht", "status": 404, "code": "nicht_gefunden"},
+    {"fall": "projekt_ohne_zugriff", "wer": "bear:lesen", "methode": "GET", "pfad": "/api/v1/projekte/kirche", "status": 404, "code": "nicht_gefunden"},
+    {"fall": "lese_token_schreibt", "wer": "bear:lesen", "methode": "POST", "pfad": "/api/v1/projekte/ost/pois", "koerper": {"id": "P-9", "daten": {"title": "x", "category": "Mangel", "note": "", "position": [0, 0, 0], "station": null}}, "status": 403, "code": "nur_lesen"},
+    {"fall": "rolle_reicht_nicht", "wer": "betr:schreiben", "methode": "POST", "pfad": "/api/v1/projekte/ost/pois", "koerper": {"id": "P-9", "daten": {"title": "x", "category": "Mangel", "note": "", "position": [0, 0, 0], "station": null}}, "status": 403, "code": "keine_berechtigung"},
+    {"fall": "verwaltung_per_token", "wer": "leitung:schreiben", "methode": "PUT", "pfad": "/api/v1/projekte/ost/kategorien", "koerper": {"kategorien": []}, "status": 403, "code": "nur_im_browser"},
+    {"fall": "agent_aendert_gueltiges", "wer": "bear:schreiben:agent", "methode": "PATCH", "pfad": "/api/v1/projekte/ost/pois/P-1", "koerper": {"daten": {"title": "x"}, "version": 1}, "status": 403, "code": "nur_vorschlag"},
+    {"fall": "agent_nimmt_an", "wer": "bear:schreiben:agent", "methode": "POST", "pfad": "/api/v1/projekte/ost/pois/P-1/annehmen", "koerper": {"version": 1}, "status": 403, "code": "mensch_prueft"},
+    {"fall": "id_schon_vergeben", "wer": "bear:schreiben", "methode": "POST", "pfad": "/api/v1/projekte/ost/pois", "koerper": {"id": "P-1", "daten": {"title": "x", "category": "Mangel", "note": "", "position": [0, 0, 0], "station": null}}, "status": 409, "code": "id_vergeben"},
+    {"fall": "version_veraltet", "wer": "bear:schreiben", "methode": "PATCH", "pfad": "/api/v1/projekte/ost/pois/P-1", "koerper": {"daten": {"title": "x"}, "version": 99}, "status": 409, "code": "konflikt"},
+    {"fall": "status_ohne_version", "wer": "bh:schreiben", "methode": "POST", "pfad": "/api/v1/projekte/ost/pois/P-1/faden", "koerper": {"art": "status", "wert": "in_arbeit"}, "status": 422, "code": "version_fehlt"},
+    {"fall": "koerper_kaputt", "wer": "bear:schreiben", "methode": "POST", "pfad": "/api/v1/projekte/ost/pois", "koerper": {"falsch": true}, "status": 422, "code": "eingabe_ungueltig"}
+  ]
+}

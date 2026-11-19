@@ -8,11 +8,11 @@ import threading
 
 import pytest
 from conftest import csrf
-from uploadwelt import GLB, SPZ, Welt, baut_paket, welt, ziel_von  # noqa: F401
+from uploadwelt import GLB, LAZ, SPZ, Welt, baut_paket, welt, ziel_von  # noqa: F401
 
 from scanview_server import auftraege
 from scanview_worker import worker as W
-from scanview_worker.laeufer import Ergebnis, Lauf, TestLaeufer
+from scanview_worker.laeufer import NETZRAUM_VERSTOSS, Ergebnis, Lauf, TestLaeufer
 
 
 class Freischalten:
@@ -282,3 +282,114 @@ def test_stufen_werden_sichtbar(welt: Welt) -> None:  # noqa: F811
     with Freischalten(welt):
         _rechnen(welt, merken)
     assert stufen == ["konvertiert", "prueft"]
+
+
+# --- Punktwolke (neu_wolke): convert + verify aus der gelockten PDAL-Umgebung ------------------
+
+
+def _mit_pdal(w: Welt, aktion: object = baut_paket) -> TestLaeufer:
+    from dataclasses import replace
+
+    t = TestLaeufer(aktion)  # type: ignore[arg-type]
+    wk = W.Worker(replace(w.einstellungen(), pdal_umgebung=w.tmp / "pdal"), t)
+    wk.start()
+    wk.schleife(einmal=True)
+    wk.conn.close()
+    return t
+
+
+def test_wolke_convert_staged_ohne_docker(welt: Welt) -> None:  # noqa: F811
+    aid = welt.import_starten(welt.c["admin"], {"scan/a.laz": LAZ}, "neu_wolke",
+                              projekt="neu-wolke", titel="Halle", crs="EPSG:25833",
+                              quellHoehe="ellipsoidal-etrs89", zielHoehe="dhhn2016")
+    jc = welt.jobs()
+    try:
+        jc.execute("UPDATE auftraege SET optionen=json_set(optionen, '$.rgb8bit', 'ja') "
+                   "WHERE id=?", (aid,))
+    finally:
+        jc.close()
+    with Freischalten(welt):
+        t = _mit_pdal(welt)
+    a = _auftrag(welt, aid)
+    assert a.status == "fertig", a
+    konv, verify = t.laeufe
+    quelle = welt.wurzel / a.optionen["upload"] / "scan" / "a.laz"
+    assert konv.argv[1:3] == ["convert", str(quelle)]
+    assert konv.argv[4:] == ["--mode", "staged", "--titel", "Halle", "--crs", "EPSG:25833",
+                             "--quell-hoehensystem", "ellipsoidal-etrs89",
+                             "--ziel-hoehensystem", "dhhn2016", "--rgb-8bit"]
+    assert verify.argv[1:3] == ["verify", str(quelle)]
+    for lauf in (konv, verify):
+        assert dict(lauf.umgebung) == {"SCANVIEW_PDAL_AUSFUEHRUNG": "lokal",
+                                       "SCANVIEW_PDAL_UMGEBUNG": str(welt.tmp / "pdal")}
+        assert lauf.grenzen.ram_mb == auftraege.BUDGETS["neu_wolke"].ram_mb
+        assert lauf.grenzen.datei_mb >= 8192
+        assert lauf.lesen == (welt.wurzel / a.optionen["upload"],)
+
+
+def test_wolke_ohne_pdal_umgebung_nicht_eingerichtet(welt: Welt) -> None:  # noqa: F811
+    aid = welt.import_starten(welt.c["admin"], {"a.laz": LAZ}, "neu_wolke", projekt="neu-wolke")
+    t = _rechnen(welt)
+    assert t.laeufe == []
+    a = _auftrag(welt, aid)
+    assert a.status == "fehlgeschlagen" and a.fehler == W.F_WOLKE_NICHT_EINGERICHTET
+
+
+@pytest.mark.parametrize("schritt", ["convert", "verify"])
+def test_wolke_ohne_netzraum_scheitert_mit_isolationsfehler(welt: Welt,  # noqa: F811
+                                                            schritt: str) -> None:
+    """Der Vorspann der Auftrags-Unit fand keinen eigenen Netz-Namensraum (Exit
+    NETZRAUM_VERSTOSS, pdal/untwine nie gestartet): Auftrag scheitert mit verständlicher Meldung
+    ohne Pfade, nichts geht an die Übergabe."""
+    def ohne_netzraum(lauf: Lauf) -> Ergebnis:
+        if lauf.argv[1] == schritt:
+            lauf.protokoll.write_text("scanview: Isolation greift nicht: netzraum "
+                                      "(/proc/self/net/dev: ['eth0', 'lo'])\n")
+            return Ergebnis("exit", NETZRAUM_VERSTOSS, 0.1)
+        return baut_paket(lauf)
+
+    aid = welt.import_starten(welt.c["admin"], {"a.laz": LAZ}, "neu_wolke", projekt="neu-wolke")
+    with Freischalten(welt) as f:
+        t = _mit_pdal(welt, ohne_netzraum)
+    a = _auftrag(welt, aid)
+    assert a.status == "fehlgeschlagen" and a.fehler == W.F_ISOLATION
+    assert "/" not in W.F_ISOLATION
+    assert [lauf.argv[1] for lauf in t.laeufe] == (["convert"] if schritt == "convert"
+                                                   else ["convert", "verify"])
+    assert all(lauf.vorspann for lauf in t.laeufe)
+    assert f.gesehen == []
+
+
+def test_wolke_absage_mit_exit_1_kommt_ohne_pfade_an(welt: Welt) -> None:  # noqa: F811
+    def abgelehnt(lauf: Lauf) -> Ergebnis:
+        lauf.protokoll.write_text("Punktimport abgebrochen: /srv/x/a.laz hat kein CRS\n"
+                                  "Abgelehnt: a.laz hat kein Koordinatensystem — crs angeben\n")
+        return Ergebnis("exit", 1, 0.1)
+
+    aid = welt.import_starten(welt.c["admin"], {"a.laz": LAZ}, "neu_wolke", projekt="neu-wolke")
+    _mit_pdal(welt, abgelehnt)
+    assert _auftrag(welt, aid).fehler == "a.laz hat kein Koordinatensystem — crs angeben"
+
+
+def test_mesh_exit_1_bleibt_ohne_meldung(welt: Welt) -> None:  # noqa: F811
+    def abgelehnt(lauf: Lauf) -> Ergebnis:
+        lauf.protokoll.write_text("Abgelehnt: irgendwas\n")
+        return Ergebnis("exit", 1, 0.1)
+
+    aid = welt.import_starten(welt.c["admin"], {"m.glb": GLB}, "neu_mesh", projekt="neu-mesh")
+    _rechnen(welt, abgelehnt)
+    assert _auftrag(welt, aid).fehler == W.F_KONVERTIEREN.format(code=1)
+
+
+def test_wolke_platzbedarf_vor_dem_start(welt: Welt, monkeypatch: pytest.MonkeyPatch,  # noqa: F811
+                                         ) -> None:
+    import shutil
+    from collections import namedtuple
+
+    frei = namedtuple("frei", "total used free")
+    # Genug für das Fünffache, zu wenig für das gemessene Sechsfache der Quelle.
+    monkeypatch.setattr(shutil, "disk_usage", lambda _p: frei(0, 0, 5 * len(LAZ) + 1))
+    aid = welt.import_starten(welt.c["admin"], {"a.laz": LAZ}, "neu_wolke", projekt="neu-wolke")
+    t = _mit_pdal(welt)
+    assert t.laeufe == []
+    assert _auftrag(welt, aid).fehler == W.F_PLATTE_IMPORT

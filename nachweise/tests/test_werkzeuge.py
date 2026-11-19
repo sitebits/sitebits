@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from scanview_nachweise import sbom
 from scanview_nachweise.fehler import NachweisFehler
 from scanview_nachweise.werkzeuge import (
     CAP_AUSNAHMEN,
@@ -185,15 +186,18 @@ def _compose_caddy_digest() -> str:
 
 def test_pruefwerkzeuge_teil4_gepinnt() -> None:
     """SAST (semgrep, bandit), Fuzzing (schemathesis, caddy-test), DAST (zap) und der Browser des
-    Egress-Tests (playwright): eigene Images bzw. dasselbe uv-Image wie cyclonedx-py mit
-    Werkzeugordner; Caddy wie die Compose-Datei."""
+    Egress-Tests (playwright): eigene Images bzw. ein uv-Image mit Werkzeugordner; bandit im
+    3.12-Image von cyclonedx-py-py312 (parst die Syntax von `import/`, PEP 695), schemathesis im
+    3.11-Image von cyclonedx-py; Caddy wie die Compose-Datei."""
     w = lade_werkzeuge(ECHTE_WERKZEUGE)
     assert list(w)[-6:] == ["semgrep", "bandit", "schemathesis", "zap", "caddy-test", "playwright"]
     assert w["semgrep"].image.startswith("semgrep/semgrep@sha256:")
     assert w["zap"].image.startswith("zaproxy/zap-stable@sha256:")
     assert w["caddy-test"].image == f"caddy@{_compose_caddy_digest()}"
+    assert w["bandit"].image == w["cyclonedx-py-py312"].image
+    assert w["schemathesis"].image == w["cyclonedx-py"].image
+    assert w["bandit"].image != w["schemathesis"].image
     for name in ("bandit", "schemathesis"):
-        assert w[name].image == w["cyclonedx-py"].image
         assert w[name].werkzeugordner == f"werkzeuge/{name}"
     for name in ("semgrep", "zap", "caddy-test", "playwright"):
         assert w[name].werkzeugordner is None
@@ -202,12 +206,19 @@ def test_pruefwerkzeuge_teil4_gepinnt() -> None:
 @pytest.mark.parametrize("name", ["bandit", "schemathesis"])
 def test_uv_werkzeugordner_lieferkette(name: str) -> None:
     """Exakter Pin = Version in werkzeuge.json, kein eigenes Paket, fester Stichtag (auch im
-    Lock), jedes Paket des Locks nur als Wheel (no-build-package, drift-getestet)."""
-    w = lade_werkzeuge(ECHTE_WERKZEUGE)[name]
+    Lock), jedes Paket des Locks nur als Wheel (no-build-package, drift-getestet);
+    `requires-python` (auch im Lock) passt zum Python des Images (Zuordnung wie bei der SBOM:
+    3.11 → cyclonedx-py, 3.12 → cyclonedx-py-py312), sonst bricht `uv sync` im Container ab."""
+    alle = lade_werkzeuge(ECHTE_WERKZEUGE)
+    w = alle[name]
     ordner = ECHTE_WERKZEUGE.parent / (w.werkzeugordner or "")
     projekt = tomllib.loads((ordner / "pyproject.toml").read_text("utf-8"))
     lock = tomllib.loads((ordner / "uv.lock").read_text("utf-8"))
     assert projekt["project"]["dependencies"] == [f"{name}=={w.version}"]
+    python = re.fullmatch(r"==(\d+\.\d+)\.\*", projekt["project"]["requires-python"])
+    assert python is not None
+    assert w.image == alle[sbom._PY_WERKZEUGE[python[1]][0]].image
+    assert lock["requires-python"] == projekt["project"]["requires-python"]
     uv = projekt["tool"]["uv"]
     assert uv["package"] is False
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T00:00:00Z", uv["exclude-newer"])

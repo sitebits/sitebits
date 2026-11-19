@@ -28,8 +28,8 @@ STATION_ID_RE = re.compile(r"[A-Za-z0-9_-]{1,32}")
 # Wie server/src/scanview_server/auftraege.py (AUFTRAG_ID_RE, UPLOAD_ID_RE, IMPORTE).
 AUSWERTUNG_ID_RE = re.compile(r"[0-9a-f]{16}")
 UPLOAD_ID_RE = re.compile(r"[0-9a-f]{32}")
-IMPORTTYPEN = ("neu_mesh", "neu_splats")
-IMPORT_OPTIONEN = ("projekt", "titel", "crs", "quellHoehe", "zielHoehe")
+IMPORTTYPEN = ("neu_wolke", "neu_mesh", "neu_splats")
+IMPORT_OPTIONEN = ("projekt", "titel", "crs", "quellHoehe", "zielHoehe", "rgb8bit")
 
 Messart = Literal["distance", "polyline", "area", "height"]
 Status = Literal["offen", "in_arbeit", "erledigt", "abgeschlossen", "abgelehnt"]
@@ -87,6 +87,16 @@ def _punkt(wert: Any, wo: str) -> list[float]:
 
 
 def _meldung(e: ApiFehler, *, konflikt: str | None) -> str:
+    """Text für die KI: die Meldung je Status, dahinter fester Code und Hinweis der Instanz."""
+    text = _meldung_je_status(e, konflikt=konflikt)
+    if e.code is not None:
+        text += f" Code: {e.code}."
+    if e.hinweis is not None:
+        text += f" Hinweis: {e.hinweis}"
+    return text
+
+
+def _meldung_je_status(e: ApiFehler, *, konflikt: str | None) -> str:
     s = e.status
     if s == 0:
         return e.text
@@ -117,7 +127,8 @@ def _meldung(e: ApiFehler, *, konflikt: str | None) -> str:
     if s == 422:
         return f"Eingabe ungültig (422): {e.text}"
     if s == 429:
-        return f"Zu viele Anfragen (429): {e.text} Bitte eine Minute warten."
+        # Wie lange zu warten ist, sagt der Hinweis der Instanz (Drossel oder 15-Minuten-Sperre).
+        return f"Zu viele Anfragen (429): {e.text}"
     return f"Serverfehler ({s}): {e.text}"
 
 
@@ -435,6 +446,9 @@ def import_starten(c: Client, upload_id: str, auftragstyp: str,
     if "projekt" not in optionen:
         raise ToolError("optionen.projekt fehlt (ID des neuen Projekts).")
     _id(optionen["projekt"], PROJEKT_ID_RE, "Projekt-ID")
+    if "rgb8bit" in optionen and (auftragstyp != "neu_wolke" or optionen["rgb8bit"] != "ja"):
+        raise ToolError("optionen.rgb8bit: nur 'ja' und nur bei neu_wolke (LAS/LAZ mit Farbe "
+                        "0 bis 255, z. B. OpenDroneMap).")
     return _aufruf(c, "import_starten", _pfad("import_starten"),
                    json_koerper={"upload": upload_id, "typ": auftragstyp, "optionen": optionen})
 

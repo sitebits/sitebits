@@ -133,6 +133,18 @@ handle /data/* {
 		header @binaer >Cache-Control "private, max-age=3600, no-transform"
 		uri strip_prefix /data
 		root * {$SCANVIEW_DATA}
+		# pois.json ist optional (der Import schreibt sie nie). Fehlt sie, antwortet die Plattform 204
+		# statt 404: „keine Paket-POIs“, ohne dass Chrome einen Ladefehler auf der Konsole meldet. Erst
+		# hier, also nach authz: ein fremdes oder unbekanntes Projekt bleibt 404 und verrät nichts. Die
+		# 204 trägt wie jede *.json-Antwort „private, no-store“ (@manifest oben).
+		@poisFehlt {
+			path */pois.json
+			not file {
+				root {$SCANVIEW_DATA}
+				try_files {path}
+			}
+		}
+		respond @poisFehlt 204
 		file_server {
 			hide .*
 		}

@@ -1,5 +1,5 @@
-"""Nur-Lese-Links (F28): Anlegen nur Projektleitung, Gast sieht nur Wolke und Meshes seines
-Projekts, Widerruf/Ablauf/Schalter wirken sofort, Link-Passwort mit Sperre (ADR 0016)."""
+"""Nur-Lese-Links (F28): Anlegen nur Projektleitung, Gast sieht nur Wolke, Meshes und Sichtschicht
+seines Projekts, Widerruf/Ablauf/Schalter wirken sofort, Link-Passwort mit Sperre (ADR 0016)."""
 
 from __future__ import annotations
 
@@ -8,14 +8,17 @@ import logging
 import os
 import struct
 from pathlib import Path
+from typing import cast
 
 import pytest
 from conftest import ORIGIN, csrf
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from projektwelt import OST, Konto, ereignisse, projektwelt, verbindung  # noqa: F401
 from test_authz import mit_paketen  # noqa: F401
+from test_db import _bis
 
-from scanview_server import teilen
+from scanview_server import db, teilen
 
 TEILEN = f"{OST}/teilen"
 
@@ -166,6 +169,38 @@ def test_gast_manifest_bereinigt(welt: dict[str, Konto]) -> None:
     assert [x["kind"] for x in m["layers"]] == ["pointcloud", "mesh"]
     assert "conversion" not in m and m["topview"]["url"] == "topview.png"
     assert m["projectId"] == "ost" and m["schemaVersion"] == 2
+
+
+@pytest.mark.parametrize(("ebenen", "erwartet"), [
+    (["punkte", "mesh"], ["punkte", "mesh"]),                 # nur erlaubte Ebenen: unverändert
+    (["standpunkte", "punkte", "splat", "fotos"], ["punkte"]),  # gefiltert/unbekannt fällt weg
+    (["standpunkte", "splat", "fotos"], None),                  # nichts übrig: Schlüssel weg
+    ([], []),                                                   # schon leer („alles aus“): bleibt
+])
+def test_gast_startansicht_ebenen_gekuerzt(
+    welt: dict[str, Konto], ebenen: list[str], erwartet: list[str] | None,
+) -> None:
+    """initialView.layers darf nur Ebenen nennen, die der Gast bekommt; sonst lehnt der Viewer das
+    Manifest ab. Gekürzt wird eine Kopie, project.json bleibt bytegleich."""
+    d = Path(cast(FastAPI, welt["leitung"].c.app).state.settings.data_dir) / "ost"
+    m = json.loads((d / "project.json").read_text())
+    m["layers"].append({"id": "splat", "kind": "splats", "format": "spz", "title": "Splat",
+                        "url": "layers/splat/a.spz"})
+    m["initialView"] = {"target": [1, 2, 3], "distance": 10, "position": [4, 5, 6],
+                        "layers": ebenen}
+    (d / "project.json").write_text(json.dumps(m))
+    st = (d / "project.json").stat()
+    os.utime(d / "project.json", ns=(st.st_atime_ns, st.st_mtime_ns + 2_000_000_000))
+    vorher = (d / "project.json").read_bytes()
+    _erlauben(welt["leitung"])
+    _, token = _anlegen(welt["leitung"])
+    g = _gast(welt["leitung"].c)
+    assert _austausch(g, token) == 200
+    iv = g.get("/api/teilen/manifest").json()["initialView"]
+    rest = {"target": [1, 2, 3], "distance": 10, "position": [4, 5, 6]}
+    assert iv == (rest if erwartet is None else {**rest, "layers": erwartet})
+    assert (d / "project.json").read_bytes() == vorher
+    assert json.loads(vorher)["initialView"]["layers"] == ebenen
 
 
 def _mobilstufe_eintragen(c: TestClient, *, datei: bool) -> None:
@@ -357,7 +392,8 @@ def test_punktwolke_mit_fotopfad_faellt_raus(
     _, token = _anlegen(projektwelt["leitung"])
     g = _gast(projektwelt["leitung"].c)
     assert _austausch(g, token) == 200
-    assert g.get("/api/teilen/manifest").status_code == 404  # ohne Punktwolke keine Gast-Ansicht
+    m = g.get("/api/teilen/manifest")  # Wolke fällt raus, das Mesh bleibt
+    assert m.status_code == 200 and [e["kind"] for e in m.json()["layers"]] == ["mesh"]
     assert _authz(g, "/data/ost/fotos/F0001/512.jpg") == 404
 
 
@@ -523,3 +559,442 @@ def test_gast_kacheln_paketaustausch_erneuert_cache(
     os.utime(manifest, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000_000))
     assert _authz(g, "/data/ost/layers/kacheln/grob.glb") == 404
     assert _authz(g, "/data/ost/layers/kacheln/unreferenziert.glb") == 200
+
+
+def _ebenen_setzen(d: Path, behalten: tuple[str, ...]) -> None:
+    m = json.loads((d / "project.json").read_text())
+    m["layers"] = [e for e in m["layers"] if e["kind"] in behalten]
+    (d / "project.json").write_text(json.dumps(m))
+    st = (d / "project.json").stat()
+    os.utime(d / "project.json", ns=(st.st_atime_ns, st.st_mtime_ns + 3_000_000_000))
+
+
+def test_gast_reines_mesh_paket(
+    mit_paketen: TestClient, projektwelt: dict[str, Konto],  # noqa: F811
+) -> None:
+    """Demo-Pakete ohne Punktwolke (nur glTF-Mesh) haben eine Gast-Ansicht (04.11.2026: 6 von 7
+    Leipzig-Links zeigten „project.json nicht gefunden“)."""
+    d = _paket_ausbauen(projektwelt["leitung"].c)
+    _ebenen_setzen(d, ("mesh",))
+    _erlauben(projektwelt["leitung"])
+    _, token = _anlegen(projektwelt["leitung"])
+    g = _gast(projektwelt["leitung"].c)
+    assert _austausch(g, token) == 200
+    m = g.get("/api/teilen/manifest")
+    assert m.status_code == 200 and [e["kind"] for e in m.json()["layers"]] == ["mesh"]
+    for pfad in ("layers/mesh/model.glb", "layers/mesh/preview.glb", "layers/mesh/model.bin"):
+        assert _authz(g, f"/data/ost/{pfad}") == 200, pfad
+    for pfad in ("cloud.copc.laz", "project.json", "fotos/F0001/512.jpg"):
+        assert _authz(g, f"/data/ost/{pfad}") == 404, pfad
+
+
+def test_gast_ohne_zeigbare_ebene_keine_ansicht(
+    mit_paketen: TestClient, projektwelt: dict[str, Konto],  # noqa: F811
+) -> None:
+    d = _paket_ausbauen(projektwelt["leitung"].c)
+    _ebenen_setzen(d, ("images",))
+    _erlauben(projektwelt["leitung"])
+    _, token = _anlegen(projektwelt["leitung"])
+    g = _gast(projektwelt["leitung"].c)
+    assert _austausch(g, token) == 200
+    assert g.get("/api/teilen/manifest").status_code == 404
+    assert _authz(g, "/data/ost/topview.png") == 404
+
+
+# --- Sichtschicht (Splats) für Gäste -------------------------------------------------------------
+
+
+def _rad(meta: object, *, magic: bytes = b"RAD0", laenge: int | None = None) -> bytes:
+    """Synthetischer RAD-Kopf wie splat_rad.py: Magic, u32-Länge, JSON, auf 8 Byte gepolstert."""
+    j = json.dumps(meta).encode()
+    return magic + struct.pack("<I", len(j) if laenge is None else laenge) + j + b" " * (
+        (8 - len(j) % 8) % 8)
+
+
+def _splat_ebene(fmt: str, url: str) -> dict[str, object]:
+    return {"id": "splats", "kind": "splats", "title": "Sichtschicht", "format": fmt, "url": url,
+            "splatCount": 2400, "sizeBytes": 100, "shDegree": 0,
+            "chunkCount": 2 if fmt == "rad" else 1,
+            **({"lodMethod": "bhatt-lod"} if fmt == "rad" else {}),
+            "boundsWorld": [[0, 0, 0], [1, 1, 1]],
+            "frameCheck": {"ok": True, "samples": 1000, "p50M": 0.001, "p95M": 0.002}}
+
+
+def _splats_eintragen(c: TestClient, ebene: dict[str, object]) -> Path:
+    d = Path(cast(FastAPI, c.app).state.settings.data_dir) / "ost"
+    (d / "layers/splats").mkdir(parents=True, exist_ok=True)
+    (d / "layers/splats/conversion-report.json").write_text('{"ok": true}')
+    m = json.loads((d / "project.json").read_text())
+    m["layers"].append(ebene)
+    (d / "project.json").write_text(json.dumps(m))
+    st = (d / "project.json").stat()
+    os.utime(d / "project.json", ns=(st.st_atime_ns, st.st_mtime_ns + 4_000_000_000))
+    return d
+
+
+def _rad_paket(c: TestClient, meta: object | None = None, **kopf: object) -> Path:
+    d = _splats_eintragen(c, _splat_ebene("rad", "layers/splats/model-lod.rad"))
+    rad = d / "layers/splats/model-lod.rad"
+    if meta is None:
+        meta = {"version": 1, "type": "gsplat", "chunks": [
+            {"filename": "model-lod-0.radc", "bytes": 4},
+            {"filename": "model-lod-1.radc", "bytes": 4}]}
+    rad.write_bytes(_rad(meta, **kopf))  # type: ignore[arg-type]
+    for name in ("model-lod-0.radc", "model-lod-1.radc", "uebrig.radc"):
+        (d / "layers/splats" / name).write_bytes(b"RADC")
+    return d
+
+
+def _splatgast(welt: dict[str, Konto]) -> tuple[TestClient, list[str]]:
+    g = _kachelgast(welt)
+    m = g.get("/api/teilen/manifest")
+    assert m.status_code == 200
+    return g, [e["kind"] for e in m.json()["layers"]]
+
+
+@pytest.mark.parametrize("fmt", ["spz", "ply"])
+def test_gast_splats_einzeldatei(welt: dict[str, Konto], fmt: str) -> None:
+    d = _splats_eintragen(welt["leitung"].c, _splat_ebene(fmt, f"layers/splats/model.{fmt}"))
+    (d / f"layers/splats/model.{fmt}").write_bytes(b"\0" * 8)
+    (d / "layers/splats/anderes.spz").write_bytes(b"\0" * 8)
+    g, arten = _splatgast(welt)
+    assert arten == ["pointcloud", "mesh", "splats"]
+    assert _authz(g, f"/data/ost/layers/splats/model.{fmt}") == 200
+    # Nur genau die eine Datei: keine Präfixe, kein Prüfbericht.
+    for name in ("anderes.spz", "conversion-report.json"):
+        assert _authz(g, f"/data/ost/layers/splats/{name}") == 404, name
+
+
+def test_gast_splats_rad_mit_chunks(welt: dict[str, Konto]) -> None:
+    _rad_paket(welt["leitung"].c)
+    g, arten = _splatgast(welt)
+    assert arten == ["pointcloud", "mesh", "splats"]
+    for name in ("model-lod.rad", "model-lod-0.radc", "model-lod-1.radc"):
+        assert _authz(g, f"/data/ost/layers/splats/{name}") == 200, name
+    assert _authz(g, "/data/ost/layers/splats/model-lod.rad", Range="bytes=0-99") == 200
+    for name in ("uebrig.radc", "conversion-report.json"):
+        assert _authz(g, f"/data/ost/layers/splats/{name}") == 404, name
+
+
+def _chunk(name: str) -> dict[str, object]:
+    return {"version": 1, "chunks": [{"filename": "model-lod-0.radc"}, {"filename": name}]}
+
+
+@pytest.mark.parametrize(("fall", "meta", "kopf"), [
+    ("ausbrechender Chunkname", _chunk("../x.radc"), {}),
+    ("Unterordner", _chunk("unter/x.radc"), {}),
+    ("falsche Endung", _chunk("model-lod-1.bin"), {}),
+    ("versteckter Chunk", _chunk(".model.radc"), {}),
+    ("Chunk fehlt", _chunk("fehlt.radc"), {}),
+    ("falsches Magic", None, {"magic": b"RADC"}),
+    ("Länge über 1 MB", None, {"laenge": 1_000_001}),
+    ("Länge über Dateiende", None, {"laenge": 5000}),
+    ("Version 2", {"version": 2, "chunks": [{"filename": "model-lod-0.radc"}]}, {}),
+    ("keine Chunks", {"version": 1, "chunks": []}, {}),
+    ("Chunks keine Liste", {"version": 1, "chunks": "model-lod-0.radc"}, {}),
+    ("Metadaten keine Abbildung", [1], {}),
+    ("zu viele Chunks", {"version": 1, "chunks": [{"filename": f"c{i}.radc"} for i in range(4097)]},
+     {}),
+])
+def test_gast_splats_rad_kaputt_faellt_raus(
+    welt: dict[str, Konto], caplog: pytest.LogCaptureFixture, fall: str, meta: object | None,
+    kopf: dict[str, object],
+) -> None:
+    """Fail closed: jeder Formfehler nimmt die ganze Sichtschicht aus der Gast-Ansicht, Wolke und
+    Mesh bleiben."""
+    _rad_paket(welt["leitung"].c, meta, **kopf)
+    g, arten = _splatgast(welt)
+    assert arten == ["pointcloud", "mesh"], fall
+    for name in ("model-lod.rad", "model-lod-0.radc"):
+        assert _authz(g, f"/data/ost/layers/splats/{name}") == 404, (fall, name)
+    assert _authz(g, "/data/ost/cloud.copc.laz") == 200
+    assert "Sichtschicht splats ausgelassen" in caplog.text
+
+
+def test_gast_splats_rad_symlink_chunk_und_zu_gross(welt: dict[str, Konto], tmp_path: Path) -> None:
+    d = _rad_paket(welt["leitung"].c)
+    aussen = tmp_path / "aussen.radc"
+    aussen.write_bytes(b"RADC")
+    (d / "layers/splats/model-lod-1.radc").unlink()
+    (d / "layers/splats/model-lod-1.radc").symlink_to(aussen)
+    g, arten = _splatgast(welt)
+    assert arten == ["pointcloud", "mesh"]
+    assert _authz(g, "/data/ost/layers/splats/model-lod-1.radc") == 404
+    # Kopfdatei über 1 MB (gültiger Kopf, danach Polster): auch das fällt heraus.
+    (d / "layers/splats/model-lod-1.radc").unlink()
+    (d / "layers/splats/model-lod-1.radc").write_bytes(b"RADC")
+    rad = d / "layers/splats/model-lod.rad"
+    rad.write_bytes(rad.read_bytes() + b" " * 1_000_000)
+    st = (d / "project.json").stat()
+    os.utime(d / "project.json", ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000_000))
+    arten = [e["kind"] for e in g.get("/api/teilen/manifest").json()["layers"]]
+    assert arten == ["pointcloud", "mesh"]
+
+
+@pytest.mark.parametrize(("fmt", "url"), [
+    ("spz", "layers/splats/model.ply"),     # Endung passt nicht zum Format
+    ("gsplat", "layers/splats/model.spz"),  # unbekanntes Format
+    (None, "layers/splats/model.spz"),      # Platzhalter ohne Format: Viewer zeigt ihn nicht
+    ("spz", "../kirche/model.spz"),         # verlässt das Paket
+    ("spz", "fotos/F0001/model.spz"),       # Fotopfad
+])
+def test_gast_splats_unzulaessig(welt: dict[str, Konto], fmt: str | None, url: str) -> None:
+    ebene = _splat_ebene("spz", url) | {"format": fmt}
+    if fmt is None:
+        del ebene["format"]
+    d = _splats_eintragen(welt["leitung"].c, ebene)
+    for name in ("model.spz", "model.ply"):
+        (d / "layers/splats" / name).write_bytes(b"\0" * 8)
+    (d / "fotos/F0001/model.spz").write_bytes(b"\0" * 8)
+    g, arten = _splatgast(welt)
+    assert arten == ["pointcloud", "mesh"]
+    for pfad in ("layers/splats/model.spz", "layers/splats/model.ply", "fotos/F0001/model.spz"):
+        assert _authz(g, f"/data/ost/{pfad}") == 404, pfad
+
+
+def test_gast_startansicht_im_splat(welt: dict[str, Konto]) -> None:
+    """`add-splats --startebene` schreibt layers=['splats', <Panoramen>]: Gäste starten jetzt im
+    Splat, die Panoramen fallen weg."""
+    d = _splats_eintragen(welt["leitung"].c, _splat_ebene("spz", "layers/splats/model.spz"))
+    (d / "layers/splats/model.spz").write_bytes(b"\0" * 8)
+    m = json.loads((d / "project.json").read_text())
+    m["initialView"] = {"target": [1, 2, 3], "distance": 10, "layers": ["splats", "fotos"]}
+    (d / "project.json").write_text(json.dumps(m))
+    g, _ = _splatgast(welt)
+    assert g.get("/api/teilen/manifest").json()["initialView"] == {
+        "target": [1, 2, 3], "distance": 10, "layers": ["splats"]}
+
+
+def test_austausch_nimmt_keine_ansicht_an(welt: dict[str, Konto]) -> None:
+    """Die Ansicht (ly/cam/tgt) bleibt im Fragment des Browsers: ein Zusatzfeld beim Austausch wird
+    abgelehnt (422) und legt keine Gast-Sitzung an."""
+    _erlauben(welt["leitung"])
+    _, token = _anlegen(welt["leitung"])
+    g = _gast(welt["leitung"].c)
+    for zusatz in ({"ly": "punkte"}, {"ansicht": "cam=1,2,3"}):
+        r = g.post("/auth/teilen", json={"token": token, **zusatz}, headers=csrf())
+        assert r.status_code == 422, zusatz
+    conn = verbindung(welt["leitung"].c)
+    try:
+        assert conn.execute("SELECT COUNT(*) FROM gast_sitzungen").fetchone()[0] == 0
+        spalten = {r[1] for r in conn.execute("PRAGMA table_info(teilen_links)")}
+    finally:
+        conn.close()
+    assert not spalten & {"ly", "ansicht", "cam", "tgt"}
+    assert g.get("/api/sitzung").json().get("gast") is None
+
+
+# --- Feld-Positivliste je Ebenenart ---------------------------------------------------------------
+
+GAST_FIXTURE = (Path(__file__).resolve().parents[2] / "web" / "tests" / "fixtures"
+                / "gast-manifest.json")
+INTERN = ("source", "sourceOptions", "verify", "alignment", "buildLod", "readerPointCount",
+          "invalidDropped", "conversion")
+
+
+def test_gast_felder_fixture_aktuell() -> None:
+    """Die Fixture des Viewer-Tests (gastManifest.test.ts) ist genau gast_felder(voll), die
+    Draufsicht genau gast_draufsicht(voll)."""
+    daten = json.loads(GAST_FIXTURE.read_text(encoding="utf-8"))
+    assert daten["gast"]["layers"] == [teilen.gast_felder(e) for e in daten["voll"]["layers"]]
+    assert {e["kind"] for e in daten["voll"]["layers"]} == set(teilen.GAST_FELDER)
+    assert daten["gast"]["topview"] == teilen.gast_draufsicht(daten["voll"]["topview"])
+    # Die volle Fassung trägt jedes gelesene und mindestens ein internes Feld, sonst prüfte der
+    # Viewer-Test nichts.
+    assert set(teilen.GAST_DRAUFSICHT) < set(daten["voll"]["topview"])
+
+
+def test_gast_draufsicht_nur_viewer_felder(welt: dict[str, Konto]) -> None:
+    """Die Draufsicht geht wie die Ebenen nur mit den Feldern hinaus, die der Viewer liest."""
+    d = Path(cast(FastAPI, welt["leitung"].c.app).state.settings.data_dir) / "ost"
+    m = json.loads((d / "project.json").read_text())
+    voll = m["topview"] | {"colorFrom": "rgb",
+                           "image": {"quelle": "intern.tif", "sha256": "0" * 64}}
+    m["topview"] = voll
+    (d / "project.json").write_text(json.dumps(m))
+    st = (d / "project.json").stat()
+    os.utime(d / "project.json", ns=(st.st_atime_ns, st.st_mtime_ns + 2_000_000_000))
+    vorher = (d / "project.json").read_bytes()
+    g = _kachelgast(welt)
+    tv = g.get("/api/teilen/manifest").json()["topview"]
+    assert tv == {k: voll[k] for k in teilen.GAST_DRAUFSICHT if k in voll}
+    assert "colorFrom" not in tv and "image" not in tv
+    assert _authz(g, "/data/ost/topview.png") == 200
+    assert (d / "project.json").read_bytes() == vorher
+
+
+def test_gast_manifest_nur_viewer_felder(welt: dict[str, Konto], kachelpaket: Path) -> None:
+    """Interne Metadaten (Quelldatei, SHA-256, Importoptionen, Prüfbericht) gehen nicht an Gäste;
+    project.json auf der Platte bleibt unverändert."""
+    d = _rad_paket(welt["leitung"].c)
+    m = json.loads((d / "project.json").read_text())
+    for e in m["layers"]:
+        e |= {"source": {"filename": "intern.e57", "sha256": "0" * 64},
+              "sourceOptions": {"lage": "x"}, "verify": {"ok": True, "report": "r.json"},
+              "alignment": {"kameras": 3}, "buildLod": {"commit": "0" * 40}}
+        if e["kind"] == "splats":
+            e["frameCheck"] = {"ok": True, "samples": 1000, "p50M": 0.001, "p95M": 0.002,
+                               "intern": 1}
+    (d / "project.json").write_text(json.dumps(m))
+    vorher = (d / "project.json").read_bytes()
+    g, arten = _splatgast(welt)
+    assert arten == ["pointcloud", "mesh", "mesh-tiles", "splats"]
+    for e in g.get("/api/teilen/manifest").json()["layers"]:
+        assert set(e) <= set(teilen.GAST_FELDER[e["kind"]]), e["id"]
+        assert not set(e) & set(INTERN), e["id"]
+        if e["kind"] == "splats":
+            assert set(e["frameCheck"]) == {"ok", "samples", "p50M", "p95M"}
+            assert e["chunkCount"] == 2 and e["lodMethod"] == "bhatt-lod"
+        if e["kind"] == "mesh-tiles":
+            assert e["startVisible"] is False
+    assert (d / "project.json").read_bytes() == vorher
+    assert "source" in json.loads(vorher)["layers"][0]
+
+
+@pytest.mark.parametrize("ziel", ["cloud.copc.laz", "topview.png"])
+def test_gast_wolke_und_draufsicht_ohne_symlink(
+    welt: dict[str, Konto], tmp_path: Path, ziel: str,
+) -> None:
+    """Wie bei Mesh, Kacheln und Splats: ein Symlink (nach dem Laden des Katalogs eingesetzt) gibt
+    keine Datei außerhalb des Pakets frei."""
+    d = Path(cast(FastAPI, welt["leitung"].c.app).state.settings.data_dir) / "ost"
+    aussen = tmp_path / ziel
+    aussen.write_bytes((d / ziel).read_bytes())
+    (d / ziel).unlink()
+    (d / ziel).symlink_to(aussen)
+    g = _kachelgast(welt)
+    m = g.get("/api/teilen/manifest").json()
+    if ziel == "topview.png":
+        assert "topview" not in m and [e["kind"] for e in m["layers"]] == ["pointcloud", "mesh"]
+    else:
+        assert [e["kind"] for e in m["layers"]] == ["mesh"]
+    assert _authz(g, f"/data/ost/{ziel}") == 404
+
+
+# --- Ansichtsprofile (P08-S6, Migration 0020): Profil am Link, Projektstandard, Gast fest ---
+
+
+def _profil_setzen(leitung: Konto, profil: str) -> None:
+    r = leitung.schreibe("PATCH", f"{OST}/einstellungen", {"ansichtsprofil": profil})
+    assert r.status_code == 200, r.text
+    assert r.json()["einstellungen"]["ansichtsprofil"] == profil
+
+
+def _gast_mit(c: TestClient, token: str) -> TestClient:
+    g = _gast(c)
+    assert _austausch(g, token) == 200
+    return g
+
+
+def test_migration_0020_alte_links_und_projekte_bekommen_ansehen(tmp_path: Path) -> None:
+    conn = db.connect(tmp_path / "alt.db")
+    _bis(conn, 19)
+    conn.execute("INSERT INTO projekte (project_id, vorlage, angelegt_am, nur_lese_links)"
+                 " VALUES ('ost', 'bauprojekt', 0, 1)")
+    conn.execute("INSERT INTO teilen_links (project_id, name, token_hash, erstellt_am, ablauf)"
+                 " VALUES ('ost', 'Messe', ?, 1, 2)", ("a" * 64,))
+    conn.commit()
+    assert db.migrate(conn) == 21
+    assert conn.execute("SELECT profil FROM teilen_links").fetchone()[0] == "ansehen"
+    assert conn.execute("SELECT ansichtsprofil FROM projekte").fetchone()[0] == "ansehen"
+    # Rücksprung auf 0.12.x: deren INSERT nennt die neue Spalte nicht, der DEFAULT füllt sie.
+    conn.execute("INSERT INTO teilen_links (project_id, name, token_hash, erstellt_am, ablauf)"
+                 " VALUES ('ost', 'Alt', ?, 1, 2)", ("b" * 64,))
+    alt = conn.execute("SELECT profil FROM teilen_links WHERE name='Alt'").fetchone()
+    assert alt[0] == "ansehen"
+    with pytest.raises(Exception, match="CHECK"):
+        conn.execute("UPDATE teilen_links SET profil='editor'")
+    with pytest.raises(Exception, match="CHECK"):
+        conn.execute("UPDATE projekte SET ansichtsprofil='editor'")
+    conn.close()
+
+
+def test_standard_ansehen_und_gast_sieht_profil(welt: dict[str, Konto]) -> None:
+    _erlauben(welt["leitung"])
+    assert welt["leitung"].get(OST).json()["einstellungen"]["ansichtsprofil"] == "ansehen"
+    link, token = _anlegen(welt["leitung"])
+    assert link["profil"] == "ansehen"
+    g = _gast_mit(welt["leitung"].c, token)
+    assert g.get("/api/sitzung").json()["gast"]["profil"] == "ansehen"
+    assert welt["leitung"].get(TEILEN).json()["links"][0]["profil"] == "ansehen"
+
+
+def test_projektstandard_belegt_vor_und_bleibt_am_link(welt: dict[str, Konto]) -> None:
+    _erlauben(welt["leitung"])
+    _profil_setzen(welt["leitung"], "messen")
+    ohne, token_ohne = _anlegen(welt["leitung"], name="Ohne Angabe")
+    mit, token_mit = _anlegen(welt["leitung"], name="Arbeiten", profil="arbeiten")
+    assert (ohne["profil"], mit["profil"]) == ("messen", "arbeiten")
+    # Späterer Wechsel des Standards ändert keinen bestehenden Link.
+    _profil_setzen(welt["leitung"], "ansehen")
+    for t, erwartet in ((token_ohne, "messen"), (token_mit, "arbeiten")):
+        sitzung = _gast_mit(welt["leitung"].c, t).get("/api/sitzung").json()
+        assert sitzung["gast"]["profil"] == erwartet
+    neu = ereignisse(welt["leitung"].c, "teilen.angelegt")
+    assert [json.loads(e["nachher"])["profil"] for e in neu] == ["messen", "arbeiten"]
+    geaendert = [json.loads(e["nachher"])
+                 for e in ereignisse(welt["leitung"].c, "einstellung.geaendert")]
+    assert [x["ansichtsprofil"] for x in geaendert][-2:] == ["messen", "ansehen"]
+
+
+@pytest.mark.parametrize("wert", ["editor", "", "Ansehen", 1, None])
+def test_ungueltiges_profil_422(welt: dict[str, Konto], wert: object) -> None:
+    _erlauben(welt["leitung"])
+    if wert is not None:  # null beim Anlegen = Projektstandard, das ist gültig
+        r = welt["leitung"].schreibe("POST", TEILEN, {"name": "x", "profil": wert})
+        assert r.status_code == 422
+    r = welt["leitung"].schreibe("PATCH", f"{OST}/einstellungen", {"ansichtsprofil": wert})
+    # null in PATCH = unverändert (wie bei den übrigen Schaltern).
+    assert r.status_code == (200 if wert is None else 422), r.text
+    assert welt["leitung"].get(OST).json()["einstellungen"]["ansichtsprofil"] == "ansehen"
+
+
+def test_gast_kann_profil_nicht_aendern(welt: dict[str, Konto]) -> None:
+    """Das Profil kommt allein vom Link: kein Feld beim Austausch, keine Anfrage-Parameter, kein Weg
+    zur Verwaltung mit dem Gast-Cookie."""
+    _erlauben(welt["leitung"])
+    _, token = _anlegen(welt["leitung"])
+    g = _gast(welt["leitung"].c)
+    # (a) Austausch mit Wunschprofil: 422 (AustauschIn verbietet Zusatzfelder), keine Gast-Sitzung.
+    r = g.post("/auth/teilen", json={"token": token, "profil": "arbeiten"}, headers=csrf())
+    assert r.status_code == 422
+    assert teilen.GAST_COOKIE not in r.cookies
+    assert _austausch(g, token) == 200
+    # (b) Die Sitzung meldet das gespeicherte Profil, gleich was in der Adresse steht.
+    for suche in ("", "?profil=arbeiten", "?zeigen=0&profil=messen"):
+        assert g.get(f"/api/sitzung{suche}").json()["gast"]["profil"] == "ansehen"
+    # (c) Verwaltung von Link und Projektstandard ist mit dem Gast-Cookie nicht erreichbar.
+    r = g.post(TEILEN, json={"name": "x", "profil": "arbeiten"}, headers=csrf())
+    assert r.status_code == 401
+    assert g.get(TEILEN).status_code == 401
+    assert g.patch(f"{OST}/einstellungen", json={"ansichtsprofil": "arbeiten"},
+                   headers=csrf()).status_code == 401
+    conn = verbindung(welt["leitung"].c)
+    try:
+        assert {r[0] for r in conn.execute("SELECT profil FROM teilen_links")} == {"ansehen"}
+        assert conn.execute("SELECT ansichtsprofil FROM projekte WHERE project_id='ost'"
+                            ).fetchone()[0] == "ansehen"
+    finally:
+        conn.close()
+
+
+PFADE = ("cloud.copc.laz", "topview.png", "layers/mesh/model.glb", "layers/mesh/model.bin",
+         "project.json", "stations.json", "images.json", "fotos/F0001/512.jpg", "panos/S001/0.jpg")
+
+
+def test_profil_erweitert_die_positivliste_nicht(welt: dict[str, Konto]) -> None:
+    """Gleiche Dateien und gleiches Manifest für jedes Profil: Das Profil ist Oberfläche, keine
+    Rechtegrenze."""
+    _erlauben(welt["leitung"])
+    ergebnis = {}
+    for profil in teilen.PROFILE:
+        _, token = _anlegen(welt["leitung"], name=profil, profil=profil)
+        g = _gast_mit(welt["leitung"].c, token)
+        status = tuple(_authz(g, f"/data/ost/{p}") for p in PFADE)
+        api = (g.get("/api/v1/projekte").status_code, g.get(f"{OST}/pois").status_code)
+        ergebnis[profil] = (status, api, g.get("/api/teilen/manifest").json())
+    assert ergebnis["ansehen"] == ergebnis["messen"] == ergebnis["arbeiten"]
+    status, api, _ = ergebnis["arbeiten"]
+    assert dict(zip(PFADE, status, strict=True))["project.json"] == 404
+    assert dict(zip(PFADE, status, strict=True))["panos/S001/0.jpg"] == 404
+    assert api == (401, 401)

@@ -23,8 +23,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-# Feste Aufzählung der Auftragstypen. Verfügbar sind das Prüfen und neue Projekte aus Mesh oder
-# Splats; die übrigen sind vorgesehen und werden mit „nicht verfügbar“ abgelehnt.
+# Feste Aufzählung der Auftragstypen. Verfügbar sind das Prüfen und neue Projekte aus Punktwolke,
+# Mesh oder Splats; die übrigen sind vorgesehen und werden mit „nicht verfügbar“ abgelehnt.
 TYPEN: tuple[str, ...] = (
     "auswerten_pruefen",
     "auswerten_sonne_dach",
@@ -41,11 +41,11 @@ TYPEN: tuple[str, ...] = (
     "ergaenzen_panos",
     "anhang_bereinigen",
 )
-VERFUEGBAR: frozenset[str] = frozenset({"auswerten_pruefen", "neu_mesh", "neu_splats",
-                                        "anhang_bereinigen"})
+VERFUEGBAR: frozenset[str] = frozenset({"auswerten_pruefen", "neu_wolke", "neu_mesh", "neu_splats",
+                                         "anhang_bereinigen"})
 # Aufträge, die ein neues Projekt aus einem Upload bauen (Route /api/v1/importe, nur Admin);
 # alle übrigen hängen an einem vorhandenen Projekt (Route …/auswertungen).
-IMPORTE: frozenset[str] = frozenset({"neu_mesh", "neu_splats"})
+IMPORTE: frozenset[str] = frozenset({"neu_wolke", "neu_mesh", "neu_splats"})
 AUSWERTUNGEN: frozenset[str] = frozenset(t for t in TYPEN if t.startswith("auswerten_"))
 # Bildanhänge am Befund-Faden (F7): nur der Webdienst reiht sie ein (Route …/faden/anhaenge),
 # nie über Auswertungen oder Importe. Eigene Grenze, zählen nicht gegen OFFEN_JE_PROJEKT_MAX, und
@@ -77,9 +77,14 @@ UPLOAD_ID_RE = re.compile(r"[0-9a-f]{32}")
 _SEGMENT_RE = re.compile(r"[A-Za-z0-9._ -]{1,200}")
 _CRS_RE = re.compile(r"EPSG:[0-9]{4,6}")
 HOEHENSYSTEME: tuple[str, ...] = ("dhhn2016", "ellipsoidal-etrs89", "dhhn92")
+HOEHE_STANDARD = "dhhn2016"
+# Paare mit Umrechnung, wie `_MULTIPLIKATOR` in import/hoehen.py (dort ändern heißt hier ändern).
+UMRECHENBAR: frozenset[tuple[str, str]] = frozenset({
+    ("ellipsoidal-etrs89", "dhhn2016"), ("dhhn2016", "ellipsoidal-etrs89")})
 # Endungen der Hauptdatei je Importtyp (Mesh nur als GLB/PLY: ohne externe Verweise, ohne
 # Texturkodierung im Container).
 IMPORT_ENDUNGEN: dict[str, tuple[str, ...]] = {
+    "neu_wolke": (".laz", ".las", ".e57"),
     "neu_mesh": (".glb", ".ply"),
     "neu_splats": (".ply", ".spz", ".splat"),
 }
@@ -102,6 +107,11 @@ BUDGETS: dict[str, Budget] = {
     # Mesh bis 1 Mio. Dreiecke bzw. Splats bis 1 Mio. Gaussians: Python-Leser und meshopt im
     # Speicher; gemessen an synthetischen Eingaben, Grenze mit Reserve.
     "neu_mesh": Budget(ram_mb=4096, zeit_s=3 * 3600, prozesse=64),
+    # Punktwolke (LAS/LAZ/E57 → COPC über untwine, Modus staged), gemessen 22.10.2026 an einer
+    # 5,1-GB-LAZ (340 Mio. Punkte, 16 Kerne): convert 41 min, verify 14 min; untwine-RSS 0,47 GB,
+    # die Unit lief unter 4 GB (Spitze inkl. Seitencache am Limit) ohne OOM. untwine startet
+    # je Kern Threads (108 Tasks bei 16 Kernen) — Prozessgrenze deshalb mit Abstand.
+    "neu_wolke": Budget(ram_mb=4096, zeit_s=6 * 3600, prozesse=512),
     "neu_splats": Budget(ram_mb=4096, zeit_s=3 * 3600, prozesse=64),
     # Ein Foto ≤ 40 MP dekodieren und neu kodieren (gemessen < 1 s, ~0,3 GB bei 40 MP).
     "anhang_bereinigen": Budget(ram_mb=512, zeit_s=60, prozesse=8),
@@ -224,6 +234,8 @@ def _pruefe_import(typ: str, optionen: dict[str, Any]) -> dict[str, str]:
     """Optionen eines neuen Projekts: Upload, Hauptdatei, Projekt-ID, Titel, optional CRS und
     Höhensysteme. Die Hauptdatei bestimmt der Webdienst aus dem abgeschlossenen Upload."""
     erlaubt = {"upload", "datei", "projekt", "titel", "crs", "quellHoehe", "zielHoehe"}
+    if typ == "neu_wolke":
+        erlaubt |= {"rgb8bit"}
     unbekannt = set(optionen) - erlaubt
     if unbekannt:
         raise AuftragUngueltig(f"Unbekannte Option. Erlaubt für {typ}: "
@@ -248,16 +260,54 @@ def _pruefe_import(typ: str, optionen: dict[str, Any]) -> dict[str, str]:
         if not isinstance(crs, str) or not _CRS_RE.fullmatch(crs):
             raise AuftragUngueltig("crs: leer (lokal, Modellmaß) oder EPSG:<Nummer>.")
         aus["crs"] = crs
-    quelle, ziel = optionen.get("quellHoehe") or "", optionen.get("zielHoehe") or ""
-    if quelle or ziel:
-        if not crs:
-            raise AuftragUngueltig("Höhensysteme nur zusammen mit einem Koordinatensystem.")
-        if quelle not in HOEHENSYSTEME or (ziel and ziel not in HOEHENSYSTEME):
-            raise AuftragUngueltig(f"Höhensystem: eines von {', '.join(HOEHENSYSTEME)}.")
-        aus["quellHoehe"] = quelle
-        if ziel:
-            aus["zielHoehe"] = ziel
+    # Mesh/Splats ohne CRS sind „lokal, Modellmaß“ — dort gibt es keine Höhe. Eine Punktwolke
+    # ohne Angabe trägt ihr CRS meist in der Datei (LAS-VLR); fehlt es dort, lehnt der Import
+    # im Auftrag nur die Höhenumrechnung ab (Zeile „Abgelehnt: …“), sonst wird das Paket lokal.
+    aus.update(_pruefe_hoehe(crs, optionen.get("quellHoehe"), optionen.get("zielHoehe"),
+                             crs_pflicht=typ != "neu_wolke"))
+    if typ == "neu_wolke":
+        _pruefe_wolke(optionen, aus)
     return aus
+
+
+def _pruefe_hoehe(crs: Any, quelle: Any, ziel: Any, *, crs_pflicht: bool) -> dict[str, str]:
+    """Höhensysteme eines Imports, unabhängig von der Art der Datei. Ohne Ziel gilt DHHN2016;
+    ein Paar ohne Umrechnung wird abgelehnt, bevor der Worker die Datei anfasst."""
+    quelle, ziel = quelle or "", ziel or ""
+    if not (quelle or ziel):
+        return {}
+    if crs_pflicht and not crs:
+        raise AuftragUngueltig("Höhensysteme nur zusammen mit einem Koordinatensystem.")
+    if quelle not in HOEHENSYSTEME or (ziel and ziel not in HOEHENSYSTEME):
+        raise AuftragUngueltig(f"Höhensystem: eines von {', '.join(HOEHENSYSTEME)}.")
+    wirksam = ziel or HOEHE_STANDARD
+    if quelle != wirksam and (quelle, wirksam) not in UMRECHENBAR:
+        if quelle == "dhhn92":
+            raise AuftragUngueltig("DHHN92 wird nicht umgerechnet; als Höhensystem im Projekt "
+                                   "ebenfalls dhhn92 angeben.")
+        raise AuftragUngueltig(f"Höhensystem: {quelle} → {wirksam} wird nicht umgerechnet.")
+    return {"quellHoehe": quelle, **({"zielHoehe": ziel} if ziel else {})}
+
+
+def _pruefe_wolke(optionen: dict[str, Any], aus: dict[str, str]) -> None:
+    """Punktwolke: Farbskalierung als feste Option, E57-Grenzen der CLI schon hier (sonst endet
+    der Auftrag erst im Job mit einem Abbruch)."""
+    # Gespeichert als "ja" (Optionen sind Texte); der Worker prüft die gespeicherte Form erneut.
+    rgb = optionen.get("rgb8bit", False)
+    if rgb == "ja":
+        rgb = True
+    if not isinstance(rgb, bool):
+        raise AuftragUngueltig("rgb8bit: true oder false.")
+    e57 = aus.get("datei", "").lower().endswith(".e57")
+    if rgb:
+        if e57:
+            raise AuftragUngueltig("rgb8bit gilt nur für LAS/LAZ; E57 deklariert seine Farbtiefe "
+                                   "selbst.")
+        aus["rgb8bit"] = "ja"
+    quelle = aus.get("quellHoehe")
+    if e57 and quelle is not None and aus.get("zielHoehe", HOEHE_STANDARD) != quelle:
+        raise AuftragUngueltig("E57: Höhensystem nur deklarieren (Ziel gleich Quelle), "
+                               "Umrechnen ist für E57 noch nicht eingebaut.")
 
 
 def einreihen(

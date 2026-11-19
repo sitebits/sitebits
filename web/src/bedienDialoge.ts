@@ -4,10 +4,8 @@
 import { AKTIONEN, akkordVon, belege, belegePad, beschriftung, normalisiere, padBelegung, vorgabeBelegung } from './tastenbelegung';
 import { PAD_AKTIONEN, PAD_KNOEPFE, PAD_NICHT_BELEGT, PAD_TITEL, TOTZONE } from './gamepad';
 import type { PadAktion } from './gamepad';
-import { belegungsTabelle, MODUS_TITEL, symbol } from './padModus';
-import type { PadModus } from './padModus';
-
-const PAD_MODI: readonly PadModus[] = ['uebersicht', 'begehen', 'panorama', 'menue'];
+import { belegungsTabelle, hilfeModi, MODUS_TITEL, symbol } from './padModus';
+import type { PadErlaubt } from './padModus';
 import type { Akkord, AktionDef, AktionId, Belegung } from './tastenbelegung';
 import { PANORAMA_ZIEL_AKTIONEN } from './keymap';
 import { GRENZEN, ladeEinstellungen, speichereEinstellungen, vorgabeEinstellungen } from './bedienEinstellungen';
@@ -109,6 +107,7 @@ const FESTE_ZEILEN: readonly (readonly [string, string])[] = [
   ['Esc', 'beendet jeden Zustand'],
   ['Tab', 'verlässt die 3D-Ansicht'],
   ['Enter', 'Zeichnung abschließen'],
+  ['Letzten Punkt erneut anklicken/antippen oder Doppelklick', 'beendet eine Polylinie'],
   ['Strg+Z', 'Rückgängig'],
 ];
 
@@ -132,7 +131,10 @@ function tabelle(spalten: readonly string[], tbody: HTMLTableSectionElement, bes
  * Dialog „Bedienung“: oben Maus und Finger, die gerade aktive Ansicht zuerst (bedienhilfe.ts), darunter die Tasten
  * mit der aktuellen Belegung. Der Inhalt entsteht bei jedem Öffnen neu (Ansicht, Einstellung „Linke Maustaste“).
  */
-export function createBedienung(o: { belegung: () => Belegung; kuerzel: (a: AktionId) => string; kontext: () => HilfeKontext }): { oeffne(): void } {
+/** `zeigt`: Tastenzeile aufnehmen? `padErlaubt`: wirkt ein Kürzel, das ein Controller-Knopf auslöst? (Ansichtsprofile,
+ *  profil.ts: in „Ansehen“/„Messen“ nur, was dort wirkt, für Tasten und Controller gleich.) */
+export function createBedienung(o: { belegung: () => Belegung; kuerzel: (a: AktionId) => string; kontext: () => HilfeKontext;
+  zeigt?: (a: AktionId) => boolean; padErlaubt?: PadErlaubt }): { oeffne(): void } {
   const tbody = el('tbody');
   const gesten = el('div', undefined, 'sv-gesten');
   const controller = el('div', undefined, 'sv-gesten');
@@ -165,9 +167,9 @@ export function createBedienung(o: { belegung: () => Belegung; kuerzel: (a: Akti
   };
   const fuelleController = (): void => {
     const k = padBelegung(o.belegung());
-    controller.replaceChildren(...PAD_MODI.map((m) => {
-      const ps = belegungsTabelle(m, 'playstation', k);
-      const xb = belegungsTabelle(m, 'xbox', k);
+    controller.replaceChildren(...hilfeModi(o.padErlaubt).map((m) => {
+      const ps = belegungsTabelle(m, 'playstation', k, o.padErlaubt);
+      const xb = belegungsTabelle(m, 'xbox', k, o.padErlaubt);
       const body = el('tbody');
       ps.forEach((z, i) => {
         const tr = el('tr');
@@ -192,6 +194,7 @@ export function createBedienung(o: { belegung: () => Belegung; kuerzel: (a: Akti
       zeilen.push(tr);
     };
     for (const a of AKTIONEN) {
+      if (o.zeigt && !o.zeigt(a.id)) continue;
       const k = o.kuerzel(a.id);
       const bereich = PANORAMA_ZIEL_AKTIONEN.has(a.id) ? BEREICH_MIT_PANORAMA : BEREICH[a.ebene];
       zeile(a.titel, k || (akkordVon(b, a.id) ? 'abgeschaltet' : 'nicht belegt'), bereich);

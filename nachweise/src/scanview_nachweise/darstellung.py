@@ -184,7 +184,9 @@ def befunde_md(befunde: Sequence[Befund], oeffentlich: bool) -> str:
             akzeptanz = "—"
             if b.status == "akzeptiert":
                 frist = b.frist.isoformat() if b.frist else "—"
-                akzeptanz = f"{b.akzeptanz_begruendung} (Frist {frist}, Freigabe Andre)"
+                bindung = (f", gebunden an `{b.akzeptanz_bindung}`" if b.akzeptanz_bindung
+                           else "")
+                akzeptanz = f"{b.akzeptanz_begruendung} (Frist {frist}, Freigabe Andre{bindung})"
             zeilen.append([
                 b.id, b.quelle, b.titel, b.schwere, b.kategorie, b.status,
                 _betrifft(b) + (f" ({b.artefakte_begruendung})" if b.artefakte_begruendung

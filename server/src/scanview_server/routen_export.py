@@ -86,10 +86,15 @@ def export_json(pid: str, request: Request, conn: sqlite3.Connection = Depends(d
     _export_erlaubt(conn, z)
     lesezugriff.erfasse_anfrage(request, conn, z, "export", "json")
     karte = karte_json(z.karte, _meta(conn, pid), z.rolle)
+    pois, messungen = inhalte.liste(conn, "pois", pid), inhalte.liste(conn, "messungen", pid)
+    grundlagen = {
+        "pois": inhalte.grundlagen(conn, "pois", pid, pois, z.karte.genauigkeit),
+        "messungen": inhalte.grundlagen(conn, "messungen", pid, messungen, z.karte.genauigkeit),
+    }
     daten = export.json_export(
         pid, z.karte.revision, str(karte["titel"]), str(karte["beschreibung"]),
-        inhalte.liste(conn, "pois", pid), inhalte.liste(conn, "messungen", pid), int(time.time()),
-        *_faden_json(request, conn, z), ebenen=z.karte.genauigkeit,
+        pois, messungen, int(time.time()),
+        *_faden_json(request, conn, z), ebenen=z.karte.genauigkeit, grundlagen=grundlagen,
     )
     return Response(json.dumps(daten, ensure_ascii=False, indent=2).encode("utf-8"),
                     media_type="application/json", headers=_datei(pid, "json"))
@@ -117,7 +122,8 @@ def maengelliste_druck(pid: str, request: Request,
     _export_erlaubt(conn, z)
     lesezugriff.erfasse_anfrage(request, conn, z, "export", "maengelliste")
     karte = karte_json(z.karte, _meta(conn, pid), z.rolle)
-    pois = [p.als_json() for p in inhalte.liste(conn, "pois", pid)]
+    pois = inhalte.mit_grundlage(conn, "pois", pid, inhalte.liste(conn, "pois", pid),
+                                 z.karte.genauigkeit)
     if faden.aktiviert(conn, pid):
         # Befund-Fäden an: je POI der Stand wie bei GET …/pois (Status, Zuständig, Frist).
         staende = faden.staende(conn, pid)

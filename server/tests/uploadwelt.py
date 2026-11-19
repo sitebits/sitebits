@@ -32,6 +32,9 @@ STUECK = 1024
 GLB = b"glTF" + (2).to_bytes(4, "little") + (0).to_bytes(4, "little") + b"\0" * 2000
 SPZ = b"\x1f\x8b\x08" + bytes(range(256)) * 10
 PLY = b"ply\nformat binary_little_endian 1.0\n" + b"\1" * 3000
+# Nur die Kopfbytes zählen im Webdienst (Signatur); den Inhalt liest erst der Auftrag.
+LAZ = b"LASF" + bytes(range(256)) * 4
+E57 = b"ASTM-E57" + bytes(range(256)) * 4
 
 
 def digest(stueck: bytes) -> str:
@@ -138,7 +141,7 @@ def ziel_von(lauf: Lauf) -> Path:
 
 def baut_paket(lauf: Lauf) -> Ergebnis:
     """Was `neu-ohne-wolke` hinterlässt (bzw. `verify` mit Exit 0)."""
-    if lauf.argv[1] == "neu-ohne-wolke":
+    if lauf.argv[1] in ("neu-ohne-wolke", "convert"):
         ziel = ziel_von(lauf)
         (ziel / "layers" / "splats").mkdir(parents=True)
         (ziel / "layers" / "splats" / "model.spz").write_bytes(b"\x1f\x8b\x08synthetisch")

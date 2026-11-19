@@ -88,7 +88,7 @@ import { Group, Line, Mesh, Vector3 } from 'three';
 import type { MeshMatcapMaterial, Object3D } from 'three';
 import { CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer.js';
 import ConstantSizeSphere from '@giro3d/giro3d/renderer/ConstantSizeSphere.js';
-import { nearestHandle, schliesstFlaeche } from './handleMath';
+import { amLetztenPunkt, klickAusgang, nearestHandle, schliesstFlaeche } from './handleMath';
 import { istTouch } from './geraet';
 import type { Handle } from './handleMath';
 import { formatM, num } from './measureCsv';
@@ -110,6 +110,11 @@ export type { PickInfo } from './rayPick';
 
 const MSG_MS = 2000;
 const CLICK_MOVE_TOLERANCE_PX = 4;
+/** Hinweis nach dem zweiten Polylinienpunkt: wie man sie beendet (Auffindbarkeit, Rückmeldung 03.10.). */
+const HINWEIS_LINIE = 'Fertig: letzten Punkt erneut antippen, Doppelklick oder ✓ (Enter)';
+/** So lange nach dem Beenden per Klick auf den letzten Punkt gilt der Drehpunkt-Doppelklick noch als gesperrt:
+ *  der erste Klick eines Doppelklicks beendet schon, der dblclick kommt danach (übliche Doppelklickzeit). */
+const NACH_BEENDEN_MS = 500;
 /** Zweiter Druck auf denselben Griff innerhalb dieser Zeit = zweiter Klick eines Doppelklicks, zählt nicht
  *  (Zeitstempel statt ev.detail: pointerdown trägt detail in Chromium nicht verlässlich). */
 const DOUBLE_CLICK_MS = 500;
@@ -193,6 +198,9 @@ export interface MeasureTool {
   hitsHandle(x: number, y: number): boolean;
   /** Overlays neu aus store.list() zeichnen (nach Änderungen von außen: Deep-Link, Messliste). */
   sync(): void;
+  /** Offene Polylinie, oder eben erst per Klick auf den letzten Punkt beendet: der Doppelklick gehört dann dem
+   *  Messwerkzeug, nicht dem Drehpunkt (viewer.ts). */
+  linieOffen(): boolean;
   /** Offene Zeichnung (E2E-Lesezugriff). */
   pendingPoints(): Vec3[];
   /** Die laufende Zeichnung mit ihrer Messart (Weltkoordinaten); ohne Messwerkzeug oder Punkte: leer. */
@@ -237,6 +245,8 @@ export function attachMeasureTool(o: MeasureToolOptions): MeasureTool {
   // nichts (ein Klick zählt nicht), wird er gezogen, ist es ein gewöhnliches Ziehen (Auswählen, dann sofort ziehen).
   let grab: { handle: Handle; ref: Measurement; x0: number; y0: number; dragging: boolean; ignore: boolean } | null = null;
   let lastHandleDown: { t: number; x: number; y: number } | null = null;
+  /** Zeitpunkt, zu dem ein Klick auf den letzten Punkt die Polylinie beendet hat (performance.now()). */
+  let beendetAm = -Infinity;
   let orbitWasEnabled = true;
   const picks: { count: number; last: PickInfo | null } = { count: 0, last: null };
   const debug: { panoBudgetMs: number | null } = { panoBudgetMs: null };
@@ -456,6 +466,7 @@ export function attachMeasureTool(o: MeasureToolOptions): MeasureTool {
     }
     setDrawing(pts);
     if (kind === 'area' && pts.length === 3) say('Schließen: auf den ersten Eckpunkt tippen oder ✓ (Enter)');
+    if (kind === 'polyline' && pts.length === 2) say(HINWEIS_LINIE);
     drawingSources = sources;
     drawPreview();
     redraw();
@@ -486,6 +497,16 @@ export function attachMeasureTool(o: MeasureToolOptions): MeasureTool {
     void setzeAn(ev.clientX, ev.clientY, ev, snapEdges?.() ?? false);
   });
 
+  // Doppelklick beendet eine offene Polylinie: der erste Klick setzt (bzw. trifft den letzten Punkt), danach in
+  // Klickreihenfolge abschließen, sofern es dann mindestens zwei Punkte gibt. Den Drehpunkt sperrt main.ts
+  // über linieOffen() (viewer.ts). Ohne offene Linie (z. B. Doppelklick auf einen Mittelpunkt-Griff) nichts.
+  instance.domElement.addEventListener('dblclick', () => {
+    if (kind !== 'polyline' || drawing.length === 0 || o.unterPointerLock?.()) return;
+    afterPicks(() => {
+      if (kind === 'polyline' && drawing.length >= 2) finishNow();
+    });
+  });
+
   /** Gemeinsamer Weg für Klick und Fadenkreuz: Eckpunkt-Fang, sonst Strahlsuche; Anwenden in Reihenfolge. */
   // `keinPunkt`: wohin der Hinweis ohne Punkt geht (Fadenkreuz: auch in die Ansage), sonst die Meldungszeile.
   const setzeAn = (x: number, y: number, ev: MouseEvent | null, snap: boolean, vorher?: Promise<void>, keinPunkt: (t: string) => void = say): Promise<SetzStatus> =>
@@ -494,9 +515,14 @@ export function attachMeasureTool(o: MeasureToolOptions): MeasureTool {
       // Eckpunkt-Fang (immer an): ≤ HANDLE_HIT_PX (bzw. sichtbarer Kugelradius, falls größer) neben einem Eckpunkt einer Messung oder der
       // offenen Zeichnung → genau dessen Koordinaten. Nie auf den zuletzt gesetzten Punkt (Nullkante).
       // Fläche schließen: großzügiger Fang auf den ersten Eckpunkt (auf Touch-Geräten 36 px), vor dem Eckpunkt-Fang.
+      // Polylinie beenden: derselbe Fang auf den zuletzt gesetzten Punkt, schon ab einem Punkt (dann verworfen mit
+      // Hinweis statt Fast-Doppelpunkt aus der Strahlsuche); ob beendet wird, entscheidet klickAusgang in Reihenfolge.
+      const rect = instance.domElement.getBoundingClientRect();
       const schliessen = kind === 'area' && drawing.length >= 3 &&
-        schliesstFlaeche(toScreen(drawing[0]!, instance.domElement.getBoundingClientRect()), x, y, drawing.length, istTouch());
+        schliesstFlaeche(toScreen(drawing[0]!, rect), x, y, drawing.length, istTouch());
+      const beenden = kind === 'polyline' && drawing.length >= 1 && amLetztenPunkt(toScreen(drawing.at(-1)!, rect), x, y, istTouch());
       const target = schliessen ? { p: drawing[0]!, openIndex: 0, source: drawingSources[0] ?? null }
+        : beenden ? { p: drawing.at(-1)!, openIndex: drawing.length - 1, source: drawingSources.at(-1) ?? null, beenden: true }
         : drawing.length > 0 ? vertexAt(x, y, { open: drawing.length - 1 }) : null;
       let status: SetzStatus = 'verworfen';
       enqueue(target ? vertexPick(target.p,target.source) : zielAt(x, y, ev, snap, vorher), (p, info, e) => {
@@ -511,18 +537,17 @@ export function attachMeasureTool(o: MeasureToolOptions): MeasureTool {
         }
         status = 'kein-treffer';
         if (e.verdeckt || !p) return keinPunkt(noPointMessage(info, hiddenCloudMessage, 'kein Messpunkt gesetzt', e.verdeckt));
-        // Erster Eckpunkt einer offenen Fläche schließt sie — entschieden in Klickreihenfolge, nach den noch
-        // laufenden Picks davor (dann zählt auch ein dritter Punkt, der erst jetzt angekommen ist).
-        if (target?.openIndex === 0 && kind === 'area') {
-          if (drawing.length >= 3) {
-            status = 'geschlossen';
-            return finishNow();
-          }
-          status = 'verworfen';
-          return say('Zum Schließen mindestens drei Eckpunkte setzen');
+        // Erster Eckpunkt einer offenen Fläche schließt sie, letzter Punkt einer Polylinie beendet sie — entschieden
+        // in Klickreihenfolge, nach den noch laufenden Picks davor (dann zählt auch ein Punkt, der erst jetzt ankam).
+        const ausgang = klickAusgang(kind, target, drawing.length);
+        if (ausgang === 'setzen') {
+          status = 'gesetzt';
+          return addPoint(p, info);
         }
-        status = 'gesetzt';
-        addPoint(p,info);
+        status = ausgang === 'schliessen' || ausgang === 'beenden' ? 'geschlossen' : 'verworfen';
+        if (ausgang === 'beenden') beendetAm = performance.now();
+        if (status === 'geschlossen') return finishNow();
+        say(ausgang === 'zu-wenig-flaeche' ? 'Zum Schließen mindestens drei Eckpunkte setzen' : 'Zum Beenden mindestens zwei Punkte setzen');
       });
       // Nach dem Anwenden (die Warteschlange fängt Fehler selbst ab).
       void queue.then(() => fertig(status));
@@ -787,6 +812,7 @@ export function attachMeasureTool(o: MeasureToolOptions): MeasureTool {
     select,
     hitsHandle: (x, y) => nearestHandle(screenHandles(), x, y) !== null,
     setzeAmBildschirm: (x, y, opt) => setzeAn(x, y, null, opt?.snapEdges ?? snapEdges?.() ?? false, opt?.vorher, opt?.keinPunkt),
+    linieOffen: () => kind === 'polyline' && (drawing.length > 0 || performance.now() - beendetAm < NACH_BEENDEN_MS),
     pendingPoints: () => [...drawing],
     offeneZeichnung: () => ({ kind, punkte: [...drawing] }),
     sync,

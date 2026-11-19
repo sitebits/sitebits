@@ -112,8 +112,9 @@ def test_abnahme_mail_link_antwort(welt: Welt, smtp: SmtpFake) -> None:  # noqa:
     # Die Links verraten weder Projekt noch Befund noch Konto (nur zufällige Zeilen-ID).
     for link in links.values():
         roh = post._unb64(link.rsplit("/", 1)[1].split(".")[0])
-        assert b"ost" not in roh and b"P-1" not in roh and str(welt.id["rueck"]).encode() + b"|" \
-            not in roh
+        # Feldweise vergleichen: die Hex-ID darf zufällig auf die Konto-ID enden („…5|“).
+        assert b"ost" not in roh and b"P-1" not in roh
+        assert str(welt.id["rueck"]).encode() not in roh.split(b"|")
     # Link aus der Mail: angemeldet als Empfänger → Faden; fremdes Konto → 404; ohne → Anmeldung.
     r = welt.c["rueck"].get(links["zum"], follow_redirects=False)
     assert r.status_code == 303 and r.headers["location"] == "/befunde?p=ost&b=P-1"

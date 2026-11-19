@@ -13,7 +13,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from conftest import ORIGIN, csrf
+from conftest import ORIGIN, Platte, csrf
 from fadenwelt import FADEN, Welt, welt  # noqa: F401
 from fastapi.testclient import TestClient
 from smtpfake import SmtpFake
@@ -284,3 +284,22 @@ def test_lesezugriff_erfasst(welt: Welt) -> None:  # noqa: F811
     objekte = {r[0] for r in welt.sql("SELECT objekt FROM lesezugriffe WHERE nutzer_id=?",
                                       welt.id["rueck"])}
     assert objekte == {"anhang", "faden"}
+
+
+def test_platz_grenze(tmp_path: Path, platte: Platte) -> None:
+    from scanview_server import anhaenge
+
+    grenze = int(platte.GESAMT * anhaenge.RESERVE_ANTEIL) + anhaenge.MAX_BYTES
+    platte.frei = grenze
+    anhaenge.platz_pruefen(tmp_path)
+    platte.frei = grenze - 1
+    with pytest.raises(anhaenge.AnhangFehler) as fehler:
+        anhaenge.platz_pruefen(tmp_path)
+    assert fehler.value.status == 507 and str(fehler.value) == anhaenge.PLATZ
+
+
+def test_platte_voll_507_ohne_datei(welt: Welt, platte: Platte) -> None:  # noqa: F811
+    platte.frei = 0
+    status, d = _hoch(welt.c["bear"], JPEG)
+    assert status == 507 and d["fehler"] == "Auf dem Server ist gerade zu wenig Platz für Anhänge."
+    assert welt.sql("SELECT COUNT(*) FROM anhaenge")[0][0] == 0

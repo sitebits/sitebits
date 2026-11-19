@@ -1,12 +1,12 @@
 // Nur-Lese-Link (F28): erkenneModus() erkennt den Gast aus /api/sitzung, gastFetch() lenkt nur das
 // Manifest auf das bereinigte /api/teilen/manifest um.
-import { describe, expect, it } from 'vitest';
-import { erkenneModus, gastFetch, paketId } from '../src/platform';
+import { describe, expect, it, vi } from 'vitest';
+import { erkenneModus, gastFetch, paketId, zeigeGastHinweis } from '../src/platform';
 
 const json = (body: unknown) =>
   (async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch;
 const loc = (search: string) => ({ pathname: '/ansicht', search, hash: '' });
-const GAST = { projekt: 'ost', name: 'Gast Ost', ablauf: 1_800_000_000 };
+const GAST = { projekt: 'ost', name: 'Gast Ost', ablauf: 1_800_000_000, profil: 'messen' as const };
 
 describe('Gast-Ansicht', () => {
   it('nur Gast, passendes Paket → Einzelmodus mit gast', async () => {
@@ -30,6 +30,15 @@ describe('Gast-Ansicht', () => {
       expect(m.art, JSON.stringify(gast)).toBe('weiterleiten');
     }
   });
+  it('Ansichtsprofil (P08-S6): vom Server; fehlt es oder ist es unbekannt, gilt „ansehen“', async () => {
+    const ohne: Partial<typeof GAST> = { ...GAST };
+    delete ohne.profil;
+    for (const [roh, erwartet] of [[undefined, 'ansehen'], ['editor', 'ansehen'], [7, 'ansehen'], ['arbeiten', 'arbeiten'], ['messen', 'messen']] as const) {
+      const gast = roh === undefined ? ohne : { ...ohne, profil: roh };
+      const m = await erkenneModus(json({ dienst: 'scanview', nutzer: null, gast }), loc('?p=/data/ost/&gast=1'));
+      expect(m.art === 'einzeln' ? m.gast?.profil : null, String(roh)).toBe(erwartet);
+    }
+  });
   it('paketId', () => {
     expect(paketId('/data/ost/')).toBe('ost');
     expect(paketId('/data/ost')).toBe('ost');
@@ -42,5 +51,15 @@ describe('Gast-Ansicht', () => {
     await g('http://localhost:3000/data/ost/project.json');
     await g('http://localhost:3000/data/ost/cloud.copc.laz');
     expect(gerufen).toEqual(['/api/teilen/manifest', 'http://localhost:3000/data/ost/cloud.copc.laz']);
+  });
+  it('Kennzeichnung nennt, was Gäste sehen: auch die Sichtschicht', () => {
+    const kinder: { title: string }[] = [];
+    vi.stubGlobal('document', { createElement: () => ({}) });
+    try {
+      zeigeGastHinweis({ append: (d: { title: string }) => kinder.push(d) } as unknown as HTMLElement, GAST);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(kinder[0]!.title).toContain('Punktwolke, Meshes und Sichtschicht');
   });
 });

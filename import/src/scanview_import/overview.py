@@ -7,6 +7,11 @@ y ∈ [y0 - (r+1)·s, y0 - r·s] (``pixelAnchor: "edge"``, Zeile 0 = größtes Y
 georeferenzierten Paketen). Gelesen werden nur die COPC-Stufen, die für die Pixelgröße nötig
 sind (``CopcReader.query(resolution=…)``).
 
+Orthobild (optional, ``bild``): ein georeferenziertes Rasterbild mit Weltdatei (``.tfw``/``.jgw``/
+``.pgw``/``.wld``) im selben Koordinatensystem wie das Paket ersetzt die Wolkenfarbe überall dort,
+wo es deckt (Alpha ≥ 128); außerhalb bleibt die Wolke. Das Koordinatensystem wird nicht geraten:
+``bild_crs`` muss dem des Pakets entsprechen, gedrehte Weltdateien werden abgelehnt.
+
 Bodenhöhe: Punkte im Ring 0,5-1,5 m um die Stativachse (direkt darunter verdeckt
 das Stativ die Sicht), 0,3-4 m unter dem Scannerzentrum; Median des untersten 10-cm-Bandes über
 dem 5-%-Quantil. Unter 50 Punkten → ``None`` (der Viewer zeigt dann den Standpunkt auf
@@ -39,6 +44,11 @@ GROUND_DEPTH_M = 4.0
 GROUND_MIN_POINTS = 50
 GROUND_BAND_M = 0.10
 GROUND_RESOLUTION_M = 0.01
+WORLD_FILE_SUFFIXES = (".tfw", ".tifw", ".jgw", ".pgw", ".wld")
+# Orthobilder aus der Fotogrammetrie sind oft größer als Pillows Standardgrenze (~179 Mpx);
+# eigene Grenze, RGBA belegt dabei bis 2 GiB.
+MAX_BILD_PIXEL = 1 << 29
+BILD_ALPHA_MIN = 128
 
 F64 = npt.NDArray[np.float64]
 
@@ -98,6 +108,72 @@ def rasterize_top(
     img[ys, xs, :3] = colors
     img[ys, xs, 3] = 255
     return img
+
+
+@dataclass(frozen=True)
+class WorldFile:
+    pixel_x: float  # Pixelbreite in Welt-Einheiten (> 0)
+    pixel_y: float  # Pixelhöhe (< 0, Zeile 0 oben)
+    center_x: float  # Mitte des Pixels oben links
+    center_y: float
+
+
+def read_world_file(image: Path) -> WorldFile:
+    for suffix in WORLD_FILE_SUFFIXES:
+        wf = image.with_suffix(suffix)
+        if wf.is_file():
+            break
+    else:
+        raise ValueError(f"Keine Weltdatei neben {image.name} ({', '.join(WORLD_FILE_SUFFIXES)})")
+    try:
+        a, d, b, e, c, f = (float(v) for v in wf.read_text().split())
+    except ValueError as err:
+        raise ValueError(f"Weltdatei {wf.name}: sechs Zahlen erwartet") from err
+    if d != 0 or b != 0:
+        raise ValueError(f"Weltdatei {wf.name} ist gedreht — nicht unterstützt")
+    if not (a > 0 and e < 0) or not all(math.isfinite(v) for v in (a, e, c, f)):
+        raise ValueError(f"Weltdatei {wf.name}: Pixelgröße muss x > 0 und y < 0 sein")
+    return WorldFile(a, e, c, f)
+
+
+def _open_bild(image: Path) -> Image.Image:
+    previous = Image.MAX_IMAGE_PIXELS
+    try:
+        Image.MAX_IMAGE_PIXELS = MAX_BILD_PIXEL
+        img = Image.open(image)
+        img.load()
+    finally:
+        Image.MAX_IMAGE_PIXELS = previous
+    return img
+
+
+def rasterize_bild(image: Path, grid: Grid) -> npt.NDArray[np.uint8]:
+    """RGBA (H, W, 4) im Draufsicht-Raster: je Pixel das Orthobild an der Pixelmitte, vorher per
+    Mittelung auf etwa die Draufsicht-Pixelgröße verkleinert; außerhalb des Bildes transparent."""
+    wf = read_world_file(image)
+    with _open_bild(image) as src:
+        rgba = src.convert("RGBA")
+    factor = max(1, int(grid.pixel_m / max(wf.pixel_x, -wf.pixel_y)))
+    if factor > 1:
+        # vormultipliziert mitteln, sonst färben transparente Ränder dunkel ein
+        rgba = rgba.convert("RGBa").reduce(factor).convert("RGBA")
+    arr = np.asarray(rgba)
+    left = wf.center_x - wf.pixel_x / 2
+    top = wf.center_y - wf.pixel_y / 2
+    cx = grid.x0 + (np.arange(grid.width) + 0.5) * grid.pixel_m
+    cy = grid.y0 - (np.arange(grid.height) + 0.5) * grid.pixel_m
+    col = np.floor((cx - left) / (wf.pixel_x * factor)).astype(np.int64)
+    row = np.floor((cy - top) / (wf.pixel_y * factor)).astype(np.int64)
+    out = np.zeros((grid.height, grid.width, 4), dtype=np.uint8)
+    cin = (col >= 0) & (col < arr.shape[1])
+    rin = (row >= 0) & (row < arr.shape[0])
+    out[np.ix_(rin, cin)] = arr[np.ix_(row[rin], col[cin])]
+    return out
+
+
+def _paket_crs(manifest: dict[str, Any]) -> str | None:
+    crs = (manifest.get("frame") or {}).get("crs") or manifest.get("crs")
+    return None if not crs else str(crs.get("wkt") or "") or None
 
 
 def ground_z(xyz: F64, station: Sequence[float]) -> float | None:
@@ -168,9 +244,20 @@ def build_overview(
     pixel_m: float = DEFAULT_PIXEL_M,
     max_px: int = DEFAULT_MAX_PX,
     z_max: float | None = None,
+    bild: Path | None = None,
+    bild_crs: str | None = None,
 ) -> dict[str, Any]:
     manifest_path = pkg / "project.json"
     manifest = json.loads(manifest_path.read_text())
+    if bild is not None:
+        paket_crs = _paket_crs(manifest)
+        if paket_crs is None:
+            raise ValueError("Orthobild nur bei georeferenzierten Paketen (project.json ohne crs)")
+        if not bild_crs or bild_crs.strip().upper() != paket_crs.strip().upper():
+            raise ValueError(
+                f"Koordinatensystem des Orthobilds ({bild_crs or 'nicht angegeben'}) muss dem des "
+                f"Pakets entsprechen ({paket_crs}) — --bild-crs ausdrücklich angeben"
+            )
     cloud_layer = cloud_of(manifest)
     cloud = pkg / cloud_layer["url"]
     bmin, bmax = cloud_layer["boundsWorld"]
@@ -179,6 +266,17 @@ def build_overview(
     xyz, rgb = read_points(cloud, grid.pixel_m, (bmin, top))
     use_rgb = "rgb" in cloud_layer.get("attributes", []) and rgb is not None
     img = rasterize_top(xyz, rgb if use_rgb else None, grid)
+    bild_info: dict[str, Any] | None = None
+    if bild is not None:
+        ortho = rasterize_bild(bild, grid)
+        deckt = ortho[:, :, 3] >= BILD_ALPHA_MIN
+        img[deckt, :3] = ortho[deckt, :3]
+        img[deckt, 3] = 255
+        bild_info = {
+            "source": bild.name,
+            "crs": bild_crs,
+            "coverage": round(float(deckt.mean()), 4),
+        }
     Image.fromarray(img, "RGBA").save(pkg / TOPVIEW_NAME, optimize=True)
     manifest["topview"] = {
         "url": TOPVIEW_NAME,
@@ -190,6 +288,8 @@ def build_overview(
         "zMaxWorld": z_max,
         "colorFrom": "rgb" if use_rgb else "height",
     }
+    if bild_info is not None:
+        manifest["topview"]["image"] = bild_info
     # Über write_manifest (allow_nan=False) statt direktem json.dumps — nicht-endliche Werte
     # (z. B. ein kaputtes zMaxWorld) sollen laut brechen statt als ungültiges JSON zu landen.
     write_manifest(pkg, manifest)

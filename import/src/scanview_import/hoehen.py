@@ -159,7 +159,8 @@ def festlegen(quelle: str | None, ziel: str | None) -> tuple[str | None, str | N
     """Quell- und Zielhöhensystem aus den CLI-Angaben; Standard-Ziel DHHN2016 (Entscheidung 0015).
 
     Ohne Quellangabe bleibt alles unbekannt (``None, None``) — keine Annahme. Ein Ziel ohne Quelle
-    ist ein Fehler: Umrechnen setzt voraus, dass bekannt ist, wovon.
+    ist ein Fehler: Umrechnen setzt voraus, dass bekannt ist, wovon. Ein Paar ohne Umrechnung
+    (etwa DHHN92 → DHHN2016) bricht hier ab, also vor jeder Ausgabe.
     """
     if quelle is None:
         if ziel is not None:
@@ -171,6 +172,14 @@ def festlegen(quelle: str | None, ziel: str | None) -> tuple[str | None, str | N
     zl = DHHN2016 if ziel is None else normiere(ziel)
     if zl is None:
         raise HoehenFehler(f"Zielhöhensystem unbekannt: {ziel!r}")
+    if not umrechenbar(q, zl):
+        ausweg = (
+            "; DHHN92 wird nur deklariert, nicht umgerechnet. Ohne Umrechnung: "
+            "--ziel-hoehensystem dhhn92"
+            if q == DHHN92
+            else ""
+        )
+        raise HoehenFehler(f"Umrechnung {q} → {zl} nicht unterstützt{ausweg}")
     return q, zl
 
 

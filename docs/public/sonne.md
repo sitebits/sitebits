@@ -1,5 +1,7 @@
 # Sonne und Schatten
 
+> **Experiment – Ergebnisse ohne Gewähr. Haftung nur im gesetzlich vorgeschriebenen Umfang.**
+
 Das Sonnenmodul zeigt, wo zu einem gewählten Datum und einer Uhrzeit Sonne und Schatten liegen. Damit beantwortest du
 Fragen wie: Wann liegt die Terrasse im Schatten? Wie viel Sonne bekommt ein Beet? Lohnt sich eine Solaranlage auf
 diesem Dach?

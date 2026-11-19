@@ -106,6 +106,7 @@
 .sv-sonne-werte dd { margin: 0; }
 .sv-sonne-status { margin: 0; min-height: 1.2em; font-size: 12px; }
 .sv-sonne-hinweis { margin: 0; }
+.sv-sonne-experiment { margin: 0; font-size: 12px; color: var(--sv-fg-muted); }
 .sv-sonne-ort { color: var(--sv-fg-muted); font-size: 12px; }
 .sv-kp { display: flex; flex-direction: column; gap: var(--sv-gap); }
 .sv-kp-leiste { display: flex; flex-wrap: wrap; gap: 6px; }

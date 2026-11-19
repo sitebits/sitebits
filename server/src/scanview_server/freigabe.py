@@ -10,10 +10,11 @@ Admin sehen den Prüfstand.
 Wann das Tor greift:
 - Fotos (`images…`, `fotos…`): immer. Ein Status `released` in `images.json` allein reicht nicht.
 - Panoramen (`pano…`): wenn das Paket es verlangt (`stations.json` → `anonymization.required`,
-  schreibt jeder Import ab dieser Version) oder die Projektleitung „Panoramen nur freigegeben
-  zeigen“ eingeschaltet hat (Standard für neu eingerichtete Projekte). Altpakete ohne Block
-  bleiben bis dahin sichtbar — akzeptiertes Übergangsrisiko, im Portal gekennzeichnet.
-  `stations.json` selbst enthält keine Pixel und bleibt sichtbar.
+  schreibt jeder Import ab dieser Version) oder der Schalter „Panoramen nur freigegeben zeigen“
+  an ist. Er ist seit Migration 0021 für jedes Projekt an, auch ohne Zeile in `projekte`
+  (Vorgabe): Altpakete ohne Block sind gesperrt, bis sie freigegeben sind. Die Projektleitung kann
+  den Schalter bewusst abschalten (protokolliert als `einstellung.geaendert`, im Portal als
+  Warnung gekennzeichnet). `stations.json` selbst enthält keine Pixel und bleibt sichtbar.
 
 Freigeben (Projektleitung): Der Server leitet die Dateiliste aus dem Manifest der Ebene ab,
 hasht jede Datei selbst und speichert (Pfad, SHA-256). Art `anonymisiert` verlangt eine geprüfte
@@ -395,24 +396,43 @@ def zuruecknehmen(conn: sqlite3.Connection, paket: Path, pid: str, ebene: str, *
     return stand(conn, paket, pid, ebene, pruefen=False)
 
 
+def _pruefen(conn: sqlite3.Connection, paket: Path, r: sqlite3.Row, n: int) -> int:
+    """Hasht alle Dateien der aktiven Freigabe `r` und merkt den Prüfstand in derselben Zeile.
+
+    Schreibzugriff in einem lesenden Aufruf (GET, auch per lesen-Token und MCP), bewusst: Es ist
+    das Ergebnis der Server-eigenen Prüfung, kein Nutzerinhalt, und es gibt nichts frei. Das
+    Portal zeigt so nach dem Neuladen den letzten Stand statt „noch nicht nachgeprüft“."""
+    abweichend = sum(
+        1 for z in conn.execute("SELECT pfad, sha256 FROM freigabe_dateien"
+                                " WHERE freigabe_id=?", (r["id"],))
+        if datei_sha256(paket / str(z["pfad"])) != z["sha256"])
+    with transaktion(conn):
+        conn.execute("UPDATE freigaben SET zuletzt_geprueft_am=?, zuletzt_abweichend=?"
+                     " WHERE id=? AND zurueckgenommen_am IS NULL", (n, abweichend, r["id"]))
+    return abweichend
+
+
 def stand(conn: sqlite3.Connection, paket: Path, pid: str, ebene: str,
-          panoramen_nur_freigegeben: bool = False, *, pruefen: bool = False) -> dict[str, Any]:
+          panoramen_nur_freigegeben: bool = True, *, pruefen: bool = False,
+          now: int | None = None) -> dict[str, Any]:
     """Stand einer Ebene fürs Portal und für Agenten: Manifest, aktive Freigabe und wie viele
-    freigegebene Dateien heute noch passen (`pruefen=False` spart das Hashen)."""
+    freigegebene Dateien heute noch passen (`pruefen=False` spart das Hashen). `pruefen=True`
+    speichert den Prüfstand (`_pruefen`); `zuletztGeprueftAm`/`zuletztAbweichend` kommen immer
+    mit (null = nie geprüft)."""
     m = manifest(paket, ebene)
     r = aktiv(conn, pid, ebene)
     frei: dict[str, Any] | None = None
     if r is not None:
         frei = {"art": r["art"], "dateien": int(r["dateien"]), "werkzeug": r["werkzeug"],
-                "manifestSha256": r["manifest_sha256"], "freigegebenAm": int(r["freigegeben_am"])}
+                "manifestSha256": r["manifest_sha256"], "freigegebenAm": int(r["freigegeben_am"]),
+                "zuletztGeprueftAm": r["zuletzt_geprueft_am"],
+                "zuletztAbweichend": r["zuletzt_abweichend"]}
         # Wer freigegeben hat, steht im Verlauf (Protokoll), nicht in dieser Antwort: sie geht
         # auch an Agenten (MCP) und braucht keine Konto-ID.
         if pruefen:
-            abweichend = sum(
-                1 for z in conn.execute("SELECT pfad, sha256 FROM freigabe_dateien"
-                                        " WHERE freigabe_id=?", (r["id"],))
-                if datei_sha256(paket / str(z["pfad"])) != z["sha256"])
-            frei["abweichend"] = abweichend
+            n = int(time.time()) if now is None else now
+            frei["abweichend"] = _pruefen(conn, paket, r, n)
+            frei["zuletztGeprueftAm"], frei["zuletztAbweichend"] = n, frei["abweichend"]
     return {
         "ebene": ebene,
         "vorhanden": m.vorhanden,

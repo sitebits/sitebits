@@ -347,6 +347,17 @@ def _add_hoehe(
         raise ValueError("Paket-Höhensystem unbekannt; Mesh-Höhen nicht umrechenbar")
     if ziel_arg is not None and hoehen.normiere(ziel_arg) != ziel:
         raise ValueError("Zielhöhensystem widerspricht dem Paket")
+    quelle_n = hoehen.normiere(quelle_arg)
+    if quelle_n is not None and not hoehen.umrechenbar(quelle_n, ziel):
+        # Ein anderes Ziel hilft hier nicht: das Paket legt es fest.
+        if quelle_n == hoehen.DHHN92:
+            raise hoehen.HoehenFehler(
+                f"Dieses Paket steht auf {ziel}; DHHN92-Daten nur in ein DHHN92-Paket "
+                "(beim Anlegen --ziel-hoehensystem dhhn92)"
+            )
+        raise hoehen.HoehenFehler(
+            f"Umrechnung {quelle_n} → {ziel} nicht unterstützt; dieses Paket steht auf {ziel}"
+        )
     quelle, _ = hoehen.festlegen(quelle_arg, ziel)
     return quelle, ziel
 

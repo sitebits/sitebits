@@ -134,9 +134,11 @@ def json_export(
     messungen: list[Eintrag], now: int, staende: dict[str, Any] | None = None,
     faeden: dict[str, list[Any]] | None = None,
     *, ebenen: tuple[genauigkeit.EbeneGenauigkeit, ...] = (),
+    grundlagen: Mapping[str, Mapping[str, str]] | None = None,
 ) -> dict[str, Any]:
     """`staende`/`faeden` nur bei eingeschalteten Befund-Fäden (Faden ohne interne Einträge für
-    Nicht-Bauherrenseite — gefiltert vom Aufrufer). `ebenen`: Genauigkeit je Ebene (F15)."""
+    Nicht-Bauherrenseite — gefiltert vom Aufrufer). `ebenen`: Genauigkeit je Ebene (F15);
+    `grundlagen`: Tabelle → ID → Grundlage (inhalte.mit_grundlage)."""
     return {
         "schemaVersion": 1, "projectId": pid, "revision": revision or 0, "frame": "world",
         "unit": "m", "exportiertAm": datetime.fromtimestamp(now, UTC).isoformat(),
@@ -145,5 +147,12 @@ def json_export(
         "pois": [_poi_json(e, staende, faeden) for e in pois
                  if staende is None or e.id in staende],
         "messungen": [{"id": e.id, **e.daten} for e in messungen],
+        # Eigener Block statt Feld am Eintrag: Die Einträge bleiben als POI-Datei einlesbar.
+        "grundlage": {
+            "pois": {e.id: g for e in pois if staende is None or e.id in staende
+                     if (g := (grundlagen or {}).get("pois", {}).get(e.id)) is not None},
+            "messungen": {e.id: g for e in messungen
+                          if (g := (grundlagen or {}).get("messungen", {}).get(e.id)) is not None},
+        },
         "genauigkeit": [g.als_json() for g in ebenen],
     }

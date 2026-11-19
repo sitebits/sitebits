@@ -22,7 +22,7 @@ export const ABSCHLIESSEN_MS = 30 * 60_000;
 export const abschliessen = (id: string, f: typeof fetch = fetch): Promise<Upload> =>
   anfrage<Upload>('POST', `/api/v1/uploads/${encodeURIComponent(id)}/abschliessen`, {}, f, false, ABSCHLIESSEN_MS);
 
-export const importStarten = (upload: string, typ: string, optionen: Record<string, string>, f: typeof fetch = fetch): Promise<Import> =>
+export const importStarten = (upload: string, typ: string, optionen: Record<string, string | boolean>, f: typeof fetch = fetch): Promise<Import> =>
   anfrage<Import>('POST', '/api/v1/importe', { upload, typ, optionen }, f);
 
 export const importAbbrechen = (id: string, f: typeof fetch = fetch): Promise<Import> =>

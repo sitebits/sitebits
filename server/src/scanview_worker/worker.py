@@ -9,10 +9,12 @@ im Läufer starten (feste Argumentliste, nur geprüfte IDs und Profilnamen) → 
 erlaubte Dateien nach `<berichte>/<projekt>/<auftrag>/` übernehmen → Arbeitsordner entfernen.
 
 Ablauf je Import (neues Projekt aus einem Upload): Arbeitsordner `<übergabe>/.arbeit-<auftrag>/`
-→ `scanview-import neu-ohne-wolke` im Läufer (Upload nur lesend eingebunden, sonst nichts
-sichtbar) → `scanview-import verify` in einem zweiten Lauf → Paketbaum prüfen (nur Ordner und
-reguläre Dateien, ein Name je Datei, keine Gruppen-/Fremdschreibrechte) → per rename nach
-`<übergabe>/<projekt>/`. Freischalten tut der Worker nie selbst: das root-Skript der Übergabe
+→ `scanview-import neu-ohne-wolke` (Mesh, Splats) bzw. `scanview-import convert` (Punktwolke; PDAL
+und untwine aus der gelockten Umgebung `SCANVIEW_PDAL_UMGEBUNG`, kein Docker) im Läufer (Upload nur
+lesend eingebunden, sonst nichts sichtbar) → `scanview-import verify` in einem zweiten Lauf →
+Paketbaum prüfen (nur Ordner und reguläre Dateien, ein Name je Datei, keine
+Gruppen-/Fremdschreibrechte) → per rename nach `<übergabe>/<projekt>/`. Freischalten tut der
+Worker nie selbst: das root-Skript der Übergabe
 legt das Paket über den Nutzer `scanview-uebergabe` in den Eingang und ruft das unveränderte
 Freischalt-Skript; dessen Ergebnis liest der Worker als ein Wort aus dem Meldungsordner.
 
@@ -43,7 +45,16 @@ from typing import Any, Literal
 
 from scanview_server import auftraege as A
 
-from .laeufer import UNIT_PRAEFIX, Ergebnis, Grenzen, Laeufer, Lauf, SystemdLaeufer
+from .laeufer import (
+    NETZRAUM_QUELLE,
+    NETZRAUM_VERSTOSS,
+    UNIT_PRAEFIX,
+    Ergebnis,
+    Grenzen,
+    Laeufer,
+    Lauf,
+    SystemdLaeufer,
+)
 
 log = logging.getLogger("scanview.worker")
 
@@ -62,11 +73,15 @@ F_ZEIT = "Zeitlimit überschritten ({s} s) – Auftrag beendet."  # noqa: RUF001
 F_EINGABE = "Der Prüfer meldet einen Katalog- oder Eingabefehler (Exit 2)."
 F_ABBRUCH = "Der Prüfer ist abgebrochen (Exit {code})."
 F_START = "Der isolierte Lauf ließ sich nicht starten."
+# Vorspann der Auftrags-Unit fand keinen eigenen Netz-Namensraum: Werkzeug nie gestartet.
+F_ISOLATION = ("Isolation greift nicht (kein eigener Netz-Namensraum), der Auftrag wurde nicht "
+               "gestartet. Betrieb benachrichtigen.")
 F_AUSGABE = "Der Prüfer hat keinen gültigen Bericht geschrieben."
 F_NEUSTART = "Worker neu gestartet – Auftrag abgebrochen."  # noqa: RUF001
 F_BEENDET = "Worker wurde beendet – Auftrag abgebrochen."  # noqa: RUF001
 F_PLATTE_IMPORT = "Zu wenig freier Speicherplatz für das neue Paket."
 F_NICHT_EINGERICHTET = "Neue Projekte sind auf dieser Instanz nicht eingerichtet."
+F_WOLKE_NICHT_EINGERICHTET = "Punktwolken-Import ist auf dieser Instanz nicht eingerichtet."
 F_UPLOAD = "Upload nicht gefunden oder nicht lesbar."
 F_VORHANDEN = "Ein Projekt mit dieser ID gibt es schon."
 F_KONVERTIEREN = "Der Import ist abgebrochen (Exit {code})."
@@ -155,6 +170,8 @@ class Einstellungen:
     uploads: Path | None = None
     uebergabe: Path | None = None
     meldungen: Path | None = None
+    # Präfix der gelockten PDAL-Umgebung (bin/pdal, bin/untwine); ohne sie kein `neu_wolke`.
+    pdal_umgebung: Path | None = None
     # Bildanhänge am Befund-Faden (F7): Wurzel mit `eingang/` (Webdienst schreibt, Worker liest)
     # und `geprueft/` (Worker schreibt, Webdienst übernimmt). None = Anhänge aus.
     anhaenge: Path | None = None
@@ -186,13 +203,15 @@ class Einstellungen:
         if any(gesetzt) and not all(gesetzt):
             raise SystemExit(f"{', '.join(namen)} nur gemeinsam setzen.")
         imp = [pfad(n) for n in namen] if all(gesetzt) else [None, None, None]
+        pdal = pfad("SCANVIEW_PDAL_UMGEBUNG") if e.get("SCANVIEW_PDAL_UMGEBUNG", "").strip() \
+            else None
         anh = pfad("SCANVIEW_ANHAENGE") if e.get("SCANVIEW_ANHAENGE", "").strip() else None
         s = Einstellungen(
             anhaenge=anh,
             jobs_db=pfad("SCANVIEW_JOBS_DB"), berichte=pfad("SCANVIEW_BERICHTE"),
             data_dir=pfad("SCANVIEW_DATA"), import_bin=pfad("SCANVIEW_IMPORT_BIN"),
             reserve_bytes=int(roh_reserve) * 1024**3,
-            uploads=imp[0], uebergabe=imp[1], meldungen=imp[2],
+            uploads=imp[0], uebergabe=imp[1], meldungen=imp[2], pdal_umgebung=pdal,
         )
         laeufer = SystemdLaeufer(benutzer=art == "user", unsichtbar=unsichtbar, home=home)
         return s, laeufer
@@ -267,6 +286,34 @@ def _paketbaum_pruefen(wurzel: Path) -> None:
         raise ValueError("project.json fehlt")
 
 
+# Freier Platz, den ein Import vor dem Start braucht, als Vielfaches der Quelldatei (plus
+# Reserve). Punktwolke gemessen in der Abnahme U2b: Spitze 28,9 GB im Arbeitsordner bei 5,1 GB
+# LAZ (Zwischen-LAZ, untwine-Temp, COPC) = 5,7-fach → 6.
+PLATTE_FAKTOR: dict[str, int] = {"neu_wolke": 6}
+DATEI_FAKTOR_WOLKE = 2
+
+
+def import_argv(imp: str, typ: str, optionen: dict[str, str], datei: Path,
+                ziel: Path) -> list[str]:
+    """Feste Argumentliste je Importtyp — nur geprüfte Optionen, nie freier Text als Schalter."""
+    if typ == "neu_wolke":
+        # staged: untwine baut die COPC außerhalb des Speichers (writers.copc hält alles im RAM).
+        argv = [imp, "convert", str(datei), str(ziel), "--mode", "staged",
+                "--titel", optionen["titel"]]
+    else:
+        argv = [imp, "neu-ohne-wolke", str(datei), str(ziel),
+                "--art", "mesh" if typ == "neu_mesh" else "splats", "--titel", optionen["titel"]]
+    if "crs" in optionen:
+        argv += ["--crs", optionen["crs"]]
+    if "quellHoehe" in optionen:
+        argv += ["--quell-hoehensystem", optionen["quellHoehe"]]
+    if "zielHoehe" in optionen:
+        argv += ["--ziel-hoehensystem", optionen["zielHoehe"]]
+    if optionen.get("rgb8bit") == "ja":
+        argv.append("--rgb-8bit")
+    return argv
+
+
 def _upload_datei(uploads: Path, upload: str, datei: str) -> tuple[Path, Path] | None:
     """(Upload-Ordner, Hauptdatei), wenn jeder Pfadteil ein echter Ordner bzw. die Datei eine
     reguläre Datei ist (kein Symlink); sonst None."""
@@ -309,6 +356,17 @@ def _letzte_zeile(protokoll: Path) -> str | None:
     if not 0 < len(text) <= 300 or not text.isprintable() or "/" in text:
         return None
     return text
+
+
+def _isolationsfehler(a: A.Auftrag, lauf: Lauf, e: Ergebnis) -> bool:
+    """Vorspann der Auftrags-Unit fand keinen eigenen Netz-Namensraum (Werkzeug nie gestartet).
+    Die gefundenen Geräte stehen im Protokoll und gehen ins Journal, nie in jobs.db/API."""
+    if not (lauf.vorspann and e.ausgang == "exit" and e.status == NETZRAUM_VERSTOSS):
+        return False
+    log.error("Auftrag %s: Isolation greift nicht: netzraum, Werkzeug nicht gestartet "
+              "(PrivateNetwork ohne Wirkung, docs/public/betrieb.md)", a.id)
+    Worker._protokoll_ins_journal(a, lauf)
+    return True
 
 
 class Worker:
@@ -467,6 +525,9 @@ class Worker:
         log.info("Auftrag %s (%s, Projekt %s) startet", a.id, a.typ, a.projekt)
         e = self.laeufer.ausfuehren(lauf)
         log.info("Auftrag %s: %s (Status %s) nach %.1f s", a.id, e.ausgang, e.status, e.dauer_s)
+        if _isolationsfehler(a, lauf, e):
+            A.abschliessen(self.conn, a.id, A.FEHLGESCHLAGEN, fehler=F_ISOLATION)
+            return
         if e.ausgang == "speicher":
             A.abschliessen(self.conn, a.id, A.FEHLGESCHLAGEN,
                            fehler=F_SPEICHER.format(mb=budget.ram_mb))
@@ -546,7 +607,7 @@ class Worker:
             e = self.laeufer.ausfuehren(lauf)
             log.info("Auftrag %s: %s (Status %s) nach %.1f s", a.id, e.ausgang, e.status,
                      e.dauer_s)
-            if self._grenzfehler(a, e):
+            if self._grenzfehler(a, lauf, e):
                 return
             if e.ausgang != "ok":
                 meldung = _letzte_zeile(lauf.protokoll) if e.status == 2 else None
@@ -600,10 +661,14 @@ class Worker:
             A.abschliessen(self.conn, a.id, A.FEHLGESCHLAGEN, fehler=F_UPLOAD)
             return
         upload_ordner, datei = quelle
+        if a.typ == "neu_wolke" and s.pdal_umgebung is None:
+            A.abschliessen(self.conn, a.id, A.FEHLGESCHLAGEN, fehler=F_WOLKE_NICHT_EINGERICHTET)
+            return
         if (s.data_dir / pid).exists() or (s.uebergabe / pid).exists():
             A.abschliessen(self.conn, a.id, A.FEHLGESCHLAGEN, fehler=F_VORHANDEN)
             return
-        if shutil.disk_usage(s.uebergabe).free < s.reserve_bytes + 3 * datei.stat().st_size:
+        bedarf = PLATTE_FAKTOR.get(a.typ, 3) * datei.stat().st_size
+        if shutil.disk_usage(s.uebergabe).free < s.reserve_bytes + bedarf:
             A.abschliessen(self.conn, a.id, A.FEHLGESCHLAGEN, fehler=F_PLATTE_IMPORT)
             return
         arbeit = s.uebergabe / f"{ARBEIT_PRAEFIX}{a.id}"
@@ -618,14 +683,25 @@ class Worker:
             _weg(arbeit)
 
     def _import_lauf(self, a: A.Auftrag, name: str, argv: list[str], arbeit: Path,
-                     upload_ordner: Path, protokoll: str) -> tuple[Lauf, Ergebnis]:
+                     upload_ordner: Path, protokoll: str, datei: Path) -> tuple[Lauf, Ergebnis]:
         budget = A.BUDGETS[a.typ]
         s = self.s
         assert s.uploads is not None and s.uebergabe is not None
+        umgebung: dict[str, str] = {}
+        datei_mb = 8192
+        if a.typ == "neu_wolke":
+            assert s.pdal_umgebung is not None
+            # Server: PDAL/untwine immer aus der gelockten Umgebung, nie Docker.
+            umgebung = {"SCANVIEW_PDAL_AUSFUEHRUNG": "lokal",
+                        "SCANVIEW_PDAL_UMGEBUNG": str(s.pdal_umgebung)}
+            # Größte Einzeldatei: die COPC bzw. das Zwischen-LAZ, höchstens so groß wie ein
+            # Vielfaches der Quelle (E57 → LAZ schrumpft, LAZ → COPC wächst wenig).
+            datei_mb = max(8192, DATEI_FAKTOR_WOLKE * (datei.stat().st_size >> 20))
         lauf = Lauf(
             name=name, argv=argv, arbeit=arbeit, protokoll=arbeit / protokoll,
+            umgebung=umgebung,
             grenzen=Grenzen(ram_mb=budget.ram_mb, zeit_s=budget.zeit_s,
-                            prozesse=budget.prozesse, datei_mb=8192),
+                            prozesse=budget.prozesse, datei_mb=datei_mb),
             # Pakete, Berichte, andere Uploads und die Übergabe sieht der Job nicht; nur den
             # eigenen Upload lesend und seinen Arbeitsordner schreibend.
             verbergen=(s.data_dir, s.berichte, s.uploads, s.uebergabe),
@@ -636,9 +712,11 @@ class Worker:
         log.info("Auftrag %s: %s (Status %s) nach %.1f s", a.id, e.ausgang, e.status, e.dauer_s)
         return lauf, e
 
-    def _grenzfehler(self, a: A.Auftrag, e: Ergebnis) -> bool:
+    def _grenzfehler(self, a: A.Auftrag, lauf: Lauf, e: Ergebnis) -> bool:
         budget = A.BUDGETS[a.typ]
-        if e.ausgang == "speicher":
+        if _isolationsfehler(a, lauf, e):
+            self._fehl(a, F_ISOLATION)
+        elif e.ausgang == "speicher":
             self._fehl(a, F_SPEICHER.format(mb=budget.ram_mb))
         elif e.ausgang == "zeit":
             self._fehl(a, F_ZEIT.format(s=budget.zeit_s))
@@ -652,36 +730,32 @@ class Worker:
     def _import_laeufe(self, a: A.Auftrag, optionen: dict[str, str], upload_ordner: Path,
                        datei: Path, arbeit: Path, ziel: Path) -> bool:
         imp = str(self.s.import_bin / "scanview-import")
-        argv = [imp, "neu-ohne-wolke", str(datei), str(ziel),
-                "--art", "mesh" if a.typ == "neu_mesh" else "splats",
-                "--titel", optionen["titel"]]
-        if "crs" in optionen:
-            argv += ["--crs", optionen["crs"]]
-        if "quellHoehe" in optionen:
-            argv += ["--quell-hoehensystem", optionen["quellHoehe"]]
-        if "zielHoehe" in optionen:
-            argv += ["--ziel-hoehensystem", optionen["zielHoehe"]]
+        argv = import_argv(imp, a.typ, optionen, datei, ziel)
         A.stufe_setzen(self.conn, a.id, "konvertiert")
-        lauf, e = self._import_lauf(a, _unit(a.id), argv, arbeit, upload_ordner, "import.log")
+        lauf, e = self._import_lauf(a, _unit(a.id), argv, arbeit, upload_ordner, "import.log",
+                                    datei)
         if self._abbruch.is_set():
             self._fehl(a, F_ABGEBROCHEN)
             return False
-        if self._grenzfehler(a, e):
+        if self._grenzfehler(a, lauf, e):
             return False
         if e.ausgang != "ok":
             self._protokoll_ins_journal(a, lauf)
-            meldung = _letzte_zeile(lauf.protokoll) if e.status == 2 else None
+            # Absage der Eingabe: neu-ohne-wolke mit Exit 2, convert mit Exit 1 und letzter
+            # Zeile „Abgelehnt: …“ (sonst Abbruch ohne Meldung).
+            absage = (2,) if a.typ != "neu_wolke" else (1, 2)
+            meldung = _letzte_zeile(lauf.protokoll) if e.status in absage else None
             self._fehl(a, meldung or F_KONVERTIEREN.format(
                 code=e.status if e.status is not None else "?"))
             return False
         A.stufe_setzen(self.conn, a.id, "prueft")
         lauf, e = self._import_lauf(a, f"{_unit(a.id)}-verify", [imp, "verify", str(datei),
                                                                    str(ziel)],
-                                    arbeit, upload_ordner, "verify.log")
+                                    arbeit, upload_ordner, "verify.log", datei)
         if self._abbruch.is_set():
             self._fehl(a, F_ABGEBROCHEN)
             return False
-        if self._grenzfehler(a, e):
+        if self._grenzfehler(a, lauf, e):
             return False
         if e.ausgang != "ok":
             self._protokoll_ins_journal(a, lauf)
@@ -756,7 +830,7 @@ class Worker:
 
 # --- Selbsttest ---------------------------------------------------------------------------
 
-_PROBE = r"""
+_PROBE = NETZRAUM_QUELLE + r"""
 import json, os, socket, sys
 arbeit, aussen = sys.argv[1], sys.argv[2]
 r = {}
@@ -772,6 +846,16 @@ try:
     socket.socket(socket.AF_UNIX).close(); r["unix"] = "offen"
 except OSError:
     r["unix"] = "zu"
+# Eigener Netz-Namensraum (NETZRAUM_QUELLE): systemd lässt PrivateNetwork im User-Manager still
+# weg, wenn kein Namensraum angelegt werden darf ("proceeding without"); dann sähe der Job die
+# Geräte des Hosts, und 1.1.1.1 zu (gefilterter Ausgang) bewiese nichts. Die Geräte gehen in eine
+# eigene Datei (für die Meldung), nicht in r.
+try:
+    g = netzraum_geraete()
+    r["netzraum"] = netzraum_bewerten(*g)
+    open(os.path.join(arbeit, "netzraum.txt"), "w").write(netzraum_text(*g))
+except Exception:
+    r["netzraum"] = "offen"
 try:
     open(os.path.join(aussen, "probe"), "w").close(); r["aussen"] = "offen"
 except OSError:
@@ -843,7 +927,7 @@ def ram_grenze(laeufer: Laeufer, arbeit: Path, verbergen: tuple[Path, ...] = (),
               str(_RAM_UNBELEGT)],
         arbeit=arbeit, protokoll=arbeit / "ram.log",
         grenzen=Grenzen(ram_mb=ram_mb, zeit_s=60, prozesse=16), verbergen=verbergen,
-        oom_fortsetzen=True,
+        oom_fortsetzen=True, vorspann=False,
     ))
     if e.ausgang == "speicher":
         # OOMPolicy nicht beachtet, die Grenze hat aber gegriffen.
@@ -861,10 +945,11 @@ def ram_grenze(laeufer: Laeufer, arbeit: Path, verbergen: tuple[Path, ...] = (),
 
 
 def selbsttest(s: Einstellungen, laeufer: Laeufer) -> dict[str, str]:
-    """Probelauf mit denselben Grenzen: kein Netz, kein DNS, kein Unix-Socket, nichts außerhalb
-    des Arbeitsordners beschreibbar, und innen beschreibbar; dazu greift die RAM-Grenze (ohne
-    Memory-Delegation nähme systemd `MemoryMax` an, ohne es durchzusetzen; Probe: `ram_grenze`).
-    Wirft SelbsttestFehler."""
+    """Probelauf mit denselben Grenzen: kein Netz, kein DNS, kein Unix-Socket, eigener
+    Netz-Namensraum (`NETZRAUM_QUELLE`), nichts außerhalb des Arbeitsordners beschreibbar, und
+    innen beschreibbar; dazu greift die RAM-Grenze (ohne Memory-Delegation nähme systemd
+    `MemoryMax` an, ohne es durchzusetzen; Probe: `ram_grenze`). Die Proben laufen ohne den
+    Vorspann der Aufträge, sie prüfen selbst. Wirft SelbsttestFehler."""
     s.berichte.mkdir(mode=0o750, parents=True, exist_ok=True)
     arbeit = s.berichte / f"{ARBEIT_PRAEFIX}selbsttest"
     _weg(arbeit)
@@ -875,21 +960,33 @@ def selbsttest(s: Einstellungen, laeufer: Laeufer) -> dict[str, str]:
             argv=[sys.executable, "-I", "-c", _PROBE, str(arbeit), str(s.berichte)],
             arbeit=arbeit, protokoll=arbeit / "lauf.log",
             grenzen=Grenzen(ram_mb=256, zeit_s=60, prozesse=16),
-            verbergen=(s.berichte,),
+            verbergen=(s.berichte,), vorspann=False,
         )
         e = laeufer.ausfuehren(lauf)
         try:
             r: dict[str, str] = json.loads((arbeit / "selbsttest.json").read_text())
         except (OSError, ValueError):
             raise SelbsttestFehler(f"Probelauf ohne Ergebnis ({e.ausgang}, {e.status})") from None
+        geraete = _geraete_text(arbeit / "netzraum.txt")
         r["ram"] = ram_grenze(laeufer, arbeit, (s.berichte,))
     finally:
         _weg(arbeit)
         (s.berichte / "probe").unlink(missing_ok=True)
     offen = [k for k, v in r.items() if v != "zu"]
     if offen:
-        raise SelbsttestFehler(f"Isolation greift nicht: {', '.join(sorted(offen))}")
+        # Bei netzraum die gefundenen Geräte dazu (nur Journal, der Betreiber sieht den Grund).
+        zusatz = f" (Geräte {geraete})" if r.get("netzraum") != "zu" else ""
+        raise SelbsttestFehler(f"Isolation greift nicht: {', '.join(sorted(offen))}{zusatz}")
     return r
+
+
+def _geraete_text(pfad: Path) -> str:
+    """Geräteliste der Probe (netzraum.txt), gekürzt und nur druckbar; sonst „unbekannt“."""
+    try:
+        text = pfad.read_text(encoding="utf-8", errors="replace")[:500]
+    except OSError:
+        return "unbekannt"
+    return text if text.isprintable() and text else "unbekannt"
 
 
 def main(argv: list[str] | None = None) -> int:

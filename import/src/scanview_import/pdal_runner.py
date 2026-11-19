@@ -1,15 +1,26 @@
-"""PDAL und untwine als externe Prozesse (Docker). Keine Bindung an deren Bibliotheken.
+"""PDAL und untwine als externe Prozesse. Keine Bindung an deren Bibliotheken.
 
-PDAL (BSD) läuft aus ``pdal/pdal``, untwine (GPL-3) aus dem eigenen Image
-``scanview-untwine`` (``import/docker/untwine.Dockerfile``). Jeder Container läuft mit
-harter Speichergrenze, als aufrufender Nutzer und gehärtet wie der Textur-Container: ohne Netz
-(R-E-F-3 — die Parser lesen fremde Dateien, lokale Dateien brauchen kein Netz), ohne
+Zwei Ausführungsarten, gewählt per ``SCANVIEW_PDAL_AUSFUEHRUNG``:
+
+``docker`` (Standard, Arbeitsplatz): PDAL (BSD) und untwine (GPL-3) laufen aus dem eigenen,
+lokal gebauten Image ``scanview-pdal`` (``import/docker/pdal.Dockerfile`` + explizites conda-Lock
+``pdal.conda-lock.txt``, beides im Tag gehasht; nie verteilt). Jeder Container
+läuft mit harter Speichergrenze, als aufrufender Nutzer und gehärtet wie der Textur-Container:
+ohne Netz (R-E-F-3 — die Parser lesen fremde Dateien, lokale Dateien brauchen kein Netz), ohne
 Capabilities, ohne Rechteausweitung, mit schreibgeschütztem Wurzeldateisystem (nur ``/work``,
 die Ziel-Mounts und ``/tmp`` beschreibbar).
+
+``lokal`` (Server, Import-Worker): ``pdal`` und ``untwine`` aus der gelockten conda-forge-Umgebung
+``import/pdal-umgebung`` (dieselben Pakete wie im Image), Präfix in ``SCANVIEW_PDAL_UMGEBUNG``.
+Kein Docker: Die Isolation (kein Netz, Dateisystem nur lesend bis auf den Arbeitsordner,
+RAM-Grenze) setzt der Aufrufer — der Worker startet ``scanview-import`` in einer transienten
+systemd-Unit. Die Pipelines bleiben dieselben; Containerpfade (``/out``, ``/src``, ``/work``)
+werden vor dem Start auf die Host-Pfade der Mounts zurückgeführt.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import os
@@ -20,17 +31,22 @@ import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from .model import Vec3
 
-# Gepinnt auf die getestete Version (Tag + Digest, lokal per `pdal --version` = 2.10.2 geprüft):
-# convert verlässt sich auf gemessenes, nicht als API zugesichertes Verhalten von readers.e57
-# (colorLimits-Skalierung, `count` nur im Stream-Modus, Dimension `Omit`). Mit Digest nutzt Docker
-# genau dieses Image, auch wenn der Tag später neu vergeben wird.
-IMAGE = "pdal/pdal:2.10.2@sha256:8e0eb32d54e92058e0e73a6a5ce8cd9ac3a59d30f07c6827e6d7cb7a2e392883"
-UNTWINE_IMAGE = "scanview-untwine:latest"
-UNTWINE_DOCKERFILE = Path(__file__).resolve().parents[2] / "docker" / "untwine.Dockerfile"
+# Ein Image für PDAL und untwine, gebaut aus Dockerfile + explizitem conda-Lock (pdal 2.10.2,
+# untwine 1.5.1; Basis-Images per Digest). convert verlässt sich auf gemessenes, nicht als API
+# zugesichertes Verhalten von readers.e57 (colorLimits-Skalierung, `count` nur im Stream-Modus,
+# Dimension `Omit`) — darum feste Versionen. Der Tag sind die ersten 12 Hex der SHA-256 über
+# Dockerfile und Lock (`image_tag()`); er bleibt ein String-Literal, weil die SBOM-Stufe ihn aus
+# dem Quelltext liest. Ein Drift-Test prüft Literal = `image_tag()`, und ensure_image() bricht
+# bei Abweichung ab: Wer Dockerfile oder Lock ändert, muss den Tag nachziehen, dann baut
+# ensure_image() ein neues Image.
+IMAGE = "scanview-pdal:e65b1fb8ba03"
+DOCKER_DIR = Path(__file__).resolve().parents[2] / "docker"
+DOCKERFILE = DOCKER_DIR / "pdal.Dockerfile"
+LOCKFILE = DOCKER_DIR / "pdal.conda-lock.txt"
 # Dimension für ungültige Punkte (cartesianInvalidState), per `pdal info --schema` gemessen.
 INVALID_DIM = "Omit"
 # Harte Grenze je Container, Swap eingeschlossen — schützt die Workstation (62 GiB).
@@ -48,6 +64,12 @@ _RSS_WRAPPER = (
     "open('/work/peak', 'w').write(str(kb))\n"
     "sys.exit(rc)\n"
 )
+
+
+# Ausführungsart und Präfix der lokalen Umgebung (bin/pdal, bin/untwine, share/proj …).
+AUSFUEHRUNG_VAR = "SCANVIEW_PDAL_AUSFUEHRUNG"
+UMGEBUNG_VAR = "SCANVIEW_PDAL_UMGEBUNG"
+Ausfuehrung = Literal["docker", "lokal"]
 
 
 @dataclass
@@ -229,41 +251,173 @@ def _docker_run(image: str, cmd: Sequence[str], mounts: dict[Path, str], workdir
     return RunStats(seconds, _read_peak_mb(workdir / "peak"), proc.returncode, tail)
 
 
+def ausfuehrung() -> Ausfuehrung:
+    """``docker`` (Standard) oder ``lokal`` aus ``SCANVIEW_PDAL_AUSFUEHRUNG``."""
+    wert = os.environ.get(AUSFUEHRUNG_VAR, "docker")
+    if wert not in ("docker", "lokal"):
+        raise ValueError(f"{AUSFUEHRUNG_VAR} muss docker oder lokal sein.")
+    return "lokal" if wert == "lokal" else "docker"
+
+
+def lokale_umgebung() -> Path:
+    """Präfix der lokalen PDAL-Umgebung: absolut, mit ausführbarem ``bin/pdal`` und
+    ``bin/untwine``. Wirft ValueError (fehlt die Umgebung, bricht der Import laut ab, statt
+    still auf Docker oder ein ``pdal`` aus dem PATH auszuweichen)."""
+    roh = os.environ.get(UMGEBUNG_VAR, "")
+    praefix = Path(roh)
+    if not roh or not praefix.is_absolute():
+        raise ValueError(f"{UMGEBUNG_VAR} fehlt oder ist kein absoluter Pfad.")
+    for name in ("pdal", "untwine"):
+        if not os.access(praefix / "bin" / name, os.X_OK):
+            raise ValueError(f"{UMGEBUNG_VAR}: bin/{name} fehlt oder ist nicht ausführbar.")
+    return praefix
+
+
+def lokale_variablen(praefix: Path) -> dict[str, str]:
+    """Was die Aktivierungsskripte der Umgebung setzen (etc/conda/activate.d), fest statt per
+    Shell: Datenordner von PROJ/GDAL/GeoTIFF, Plugin-Ordner von PDAL/GDAL und PROJ ohne Netz."""
+    return {
+        "PROJ_DATA": str(praefix / "share" / "proj"),
+        "PROJ_NETWORK": "OFF",
+        "GDAL_DATA": str(praefix / "share" / "gdal"),
+        "GDAL_DRIVER_PATH": str(praefix / "lib" / "gdalplugins"),
+        "GEOTIFF_CSV": str(praefix / "share" / "epsg_csv"),
+        "PDAL_DRIVER_PATH": str(praefix / "lib"),
+        "CPL_ZIP_ENCODING": "UTF-8",
+        "XML_CATALOG_FILES": f"file://{praefix}/etc/xml/catalog",
+    }
+
+
+def _pfadtabelle(mounts: dict[Path, str], workdir: Path) -> list[tuple[str, str]]:
+    """Containerpfad → Host-Pfad, längste Containerpfade zuerst (``:ro`` entfällt)."""
+    tabelle = [(cont.split(":", 1)[0], str(host)) for host, cont in mounts.items()]
+    tabelle.append(("/work", str(workdir)))
+    return sorted(tabelle, key=lambda e: len(e[0]), reverse=True)
+
+
+def _host_pfad(wert: str, tabelle: list[tuple[str, str]]) -> str:
+    for cont, host in tabelle:
+        if wert == cont or wert.startswith(cont + "/"):
+            return host + wert[len(cont):]
+    return wert
+
+
+def _uebersetzen(obj: Any, tabelle: list[tuple[str, str]]) -> Any:
+    """Alle Zeichenketten, die mit einem Containerpfad beginnen, auf den Host-Pfad abbilden."""
+    if isinstance(obj, str):
+        return _host_pfad(obj, tabelle)
+    if isinstance(obj, list):
+        return [_uebersetzen(v, tabelle) for v in obj]
+    if isinstance(obj, dict):
+        return {k: _uebersetzen(v, tabelle) for k, v in obj.items()}
+    return obj
+
+
+def _lokal_run(cmd: Sequence[str], workdir: Path) -> RunStats:
+    """Startet ``cmd`` direkt (feste Argumentliste, keine Shell) und misst Laufzeit und
+    Peak-RSS genau dieses Kindes (``wait4``)."""
+    praefix = lokale_umgebung()
+    argv = [str(praefix / "bin" / cmd[0]), *cmd[1:]]
+    env = {**os.environ, **lokale_variablen(praefix)}
+    t0 = time.monotonic()
+    with (workdir / "ausgabe.log").open("w+b") as log:
+        proc = subprocess.Popen(argv, stdout=log, stderr=subprocess.STDOUT, env=env)
+        _, status, nutzung = os.wait4(proc.pid, 0)
+        proc.returncode = os.waitstatus_to_exitcode(status)
+        seconds = time.monotonic() - t0
+        log.seek(max(0, log.seek(0, os.SEEK_END) - 2000))
+        tail = log.read().decode("utf-8", "replace")
+    return RunStats(seconds, nutzung.ru_maxrss / 1024.0, proc.returncode, tail)
+
+
+def _ausfuehren(
+    image: str, cmd: Sequence[str], mounts: dict[Path, str], workdir: Path
+) -> RunStats:
+    if ausfuehrung() == "lokal":
+        return _lokal_run(_uebersetzen(list(cmd), _pfadtabelle(mounts, workdir)), workdir)
+    return _docker_run(image, cmd, mounts, workdir)
+
+
 def run_pipeline(
     pipeline: list[dict[str, Any]], mounts: dict[Path, str], stream: bool = False
 ) -> RunStats:
     """Führt eine PDAL-Pipeline aus. ``stream=True`` erzwingt den Stream-Modus
     (PDAL bricht ab, statt still auf den Standardmodus auszuweichen)."""
+    bild = ensure_image() if ausfuehrung() == "docker" else IMAGE
     with tempfile.TemporaryDirectory() as td:
         work = Path(td)
+        if ausfuehrung() == "lokal":
+            pipeline = _uebersetzen(pipeline, _pfadtabelle(mounts, work))
         (work / "pipeline.json").write_text(json.dumps(pipeline))
         cmd = ["pdal", "pipeline", *(["--stream"] if stream else []), "/work/pipeline.json"]
-        return _docker_run(IMAGE, cmd, mounts, work)
+        return _ausfuehren(bild, cmd, mounts, work)
 
 
-def ensure_untwine_image() -> None:
-    """Baut ``scanview-untwine:latest`` aus dem Dockerfile, falls es lokal fehlt."""
+def inhalt_tag(name: str, dockerfile: Path, lockfile: Path) -> str:
+    """Soll-Tag eines lokal gebauten Images: ``<name>:`` + erste 12 Hex der SHA-256 über die
+    Bytes des Dockerfiles, gefolgt von den Bytes des Locks."""
+    digest = hashlib.sha256(dockerfile.read_bytes() + lockfile.read_bytes()).hexdigest()
+    return f"{name}:{digest[:12]}"
+
+
+def image_tag() -> str:
+    """Soll-Tag von ``IMAGE`` aus Dockerfile und Lock."""
+    return inhalt_tag("scanview-pdal", DOCKERFILE, LOCKFILE)
+
+
+#: In diesem Prozess schon geprüfte Images (Tag → Image-ID): `docker image inspect` läuft je
+#: Image einmal, nicht bei jeder Pipeline (die Kachelausdünnung startet eine je Kachel).
+_GEPRUEFT: dict[str, str] = {}
+
+
+def _image_id(image: str) -> str | None:
     have = subprocess.run(
-        ["docker", "image", "inspect", UNTWINE_IMAGE], capture_output=True, check=False
-    )
-    if have.returncode == 0:
-        return
-    proc = subprocess.run(
-        [
-            "docker",
-            "build",
-            "-f",
-            str(UNTWINE_DOCKERFILE),
-            "-t",
-            UNTWINE_IMAGE,
-            str(UNTWINE_DOCKERFILE.parent),
-        ],
+        ["docker", "image", "inspect", "--format", "{{.Id}}", image],
         capture_output=True,
         text=True,
         check=False,
     )
-    if proc.returncode != 0:
-        raise RuntimeError(f"Bau von {UNTWINE_IMAGE} fehlgeschlagen: {proc.stderr[-2000:]}")
+    return have.stdout.strip() if have.returncode == 0 else None
+
+
+def ensure_gebaut(image: str, dockerfile: Path, lockfile: Path) -> str:
+    """Stellt sicher, dass ``image`` lokal vorhanden ist, und liefert seine Image-ID. Der Tag
+    muss dem Inhalt von Dockerfile und Lock entsprechen (sonst liefe nach einer Änderung still das
+    alte Image weiter); fehlt das Image, wird es gebaut (Kontext: Ordner des Dockerfiles)."""
+    soll = inhalt_tag(image.rsplit(":", 1)[0], dockerfile, lockfile)
+    if image != soll:
+        raise RuntimeError(
+            f"{image} passt nicht zu {dockerfile.name} und {lockfile.name} (Soll {soll}): "
+            "Tag im Quelltext nachziehen"
+        )
+    if image in _GEPRUEFT:
+        return _GEPRUEFT[image]
+    bild_id = _image_id(image)
+    if bild_id is None:
+        proc = subprocess.run(
+            ["docker", "build", "-f", str(dockerfile), "-t", image, str(dockerfile.parent)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.returncode != 0:
+            # Der klassische Builder schreibt die RUN-Ausgabe nach stdout, BuildKit nach stderr.
+            raise RuntimeError(
+                f"Bau von {image} fehlgeschlagen (Exit {proc.returncode})\n"
+                f"stdout (Ende):\n{proc.stdout[-2000:]}\nstderr (Ende):\n{proc.stderr[-2000:]}"
+            )
+        bild_id = _image_id(image)
+        if bild_id is None:
+            raise RuntimeError(f"{image} nach dem Bau nicht vorhanden")
+    _GEPRUEFT[image] = bild_id
+    return bild_id
+
+
+def ensure_image() -> str:
+    """Baut ``IMAGE`` aus Dockerfile und Lock, falls es lokal fehlt (siehe ``ensure_gebaut``), und
+    liefert die geprüfte Image-ID. Gestartet wird mit der ID, nicht mit dem Tag: kein Wechsel
+    zwischen Prüfung und Start (wie ``mesh_textures._run``)."""
+    return ensure_gebaut(IMAGE, DOCKERFILE, LOCKFILE)
 
 
 def run_untwine(src: str, dst: str, temp_dir: str, mounts: dict[Path, str]) -> RunStats:
@@ -272,10 +426,10 @@ def run_untwine(src: str, dst: str, temp_dir: str, mounts: dict[Path, str]) -> R
     In untwine 1.5 ist ``--output_dir`` der Ausgabe-Dateiname; Einzeldatei-COPC ist Standard
     (``--single_file`` ist veraltet und wirkungslos, laut ``untwine --help``).
     """
-    ensure_untwine_image()
+    bild = ensure_image() if ausfuehrung() == "docker" else IMAGE
     with tempfile.TemporaryDirectory() as td:
         cmd = ["untwine", "--files", src, "--output_dir", dst, "--temp_dir", temp_dir]
-        return _docker_run(UNTWINE_IMAGE, cmd, mounts, Path(td))
+        return _ausfuehren(bild, cmd, mounts, Path(td))
 
 
 def combine_stats(stats: Sequence[RunStats]) -> RunStats:

@@ -12,6 +12,10 @@ package = false
 # Lieferkette wie server/: nur Pakete, die am Probe-Tag (2026-10-21) mindestens 7 Tage öffentlich
 # waren — fester ISO-Stichtag, damit ein späterer Relock nicht still weiterwandert.
 exclude-newer = "2026-10-14T00:00:00Z"
+# Sicherheitsausnahme je Paket (gleiche 7-Tage-Regel, eigener fester Stichtag): certifi 2026.10.19
+# (PyPI 2026-10-20T02:24Z, am 05.11.2026 ≥ 7 Tage alt) behebt GHSA-6q48-6c7w-9gw2 (kritisch).
+# Retest: nachweise/tests/test_lock_retests.py.
+exclude-newer-package = { certifi = "2026-10-21T00:00:00Z" }
 # Nie sdists fremder Pakete bauen: jedes Paket aus uv.lock steht hier (drift-getestet).
 no-build-package = [
     "anyio",

@@ -9,6 +9,7 @@ import copy
 import dataclasses
 import hashlib
 import json
+import re
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,7 +17,7 @@ from typing import Any
 
 import pytest
 
-from scanview_nachweise import cli, sbom
+from scanview_nachweise import cli, sbom, scan
 from scanview_nachweise import lizenzen as lizenzpruefung
 from scanview_nachweise.artefakte import Artefakt, Bauergebnis, Datei, Netzschritt
 from scanview_nachweise.fehler import NachweisFehler
@@ -1015,10 +1016,27 @@ def test_echte_werkzeuge_fuer_alle_python_versionen() -> None:
 
 def test_container_purl() -> None:
     digest = "sha256:" + "8e" * 32
-    assert sbom.container_purl(f"pdal/pdal:2.10.2@{digest}") == \
-        "pkg:docker/pdal/pdal@sha256%3A" + "8e" * 32
-    assert sbom.container_purl("scanview-untwine:latest") is None
+    assert sbom.container_purl(f"mambaorg/micromamba:2.10.0@{digest}") == \
+        "pkg:docker/mambaorg/micromamba@sha256%3A" + "8e" * 32
+    assert sbom.container_purl("scanview-pdal:0123456789ab") is None
     assert sbom.container_purl("x@sha256:kurz") is None
+
+
+def test_import_image_konstanten_aus_echtem_quelltext() -> None:
+    """Die SBOM-Stufe liest die Image-Tags per Regex aus dem Quelltext: Sie müssen Literale
+    bleiben (ein berechneter Tag bräche `sbom-image`). Erfasst sind scanview-pdal und
+    scanview-meshtools (Review-Befund 4: meshtools fehlte); untwine hat kein eigenes Image mehr."""
+    erwartet = {"pdal": r"scanview-pdal:[0-9a-f]{12}",
+                "meshtools": r"scanview-meshtools:[0-9a-f]{12}"}
+    assert [k for k, *_ in sbom._IMPORT_BILDER] == list(erwartet)
+    for kennung, quelle, konstante, _ in sbom._IMPORT_BILDER:
+        text = (WURZEL / quelle).read_text(encoding="utf-8")
+        assert re.fullmatch(erwartet[kennung], sbom._konstante(text, konstante, quelle))
+        # Ohne Präfix in IMAGE_PRAEFIXE fiele der blinde Image-Inhalt in die Pflicht-Abdeckung.
+        assert f"{kennung}|" in scan.IMAGE_PRAEFIXE
+    pdal_text = (WURZEL / sbom._IMPORT_BILDER[0][1]).read_text(encoding="utf-8")
+    with pytest.raises(NachweisFehler, match="UNTWINE_IMAGE nicht gefunden"):
+        sbom._konstante(pdal_text, "UNTWINE_IMAGE")
 
 
 # --- Werkzeuge bereitstellen (Netzschritt) ------------------------------------------------------
@@ -1494,9 +1512,9 @@ def test_roh_web_fuegt_mediapipe_modell_ein(
 
 def _falsche_bilder(bom: dict[str, Any], worktree: Path, werkzeuge: object,
                     arbeit: Path) -> dict[str, str]:
-    """Wie `_roh_images`, ohne Docker: zwei Container mit je einem Paket, alles lückenhaft."""
+    """Wie `_roh_images`, ohne Docker: ein Container mit einem Paket, alles lückenhaft."""
     luecken: dict[str, str] = {}
-    for kennung, bild_id in (("pdal", "sha256:" + "a" * 64), ("untwine", "sha256:" + "b" * 64)):
+    for kennung, bild_id in (("pdal", "sha256:" + "a" * 64),):
         cref = f"image:{kennung}"
         bom["components"] += [
             {"type": "container", "bom-ref": cref, "name": kennung, "version": "1",
@@ -1506,7 +1524,7 @@ def _falsche_bilder(bom: dict[str, Any], worktree: Path, werkzeuge: object,
         luecken[cref] = luecken[f"{kennung}|p"] = f"Image {kennung}"
     for d in bom["dependencies"]:
         if d["ref"] == sbom._haupt(bom)["bom-ref"]:
-            d["dependsOn"] += ["image:pdal", "image:untwine"]
+            d["dependsOn"] += ["image:pdal"]
     return luecken
 
 
@@ -1523,7 +1541,7 @@ def test_bilder_sbom_eigene_hauptkomponente_ohne_artefakt(monkeypatch: pytest.Mo
     # Alles lückenhaft und so ausgewiesen.
     assert [c["aggregate"] for c in b["compositions"]] == ["incomplete"]
     refs = {d["ref"] for d in b["dependencies"]}
-    assert {"image:pdal", "pdal|p", "image:untwine", "untwine|p", haupt["bom-ref"]} <= refs
+    assert {"image:pdal", "pdal|p", haupt["bom-ref"]} <= refs
     # serialNumber deterministisch aus Version und Image-IDs, anders als die eines Artefakts.
     nochmal = sbom.erzeuge_bilder(tmp_path, {}, version="0.10.3", ersteller=sbom.ERSTELLER,
                                   arbeitsordner=tmp_path / "b", jetzt=jetzt)
@@ -1551,8 +1569,8 @@ def test_erzeuge_alle_import_ohne_images_bilder_getrennt(monkeypatch: pytest.Mon
                            "scanview-0.1.0.cdx.json"]
     imp_bom = json.loads(e.sboms["import"].read_text("utf-8"))
     alle = [k["bom-ref"] for k in sbom.alle_komponenten(imp_bom["components"])]
-    assert not any(r.startswith(("image:", "pdal|", "untwine|")) for r in alle)
+    assert not any(r.startswith(("image:", "pdal|")) for r in alle)
     bilder = json.loads(e.sboms["importbilder"].read_text("utf-8"))
-    assert {k["bom-ref"] for k in bilder["components"]} >= {"image:pdal", "image:untwine"}
+    assert {k["bom-ref"] for k in bilder["components"]} >= {"image:pdal"}
     gesamt = json.loads(e.gesamt.read_text("utf-8"))
     assert "scanview-importbilder" not in json.dumps(gesamt)

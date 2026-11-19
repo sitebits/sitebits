@@ -75,7 +75,8 @@ def test_starten_ohne_csrf_403(welt: Welt) -> None:  # noqa: F811
 @pytest.mark.parametrize(("koerper", "text"), [
     ({"typ": "gibts_nicht"}, "Unbekannter Auftragstyp"),
     ({"typ": "auswerten_sonne_dach"}, "noch nicht verfügbar"),
-    ({"typ": "neu_wolke"}, "noch nicht verfügbar"),
+    ({"typ": "ergaenzen_mesh"}, "noch nicht verfügbar"),
+    ({"typ": "neu_wolke"}, "Unbekannter Auftragstyp"),  # Import, nicht über Auswertungen
     ({"typ": "auswerten_pruefen", "optionen": {"profil": "unbekannt"}}, "Unbekanntes Profil"),
     ({"typ": "auswerten_pruefen", "optionen": {"profil": "../../etc/passwd"}},
      "Unbekanntes Profil"),

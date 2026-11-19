@@ -19,7 +19,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
 import numpy as np
@@ -426,12 +426,7 @@ def read_frame_cameras(path: Path, *, exif_drehung_ignorieren: bool = False) -> 
         raise ValueError(f"kameras.json: Datei oder Bild nicht lesbar ({exc})") from exc
 
 
-# Bewusst TypeVar statt `def f[E: …]` (PEP 695): bandit im SAST-Werkzeug der Release-Kette läuft mit
-# Python 3.11 und kann die 3.12-Syntax nicht parsen (Trockenlauf 0.9.0 brach daran ab).
-E = TypeVar("E", "CameraExport", "FrameExport")
-
-
-def hoehen_umrechnen(export: E, quelle: str, ziel: str) -> E:  # noqa: UP047
+def hoehen_umrechnen[E: (CameraExport, FrameExport)](export: E, quelle: str, ziel: str) -> E:
     """Kamerapositionen (und Tie Points) ins Höhensystem des Pakets umrechnen.
 
     Nur die Höhe ändert sich; die Drehung bleibt (die Neigung des Quasigeoids liegt im
@@ -471,7 +466,7 @@ def hoehen_umrechnen(export: E, quelle: str, ziel: str) -> E:  # noqa: UP047
     return replace(export, cameras=kameras, vertical_datum=ziel)
 
 
-def lage_anwenden(export: E, matrix: np.ndarray) -> E:  # noqa: UP047
+def lage_anwenden[E: (CameraExport, FrameExport)](export: E, matrix: np.ndarray) -> E:
     """Kameras (Position und Drehung) und Tie Points mit der Lagematrix des Pakets bewegen.
 
     Die Spalten der Kameradrehung sind die Kameraachsen in Weltkoordinaten; eine starre

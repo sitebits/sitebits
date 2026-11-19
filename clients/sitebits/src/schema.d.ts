@@ -14,7 +14,7 @@ export interface paths {
         /** Importaufträge der Instanz (Admin) und Zustand des Workers */
         get: operations["importe_auflisten_api_v1_importe_get"];
         put?: never;
-        /** Neues Projekt aus einem abgeschlossenen Upload (Admin; neu_mesh, neu_splats) */
+        /** Neues Projekt aus einem abgeschlossenen Upload (Admin; neu_wolke, neu_mesh, neu_splats) */
         post: operations["import_starten_api_v1_importe_post"];
         delete?: never;
         options?: never;
@@ -237,7 +237,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Stand der Freigaben (Panoramen, Fotos): Anonymisierung im Paket, aktive Freigabe; mit pruefen=true zusätzlich abweichende Dateien (hasht alle, Sekunden je GB) (Bearbeiter+) */
+        /** Stand der Freigaben (Panoramen, Fotos): Anonymisierung im Paket, aktive Freigabe mit letztem Prüfstand (zuletztGeprueftAm, zuletztAbweichend); mit pruefen=true zusätzlich abweichende Dateien (hasht alle, Sekunden je GB) und speichert den Prüfstand (Bearbeiter+) */
         get: operations["freigaben_lesen"];
         put?: never;
         post?: never;
@@ -906,6 +906,12 @@ export interface components {
         };
         /** Einstellungen */
         Einstellungen: {
+            /**
+             * Ansichtsprofil
+             * @description Standardprofil neuer Nur-Lese-Links (ansehen, messen, arbeiten)
+             * @enum {string}
+             */
+            ansichtsprofil: "ansehen" | "messen" | "arbeiten";
             /** Befundfaeden */
             befundFaeden: boolean;
             /** Benachrichtigung */
@@ -992,7 +998,8 @@ export interface components {
         };
         /**
          * Fehler
-         * @description Jede Fehlerantwort (4xx): Dienstkennung und ein Satz für Menschen.
+         * @description Jede Fehlerantwort (4xx): Dienstkennung, ein Satz für Menschen, ein fester Code und,
+         *     wo vorhanden, ein Hinweis, was stattdessen ginge.
          */
         Fehler: {
             /**
@@ -1000,10 +1007,24 @@ export interface components {
              * @description Nur bei 409 nach Bearbeitungskonflikt: der aktuelle Stand des Objekts.
              */
             aktuell?: unknown;
+            /**
+             * Code
+             * @description Fester Fehlercode, auf den ein Programm verzweigen kann. Codes werden nur ergänzt, nie umbenannt; Liste: docs/public/fehlercodes.md.
+             * @enum {string}
+             */
+            code: "anfrage_ungueltig" | "anmeldung_fehlgeschlagen" | "befund_ist_vorschlag" | "bereich_ungueltig" | "csrf_fehlt" | "eingabe_ungueltig" | "fehler" | "gesperrt" | "id_vergeben" | "keine_berechtigung" | "konflikt" | "link_ungueltig" | "mensch_prueft" | "methode_nicht_erlaubt" | "neu_anmelden" | "nicht_angemeldet" | "nicht_bereit" | "nicht_gefunden" | "nicht_verfuegbar" | "nur_im_browser" | "nur_lesen" | "nur_vorschlag" | "passwort_falsch" | "passwort_noetig" | "schon_entschieden" | "serverfehler" | "statuswechsel_unmoeglich" | "typ_nicht_erlaubt" | "ueberlastet" | "version_fehlt" | "vorschlag_offen" | "zu_gross" | "zu_viele_anfragen" | "zu_viele_auftraege" | "zustand";
             /** Dienst */
             dienst: string;
-            /** Fehler */
+            /**
+             * Fehler
+             * @description Satz für Menschen; der Wortlaut kann sich ändern.
+             */
             fehler: string;
+            /**
+             * Hinweis
+             * @description Was stattdessen ginge.
+             */
+            hinweis?: string | null;
         };
         /**
          * Genauigkeit
@@ -1066,6 +1087,12 @@ export interface components {
             /** Geaendertvonname */
             geaendertVonName: string | null;
             /**
+             * Grundlage
+             * @description Worauf die Koordinaten beruhen: gemessen (von einem Menschen im Viewer in einer Ebene des Pakets gewählt, Maßstab geprüft), ungeprueft (wie gemessen, Maßstab einer Quell-Ebene nicht geprüft), angegeben (ohne Punktquelle oder über ein Token gesetzt), unbekannt (Quell-Ebene nicht mehr im Paket).
+             * @enum {unknown}
+             */
+            grundlage?: "gemessen" | "ungeprueft" | "angegeben" | "unbekannt";
+            /**
              * Herkunft
              * @description mensch oder ki
              */
@@ -1122,6 +1149,12 @@ export interface components {
             geaendertVon: number | null;
             /** Geaendertvonname */
             geaendertVonName: string | null;
+            /**
+             * Grundlage
+             * @description Worauf die Koordinaten beruhen: gemessen (von einem Menschen im Viewer in einer Ebene des Pakets gewählt, Maßstab geprüft), ungeprueft (wie gemessen, Maßstab einer Quell-Ebene nicht geprüft), angegeben (ohne Punktquelle oder über ein Token gesetzt), unbekannt (Quell-Ebene nicht mehr im Paket).
+             * @enum {unknown}
+             */
+            grundlage?: "gemessen" | "ungeprueft" | "angegeben" | "unbekannt";
             /**
              * Herkunft
              * @description mensch oder ki
@@ -1219,6 +1252,11 @@ export interface components {
              * @description Version der Metadaten (für PATCH)
              */
             version: number;
+            /**
+             * Vorschau
+             * @description Vorschaubild vorschau.webp im Paket (sonst Draufsicht)
+             */
+            vorschau: boolean;
         };
         /**
          * ProjektBasis
@@ -1268,6 +1306,11 @@ export interface components {
              * @description Version der Metadaten (für PATCH)
              */
             version: number;
+            /**
+             * Vorschau
+             * @description Vorschaubild vorschau.webp im Paket (sonst Draufsicht)
+             */
+            vorschau: boolean;
         };
         /**
          * Projektkarte
@@ -1322,6 +1365,11 @@ export interface components {
              * @description Version der Metadaten (für PATCH)
              */
             version: number;
+            /**
+             * Vorschau
+             * @description Vorschaubild vorschau.webp im Paket (sonst Draufsicht)
+             */
+            vorschau: boolean;
         };
         /** Projektliste */
         Projektliste: {

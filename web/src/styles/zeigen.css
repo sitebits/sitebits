@@ -1,0 +1,32 @@
+/* Schlanke Profile „ansehen“/„messen“ (profil.ts, zeigen.ts; Alias ?zeigen=1): nur 3D-Ansicht, Meldungszeile und die Leiste unten. Alle übrigen Kinder des body
+   (Werkzeugleiste, Panels, Karte, Hinweise, Gast-Kennzeichnung) ausblenden — Ausschlussliste statt Aufzählung, damit
+   später angehängte Bedienelemente den Modus nicht wieder füllen. Dialoge bleiben (Rückfrage vorn/hinten beim Messen). */
+body.sv-zeigen > :not(#view, #msg, #ansage, .sv-zeigen-leiste, .sv-rueckfrage, dialog, script) { display: none !important; }
+body.sv-zeigen #view { position: fixed; inset: 0; height: auto; touch-action: none; }
+
+.sv-zeigen-leiste { position: fixed; z-index: 20; box-sizing: border-box;
+  left: calc(var(--sv-sa-links) + 8px); right: calc(var(--sv-sa-rechts) + 8px); bottom: calc(var(--sv-sa-unten) + 8px);
+  max-width: 560px; margin: 0 auto; padding: 8px 10px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'titel marke' 'knoepfe knoepfe'; gap: 6px 10px; align-items: center;
+  background: var(--sv-surface); color: var(--sv-fg); border: 1px solid var(--sv-border); border-radius: 10px;
+  font: 15px/1.3 system-ui, sans-serif; -webkit-user-select: none; user-select: none; }
+.sv-zeigen-titel { grid-area: titel; font-weight: 600; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sv-zeigen-marke { grid-area: marke; color: var(--sv-fg-muted); font-size: 13px; text-decoration: none; white-space: nowrap; }
+.sv-zeigen-marke:focus-visible { outline: none; box-shadow: var(--sv-focus); border-radius: var(--sv-radius); }
+.sv-zeigen-knoepfe { grid-area: knoepfe; display: flex; flex-wrap: wrap; gap: 8px; }
+.sv-zeigen-knoepfe button, .sv-zeigen-menue button { flex: 1 1 0; min-height: var(--sv-tippziel); padding: 0 12px; font: inherit; font-weight: 600;
+  color: var(--sv-fg); background: #2a2d33; border: 1px solid var(--sv-border-strong); border-radius: 8px; cursor: pointer;
+  touch-action: manipulation; }
+.sv-zeigen-knoepfe button[aria-pressed='true'], .sv-zeigen-menue button[aria-pressed='true'] { background: var(--sv-accent); color: var(--sv-accent-fg); border-color: var(--sv-accent); }
+.sv-zeigen-knoepfe button:focus-visible, .sv-zeigen-menue button:focus-visible, .sv-zeigen-menue input:focus-visible { outline: none; box-shadow: var(--sv-focus); }
+/* Einstellmenü (aufgeklappt über Titel und Knöpfen): Schalter, Regler und Knöpfe mit Tippzielen ≥ 44 px. */
+.sv-zeigen-menue { grid-area: menue; display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--sv-border); }
+.sv-zeigen-menue[hidden] { display: none; }
+.sv-zeigen-leiste:has(> .sv-zeigen-menue:not([hidden])) { grid-template-areas: 'menue menue' 'titel marke' 'knoepfe knoepfe'; }
+.sv-zeigen-zeile { flex: 1 1 100%; display: flex; align-items: center; gap: 10px; min-height: var(--sv-tippziel); }
+.sv-zeigen-zeile input[type='checkbox'] { width: 24px; height: 24px; margin: 0; accent-color: var(--sv-accent); }
+.sv-zeigen-zeile input[type='range'] { flex: 1 1 auto; min-height: var(--sv-tippziel); margin: 0; accent-color: var(--sv-accent); }
+.sv-zeigen-info { flex: 1 1 100%; color: var(--sv-fg-muted); font-size: 14px; }
+.sv-zeigen-info p { margin: 2px 0; overflow-wrap: anywhere; }
+/* Meldungen (Laden, Messhinweise) oben mittig statt links in der Ecke. */
+body.sv-zeigen #msg { left: 50%; right: auto; transform: translateX(-50%); max-width: calc(100vw - 32px); text-align: center; }

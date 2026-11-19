@@ -16,6 +16,10 @@ fehlt eine Angabe, sagt der Viewer das, statt einen Wert anzunehmen.
 - **Zweite Höhe:** Trägt das Paket die Quasigeoidhöhe (Import ab 0.10, Gitter GCG2016 des BKG),
   steht die andere Höhe daneben, etwa `H 59,837 m NHN (ellips. 100,000 m ±0,4 cm)`. Sie erscheint
   nur, wenn der Unterschied über das ganze Paket höchstens 1 cm schwankt.
+- **Höhensystem beim Import und Upload:** Ohne Angabe eines Ziels ist das Höhensystem im Projekt
+  DHHN2016. Umgerechnet wird nur zwischen ellipsoidischen Höhen und DHHN2016. DHHN92 wird nur
+  deklariert, nicht umgerechnet: Eine Datei in DHHN92 braucht als Höhensystem im Projekt ebenfalls
+  DHHN92, sonst lehnen Import und Upload sie ab, bevor die Datei verarbeitet wird.
 - **Exporte:** Die Koordinatenspalte der Mess-CSV, der Server-Export und die Mängelliste nennen
   Koordinaten- und Höhensystem im Spaltenkopf, zum Beispiel `Koordinaten X Y Z [m, ETRS89/UTM33, NHN]`.
 
@@ -46,6 +50,9 @@ ist. scanview zeigt das, wenn der Genauigkeitsnachweis importiert wurde
   ihnen passt, aber nicht, wie genau es ist. Dafür gibt es nie einen ±-Wert, sondern zum Beispiel
   „Lage nicht unabhängig geprüft (nur Drohnen-GNSS)“ oder „Maßstab aus 1 Strecke gesetzt, nicht
   geprüft“.
+- **Maßstab geprüft** heißt: Jede Kontrollstrecke weicht höchstens das Dreifache ihrer
+  Sollgenauigkeit ab, sonst steht dort „Maßstab weicht ab“. Einen ±-Wert je Messung gibt es bewusst
+  noch nicht.
 - **Ohne Nachweis** steht dort „kein Genauigkeitsnachweis“.
 - **An Messwerten:** Messungen aus einer Ebene mit Nachweis tragen denselben Hinweis, in der
   Messliste und in der Spalte „Hinweis“ der CSV (Viewer und Server).

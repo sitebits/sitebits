@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from . import osv, scan, vex
+from . import gate, osv, pdal_scan, register, scan, vex
 from .fehler import NachweisFehler
 from .manifest import ausgeliefert_fuer, lade_signiertes_manifest, pruefe_version
 from .werkzeuge import Werkzeug, gefilterte_umgebung, git_befehl
@@ -31,9 +31,10 @@ _COMMIT = re.compile(r"[0-9a-f]{40}")
 
 @dataclass(frozen=True)
 class Wochenergebnis:
-    """`blockierend` enthält nur Versionen mit blockierenden Treffern (Zeilen des Treffer-Gates),
-    `neu` die Schwachstellen-IDs daraus, die nicht in `bekannt` standen. `artefakte` je Version
-    und Artefakt: SBOM-Name und Trefferzahlen je Schwere."""
+    """`blockierend` enthält nur Versionen mit blockierenden Zeilen: Treffer-Gate und, wo die
+    Blind-Liste der PDAL-Umgebung greift, Befund-Gate auf den Blind-Befund; `neu` die
+    Schwachstellen-IDs aus den Treffer-Zeilen, die nicht in `bekannt` standen. `artefakte` je
+    Version und Artefakt: SBOM-Name und Trefferzahlen je Schwere."""
 
     versionen: list[str]
     db: scan.DbStand
@@ -135,16 +136,25 @@ def wochenscan(archiv: Path, repo: Path, vex_pfad: Path, allowed_signers: Path, 
     verspäteter Quelle bis 72 h (`scan.db_pruefen`, gegen `jetzt`; vorher
     `scan.db_aktualisieren`, ein protokollierter Online-Schritt). Je Version:
     Scan der ausgelieferten SBOMs ohne Netz, dann `vex.treffer_gate` mit den Lock-Hashes des
-    Release-Commits."""
+    Release-Commits. Nimmt die Blind-Liste der PDAL-Umgebung Pakete einer Version aus der
+    Pflicht (Abdeckung `restrisiko`), gilt für diese Version zusätzlich das Befund-Gate auf den
+    Blind-Befund (`gate.befund_gate`, Fristlogik dort): nach Fristablauf blockiert sie. Solche
+    Zeilen zählen nicht zu `neu` (keine neue Schwachstelle)."""
     if ausgabe.exists():
         raise NachweisFehler("wochenscan-ausgabe", f"{ausgabe}: existiert schon — wird nicht "
                                                    "überschrieben")
     versionen = lade_unterstuetzt(archiv)
     release = {v: release_sboms(archiv, v, allowed_signers) for v in versionen}
-    aussagen = vex.lade_vex(vex_pfad)
-    # Eigenbauten prüft der OSV-Stand (ohne Netz geladen, wie die trivy-DB ≤ 24 h).
-    osv_stand = osv.stand_falls_noetig(
-        [p for sboms, _ in release.values() for p in sboms.values()], cache, jetzt)
+    # Eigenbauten prüft der OSV-Stand (ohne Netz geladen, wie die trivy-DB ≤ 24 h); die
+    # PDAL-Umgebung ihr eigener Stand, VEX dazu aus osv.toml des Repos.
+    alle = [p for sboms, _ in release.values() for p in sboms.values()]
+    osv_stand = osv.stand_falls_noetig(alle, cache, jetzt)
+    pdal = pdal_scan.scan_eingaben(repo, alle, cache, jetzt,
+                                   lambda: register.lade_register(repo).befunde)
+    aussagen = [*vex.lade_vex(vex_pfad), *pdal.vex]
+    blind_zeilen = (gate.befund_gate([pdal.blind_befund], jetzt.date())
+                    if pdal.blind_befund is not None else [])
+    neu_ids: set[str] = set()
     stand: scan.DbStand | None = None
     treffer_je_version: dict[str, list[scan.Treffer]] = {}
     blockierend: dict[str, list[str]] = {}
@@ -152,18 +162,21 @@ def wochenscan(archiv: Path, repo: Path, vex_pfad: Path, allowed_signers: Path, 
     for version in versionen:
         sboms, quellcommit = release[version]
         locks = lock_hashes_im_commit(repo, quellcommit)
-        lauf = scan.scanne_alle(sboms, cache, vex_pfad, werkzeuge, uhr=jetzt, osv=osv_stand)
+        lauf = scan.scanne_alle(sboms, cache, vex_pfad, werkzeuge, uhr=jetzt, osv=osv_stand,
+                                pdal=pdal.stand, blind=pdal.blind)
         stand = lauf.stand
         geliefert = [t for t in lauf.treffer if t.artefakt in sboms]
         treffer_je_version[version] = geliefert
         artefakte[version] = lauf.artefakte
         zeilen = vex.treffer_gate(geliefert, aussagen, jetzt.date(), lock_hashes=locks)
+        neu_ids |= {z.split(" ", 1)[0] for z in zeilen}
+        if any(a.get("abdeckung", {}).get("restrisiko") for a in lauf.artefakte.values()):
+            zeilen = [*zeilen, *blind_zeilen]
         if zeilen:
             blockierend[version] = zeilen
     if stand is None:  # nicht erreichbar: `lade_unterstuetzt` liefert mindestens eine Version
         raise NachweisFehler("wochenscan-versionen", "keine Version gescannt")
-    neu = sorted({z.split(" ", 1)[0] for zeilen in blockierend.values() for z in zeilen}
-                 - bekannt)
+    neu = sorted(neu_ids - bekannt)
     try:
         ausgabe.mkdir(parents=True)
     except OSError as e:

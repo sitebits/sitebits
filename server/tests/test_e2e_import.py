@@ -138,3 +138,70 @@ def test_neues_projekt_ende_zu_ende(welt: Welt, quellen: Path, datei: str, typ: 
     assert [p.name for p in (welt.tmp / "uebergabe").iterdir()] == []
     assert (welt.wurzel / uid / "Quelle" / datei).read_bytes() == daten
     shutil.rmtree(welt.settings.data_dir / pid)
+
+
+# --- Punktwolke: convert + verify mit PDAL/untwine aus der gelockten Umgebung (kein Docker) -----
+
+PDAL_UMGEBUNG = Path(__import__("os").environ.get("SCANVIEW_TEST_PDAL_UMGEBUNG", "/nicht/gesetzt"))
+_LAZ_SKRIPT = r"""
+import sys, numpy as np, laspy, pyproj
+h = laspy.LasHeader(point_format=7, version="1.4")
+h.scales = [0.001] * 3
+h.offsets = [390000.0, 5800000.0, 30.0]
+h.add_crs(pyproj.CRS.from_epsg(25833))
+rng = np.random.default_rng(5)
+n = 50_000
+las = laspy.LasData(h)
+# Fläche statt Würfel (wie ein Scan), Farbe 0 bis 255 in den 16-bit-Feldern (ODM-Art).
+las.x = 390000 + rng.uniform(0, 40, n)
+las.y = 5800000 + rng.uniform(0, 40, n)
+las.z = 30 + 0.05 * (las.x - 390000)
+las.red = rng.integers(0, 256, n); las.green = las.red; las.blue = las.red
+las.write(sys.argv[1])
+"""
+
+
+@pytest.mark.skipif(not (PDAL_UMGEBUNG / "bin" / "untwine").is_file(),
+                    reason="SCANVIEW_TEST_PDAL_UMGEBUNG (Präfix der pixi-Umgebung) nicht gesetzt")
+def test_punktwolke_ende_zu_ende(welt: Welt, tmp_path: Path) -> None:  # noqa: F811
+    c = welt.c["admin"]
+    laz = tmp_path / "scan.laz"
+    subprocess.run([str(IMPORT_BIN / "python"), "-I", "-c", _LAZ_SKRIPT, str(laz)], check=True,
+                   timeout=120)
+    daten = laz.read_bytes()
+    r = welt.anlegen(c, {"Scan/scan.laz": daten})
+    uid = r.json()["id"]
+    welt.senden(c, uid, 0, daten, bis=4096)
+    stand = int(c.head(f"/api/v1/uploads/{uid}/dateien/0").headers["upload-offset"])
+    welt.senden(c, uid, 0, daten, ab=stand)
+    u = c.post(f"/api/v1/uploads/{uid}/abschliessen", json={}, headers=csrf()).json()
+    assert u["dateien"][0]["sha256"] == hashlib.sha256(daten).hexdigest()
+    pid = "e2e-wolke"
+    r = c.post("/api/v1/importe", json={"upload": uid, "typ": "neu_wolke", "optionen": {
+        "projekt": pid, "titel": "Probe Wolke", "rgb8bit": True,
+        "quellHoehe": "ellipsoidal-etrs89", "zielHoehe": "dhhn2016"}}, headers=csrf())
+    assert r.status_code == 202, r.text
+    aid = r.json()["id"]
+
+    from dataclasses import replace
+    s = welt.einstellungen()
+    w = Worker(replace(s, import_bin=IMPORT_BIN, reserve_bytes=0, pdal_umgebung=PDAL_UMGEBUNG),
+               SystemdLaeufer(unsichtbar=(welt.settings.state_dir,)))
+    with Freischalten(welt):
+        w.start()
+        w.schleife(einmal=True)
+    w.conn.close()
+
+    a = c.get(f"/api/v1/importe/{aid}").json()
+    assert a["status"] == "fertig", a
+    assert c.get(f"/api/v1/projekte/{pid}").status_code == 200
+    paket = welt.settings.data_dir / pid
+    manifest = json.loads((paket / "project.json").read_text())
+    assert manifest["title"] == "Probe Wolke"
+    wolke = next(e for e in manifest["layers"] if e["kind"] == "pointcloud")
+    assert wolke["pointCount"] == 50_000
+    hoehe = wolke["sourceOptions"]["hoehe"]
+    assert (hoehe["quelle"], hoehe["ziel"]) == ("ellipsoidal-etrs89", "dhhn2016")
+    assert (paket / "cloud.copc.laz").read_bytes()[:4] == b"LASF"
+    assert [p.name for p in (welt.tmp / "uebergabe").iterdir()] == []
+    shutil.rmtree(paket)

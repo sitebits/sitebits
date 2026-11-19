@@ -1,6 +1,6 @@
 [project]
 name = "scanview-import"
-version = "0.12.0"
+version = "0.12.6"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "pye57>=0.4",
@@ -51,7 +51,7 @@ strict_optional = true
 
 [tool.pytest.ini_options]
 pythonpath = ["tests", "tests/spike", "scripts"]
-markers = ["data: braucht echte Pilotdaten (nicht in CI)", "docker: braucht Docker + pdal/pdal"]
+markers = ["data: braucht echte Pilotdaten (nicht in CI)", "docker: braucht Docker + Image scanview-pdal (baut es bei Bedarf)"]
 # importlib statt prepend (Default): tests/spike/ und scripts/spike/ heißen beide "spike"
 # (Tests importieren Produktivcode als spike.source_mesh/spike.tiles_contract).
 # Im Default-Modus "prepend" kollidieren beide Verzeichnisse als ein einziges Top-Level-Paket

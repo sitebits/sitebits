@@ -551,7 +551,7 @@ wheels = [
 
 [[package]]
 name = "scanview-import"
-version = "0.12.0"
+version = "0.12.6"
 source = { editable = "." }
 dependencies = [
     { name = "laspy", extra = ["lazrs"] },
